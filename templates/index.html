@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный калькулятор с ИИ и чатом</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .box {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .ai-box {
+            background-color: #fdfefe;
+            border: 2px dashed #3498db;
+        }
+
+        .manual-box {
+            background-color: #fef9e7;
+            border: 2px solid #f1c40f;
+            display: none;
+        }
+
+        .final-box {
+            background-color: #e8f8f5;
+            border: 2px solid #1abc9c;
+            display: none;
+        }
+
+        .chat-box {
+            background-color: #f4f6f7;
+            border: 1px solid #bdc3c7;
+            margin-top: 30px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-blue {
+            background-color: #3498db;
+        }
+
+        .btn-blue:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-yellow {
+            background-color: #f39c12;
+        }
+
+        .btn-yellow:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-dark {
+            background-color: #34495e;
+            padding: 10px;
+        }
+
+        #aiResult {
+            margin-top: 15px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            background: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ecf0f1;
+            display: none;
+        }
+
+        .loader {
+            display: none;
+            color: #3498db;
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .grid-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .highlight-input {
+            border: 2px solid #3498db !important;
+            background-color: #eaf2f8;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border-bottom: 1px dashed #bdc3c7;
+            padding-bottom: 5px;
+        }
+
+        .result-value {
+            font-weight: bold;
+            color: #c0392b;
+        }
+
+        /* Стили для чата */
+        #chatHistory {
+            height: 200px;
+            overflow-y: auto;
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .msg-user {
+            color: #2980b9;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .msg-ai {
+            color: #27ae60;
+            font-weight: bold;
+            margin-bottom: 2px;
+            margin-top: 10px;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chatInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+
+        #chatBtn {
+            width: auto;
+            margin: 0;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Профессиональный расчет кровли</h2>
+
+        <div class="box ai-box">
+            <h3 style="margin-top: 0;">Шаг 1: Загрузи чертеж</h3>
+            <input type="file" id="roofImage" accept="image/png, image/jpeg">
+            <button class="btn-blue" onclick="analyzeImage()">Распознать размеры через ИИ</button>
+            <div class="loader" id="loader">Изучаю чертеж... Это займет около 5-10 секунд ⏳</div>
+            <div id="aiResult"></div>
+        </div>
+
+        <div class="box manual-box" id="manualBox">
+            <h3 style="margin-top: 0;">Шаг 2: Проверь данные и угол наклона</h3>
+            <div class="grid-form">
+                <div class="form-group">
+                    <label>Угол наклона (в градусах):</label>
+                    <input type="number" id="mPitch" class="highlight-input" step="1" value="0">
+                </div>
+                <div class="form-group"><label>Общая площадь (в плане):</label><input type="number" id="mArea"
+                        step="0.01" value="0"></div>
+                <div class="form-group"><label>Длина карнизов (м):</label><input type="number" id="mEaves" step="0.01"
+                        value="0"></div>
+                <div class="form-group"><label>Длина торцов (м):</label><input type="number" id="mRakes" step="0.01"
+                        value="0"></div>
+                <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
+                        value="0"></div>
+                <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01"
+                        value="0"></div>
+                <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01"
+                        value="0"></div>
+                <div class="form-group"><label>Длина примыканий (м):</label><input type="number" id="mAbutments"
+                        step="0.01" value="0"></div>
+            </div>
+            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать с углом и запасами</button>
+        </div>
+
+        <div class="box final-box" id="finalBox">
+            <h3 style="margin-top: 0; color: #16a085;">Шаг 3: Итоговые материалы для закупки</h3>
+            <p style="font-size: 13px; color: #7f8c8d; margin-top: -10px;">Математика: Площадь и торцы увеличены с
+                учетом косинуса угла наклона.</p>
+
+            <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
+                        id="fArea">0</span> м²</span></div>
+            <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
+                        id="fEaves">0</span> м</span></div>
+            <div class="result-item"><span>Планка торцевая (+5%):</span> <span class="result-value"><span
+                        id="fRakes">0</span> м</span></div>
+            <div class="result-item"><span>Планка конька (+5%):</span> <span class="result-value"><span
+                        id="fRidges">0</span> м</span></div>
+            <div class="result-item"><span>Планка хребта/вальмы (+5%):</span> <span class="result-value"><span
+                        id="fHips">0</span> м</span></div>
+            <div class="result-item"><span>Ендова нижняя/верхняя (+5%):</span> <span class="result-value"><span
+                        id="fValleys">0</span> м</span></div>
+            <div class="result-item"><span>Планка примыкания (+5%):</span> <span class="result-value"><span
+                        id="fAbutments">0</span> м</span></div>
+        </div>
+
+        <div class="box chat-box">
+            <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
+            <div id="chatHistory"></div>
+            <div class="chat-input-group">
+                <input type="text" id="chatInput" placeholder="Задай вопрос...">
+                <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+
+        function extractNumber(text, keyword) {
+            let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
+            let match = text.match(regex);
+            if (match) { return parseFloat(match[1].replace(',', '.')); }
+            return 0;
+        }
+
+        async function analyzeImage() {
+            const fileInput = document.getElementById('roofImage');
+            const resultDiv = document.getElementById('aiResult');
+            const loader = document.getElementById('loader');
+            const manualBox = document.getElementById('manualBox');
+            const finalBox = document.getElementById('finalBox');
+            const historyBox = document.getElementById('chatHistory');
+
+            if (fileInput.files.length === 0) { alert("Сначала выбери файл с чертежом!"); return; }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            loader.style.display = "block";
+            resultDiv.style.display = "none";
+            manualBox.style.display = "none";
+            finalBox.style.display = "none";
+
+            try {
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                loader.style.display = "none";
+                resultDiv.style.display = "block";
+
+                if (data.error) {
+                    resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>";
+                } else {
+                    const aiText = data.result;
+                    resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + aiText;
+
+                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол наклона');
+                    document.getElementById('mArea').value = extractNumber(aiText, 'Общая площадь кровли') || extractNumber(aiText, 'Площадь');
+                    document.getElementById('mEaves').value = extractNumber(aiText, 'Длина карнизов') || extractNumber(aiText, 'Карниз');
+                    document.getElementById('mRakes').value = extractNumber(aiText, 'Длина торцов') || extractNumber(aiText, 'Торц');
+                    document.getElementById('mRidges').value = extractNumber(aiText, 'Длина коньков') || extractNumber(aiText, 'Конь');
+                    document.getElementById('mHips').value = extractNumber(aiText, 'Длина хребтов') || extractNumber(aiText, 'Хреб');
+                    document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
+                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Длина примыканий') || extractNumber(aiText, 'Примыкан');
+
+                    manualBox.style.display = "block";
+
+                    // Сохраняем текстовый результат в память чата
+                    conversationHistory = [];
+                    conversationHistory.push({
+                        role: "user",
+                        text: "Я загрузил чертеж. Вот текстовые данные, которые ты из него извлек. Запомни их: \n" + aiText
+                    });
+                    conversationHistory.push({
+                        role: "model",
+                        text: "Принято! Я запомнил эти размеры и готов помочь с расчетами."
+                    });
+
+                    historyBox.innerHTML = `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Я извлек цифры с чертежа и сохранил их в памяти.</div><br>`;
+                }
+            } catch (error) {
+                loader.style.display = "none";
+                alert("Ошибка связи с сервером.");
+            }
+        }
+
+        function calculateFinal() {
+            const pitch = parseFloat(document.getElementById('mPitch').value) || 0;
+            const area = parseFloat(document.getElementById('mArea').value) || 0;
+            const eaves = parseFloat(document.getElementById('mEaves').value) || 0;
+            const rakes = parseFloat(document.getElementById('mRakes').value) || 0;
+            const ridges = parseFloat(document.getElementById('mRidges').value) || 0;
+            const hips = parseFloat(document.getElementById('mHips').value) || 0;
+            const valleys = parseFloat(document.getElementById('mValleys').value) || 0;
+            const abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+
+            // Коэффициент ската (через косинус). Если угол 0, косинус 1 (коэффициент = 1)
+            let slopeFactor = 1;
+            if (pitch > 0 && pitch < 89) {
+                slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
+            }
+
+            // Применяем коэффициент к Площади, Торцам, Хребтам и Ендовам. 
+            // Карнизы и коньки остаются горизонтальными.
+            document.getElementById('fArea').innerText = (area * slopeFactor * 1.10).toFixed(2);
+
+            document.getElementById('fEaves').innerText = (eaves * 1.05).toFixed(2);
+            document.getElementById('fRidges').innerText = (ridges * 1.05).toFixed(2);
+
+            document.getElementById('fRakes').innerText = (rakes * slopeFactor * 1.05).toFixed(2);
+            document.getElementById('fHips').innerText = (hips * slopeFactor * 1.05).toFixed(2);
+            document.getElementById('fValleys').innerText = (valleys * slopeFactor * 1.05).toFixed(2);
+            document.getElementById('fAbutments').innerText = (abutments * 1.05).toFixed(2);
+
+            document.getElementById('finalBox').style.display = "block";
+        }
+
+        async function sendChatMessage() {
+            const inputField = document.getElementById('chatInput');
+            const historyBox = document.getElementById('chatHistory');
+            const message = inputField.value.trim();
+
+            if (!message) return;
+
+            historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
+            inputField.value = '';
+            historyBox.scrollTop = historyBox.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory
+                    })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`;
+                } else {
+                    historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`;
+                    conversationHistory.push({ role: "user", text: message });
+                    conversationHistory.push({ role: "model", text: data.reply });
+                }
+                historyBox.scrollTop = historyBox.scrollHeight;
+            } catch (error) {
+                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>Не удалось связаться с сервером.</div><br>`;
+            }
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+    </script>
+</body>
+
+</html>
