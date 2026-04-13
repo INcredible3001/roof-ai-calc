@@ -209,10 +209,9 @@
             padding: 10px 20px;
         }
 
-        /* КОНТЕЙНЕР ДЛЯ 3D */
         #container3D {
             width: 100%;
-            height: 450px;
+            height: 480px;
             background-color: #ecf0f1;
             border-radius: 4px;
             margin-top: 15px;
@@ -226,13 +225,14 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 5px 12px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
-            color: #7f8c8d;
+            color: #5f6c7c;
             pointer-events: none;
+            border: 1px solid #eee;
         }
     </style>
 </head>
@@ -243,7 +243,7 @@
         <h2>Профессиональный расчет кровли</h2>
 
         <div class="box manual-box" id="manualBox">
-            <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры кровли</h3>
+            <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры</h3>
             <div class="grid-form">
 
                 <div class="form-group" style="grid-column: span 2;">
@@ -253,13 +253,15 @@
                         <option value="shed">Односкатная (Плоская)</option>
                         <option value="gable" selected>Двухскатная (Классика)</option>
                         <option value="hip">Вальмовая (Сложная)</option>
+                        <option value="tent">Шатровая (Пирамида)</option>
+                        <option value="multi_gable">Многощипцовая (Крест)</option>
                     </select>
                 </div>
 
-                <div class="form-group"><label id="lblEaves">Длина дома (Карниз 1), м:</label><input type="number"
-                        id="mEaves" step="0.01" value="0"></div>
-                <div class="form-group"><label id="lblRakes">Ширина дома (Карниз 2), м:</label><input type="number"
-                        id="mRakes" step="0.01" value="0"></div>
+                <div class="form-group"><label id="lblEaves">Длина дома (м):</label><input type="number" id="mEaves"
+                        step="0.01" value="0"></div>
+                <div class="form-group"><label id="lblRakes">Ширина дома (м):</label><input type="number" id="mRakes"
+                        step="0.01" value="0"></div>
 
                 <div class="form-group">
                     <label id="lblPitch">Угол основного ската (град):</label>
@@ -271,7 +273,7 @@
                 </div>
 
                 <div class="form-group" id="groupSlopeTrap" style="display: none;">
-                    <label>Длина ската трапеции (м):</label>
+                    <label>Длина ската (м):</label>
                     <input type="number" id="mSlopeTrap" class="highlight-input" step="0.01" value="0"
                         placeholder="Авторасчет">
                 </div>
@@ -310,13 +312,11 @@
                 <div class="instruction-3d">Используйте левую кнопку мыши для вращения, колесико для масштаба</div>
             </div>
 
-            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать итоговые материалы</button>
+            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать материалы</button>
         </div>
 
         <div class="box final-box" id="finalBox">
-            <h3 style="margin-top: 0; color: #16a085;">Шаг 2: Итоговые материалы для закупки</h3>
-            <p style="font-size: 13px; color: #7f8c8d; margin-top: -10px;">Математика: Площадь и торцы увеличены с
-                учетом косинуса угла наклона.</p>
+            <h3 style="margin-top: 0; color: #16a085;">Шаг 2: Итоговые материалы</h3>
             <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
                         id="fArea">0</span> м²</span></div>
             <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
@@ -337,12 +337,12 @@
             <h3 style="margin-top: 0;">Шаг 3: Есть чертеж? Распознать через ИИ</h3>
             <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf, application/pdf">
             <button class="btn-blue" onclick="analyzeImage()">Извлечь размеры с чертежа</button>
-            <div class="loader" id="loader">Изучаю чертеж... Это займет около 5-10 секунд ⏳</div>
+            <div class="loader" id="loader">Изучаю... ⏳</div>
             <div id="aiResult"></div>
         </div>
 
         <div class="box chat-box">
-            <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
+            <h3 style="margin-top: 0; color: #34495e;">Спроси ИИ-ассистента</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
                 <input type="text" id="chatInput" placeholder="Задай вопрос...">
@@ -354,11 +354,8 @@
     <script>
         let conversationHistory = [];
 
-        // ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ИНТЕРФЕЙСА
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
-
-            // Получаем элементы
             const groupPitchHip = document.getElementById('groupPitchHip');
             const groupSlopeTrap = document.getElementById('groupSlopeTrap');
             const groupSlopeHip = document.getElementById('groupSlopeHip');
@@ -366,27 +363,29 @@
             if (rType === 'hip') {
                 document.getElementById('lblEaves').innerText = "Длина дома (Карниз трапеции), м:";
                 document.getElementById('lblRakes').innerText = "Ширина дома (Карниз вальмы), м:";
-
-                // Показываем поля для вальмы
                 groupPitchHip.style.display = "block";
                 groupSlopeTrap.style.display = "block";
                 groupSlopeHip.style.display = "block";
-            } else {
-                document.getElementById('lblEaves').innerText = "Длина дома (Карниз), м:";
-                document.getElementById('lblRakes').innerText = "Ширина дома (Торец), м:";
-
-                // Прячем поля для остальных типов
+            } else if (rType === 'multi_gable') {
+                document.getElementById('lblEaves').innerText = "Длина главного фасада, м:";
+                document.getElementById('lblRakes').innerText = "Ширина пересечения, м:";
                 groupPitchHip.style.display = "none";
                 groupSlopeTrap.style.display = "none";
                 groupSlopeHip.style.display = "none";
-
-                // Очищаем их
-                document.getElementById('mSlopeTrap').value = 0;
-                document.getElementById('mSlopeHip').value = 0;
-                document.getElementById('mPitchHip').value = 0;
+            } else if (rType === 'tent') {
+                document.getElementById('lblEaves').innerText = "Длина дома, м:";
+                document.getElementById('lblRakes').innerText = "Ширина дома, м:";
+                groupPitchHip.style.display = "none";
+                groupSlopeTrap.style.display = "none";
+                groupSlopeHip.style.display = "none";
+            } else {
+                document.getElementById('lblEaves').innerText = "Длина дома (Карниз), м:";
+                document.getElementById('lblRakes').innerText = "Ширина дома (Торец), м:";
+                groupPitchHip.style.display = "none";
+                groupSlopeTrap.style.display = "none";
+                groupSlopeHip.style.display = "none";
             }
         }
-        // Запускаем при старте
         window.onload = toggleRoofFields;
 
         function extractNumber(text, keyword) {
@@ -435,6 +434,7 @@
             let S2 = parseFloat(document.getElementById('mSlopeHip').value) || 0;
             let Ridge = parseFloat(document.getElementById('mRidges').value) || 0;
             let Hip = parseFloat(document.getElementById('mHips').value) || 0;
+            let Valleys = parseFloat(document.getElementById('mValleys').value) || 0;
 
             let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1;
             let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
@@ -447,22 +447,36 @@
             } else if (rType === 'hip') {
                 if (S1 === 0 && W > 0) S1 = (W / 2) / cos1;
                 if (S2 === 0 && W > 0) S2 = (W / 2) / cos2;
-
                 let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
                 if (Ridge === 0 && L > W) Ridge = L - W;
                 if (Hip === 0 && W > 0) {
                     let planHip = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(W / 2, 2));
                     Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
                 }
+            } else if (rType === 'tent') {
+                let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180);
+                if (S1 === 0 && L > 0) S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H);
+                if (S2 === 0 && W > 0) S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H);
+                Ridge = 0;
+                let planHip = Math.sqrt(Math.pow(L / 2, 2) + Math.pow(W / 2, 2));
+                if (Hip === 0 && planHip > 0) Hip = Math.sqrt(planHip * planHip + H * H);
+            } else if (rType === 'multi_gable') {
+                let D = Math.min(L, W) * 0.5;
+                if (S1 === 0 && W > 0) S1 = (D / 2) / cos1;
+                if (Ridge === 0 && L > 0) Ridge = L + W - D;
+                let planValley = (D / 2) * Math.sqrt(2);
+                let H = (D / 2) * Math.tan(P1 * Math.PI / 180);
+                let sValley = Math.sqrt(planValley * planValley + H * H);
+                if (Valleys === 0) Valleys = sValley * 4;
             }
 
-            // Перезаписываем ячейки
             if (S1 > 0 && rType === 'hip') document.getElementById('mSlopeTrap').value = S1.toFixed(2);
             if (S2 > 0 && rType === 'hip') document.getElementById('mSlopeHip').value = S2.toFixed(2);
             if (Ridge > 0) document.getElementById('mRidges').value = Ridge.toFixed(2);
             if (Hip > 0) document.getElementById('mHips').value = Hip.toFixed(2);
+            if (Valleys > 0) document.getElementById('mValleys').value = Valleys.toFixed(2);
 
-            return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, cos1, cos2 };
+            return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
         async function processAndDraw() {
@@ -493,20 +507,23 @@
         function calculateFinal() {
             let vars = doMath();
             let area = parseFloat(document.getElementById('mArea').value) || 0;
-            let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments;
+            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = vars.Valleys, cAbutments = abutments;
             let slopedArea = 0;
 
             if (vars.rType === 'shed') {
                 cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W;
-            }
-            else if (vars.rType === 'gable') {
+            } else if (vars.rType === 'gable') {
                 cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W;
-            }
-            else if (vars.rType === 'hip') {
+            } else if (vars.rType === 'hip') {
                 cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W;
+            } else if (vars.rType === 'tent') {
+                cEaves = vars.L * 2 + vars.W * 2; cHips = vars.Hip * 4; cRidges = 0; cRakes = 0; slopedArea = (vars.L * vars.S2) + (vars.W * vars.S1); area = vars.L * vars.W;
+            } else if (vars.rType === 'multi_gable') {
+                let D = Math.min(vars.L, vars.W) * 0.5;
+                cEaves = 2 * vars.L + 2 * vars.W - 4 * D; cRakes = vars.S1 * 8; cRidges = vars.Ridge;
+                area = vars.L * D + vars.W * D - D * D; slopedArea = area * (1 / vars.cos1);
             }
 
             document.getElementById('mArea').value = area.toFixed(2);
@@ -516,7 +533,7 @@
             document.getElementById('fAbutments').innerText = (cAbutments * 1.05).toFixed(2);
             document.getElementById('fRakes').innerText = (cRakes * 1.05).toFixed(2);
             document.getElementById('fHips').innerText = (cHips * 1.05).toFixed(2);
-            document.getElementById('fValleys').innerText = (cValleys * (1 / vars.cos1) * 1.05).toFixed(2);
+            document.getElementById('fValleys').innerText = (cValleys * 1.05).toFixed(2);
 
             document.getElementById('finalBox').style.display = "block";
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
@@ -539,15 +556,11 @@
         }
         document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
 
-        // ==========================================
-        // --- ПРОДВИНУТАЯ 3D ВИЗУАЛИЗАЦИЯ ---
-        // ==========================================
         let scene, camera, renderer, controls;
         let objectsGroup = new THREE.Group();
 
         function init3D() {
             const container = document.getElementById('container3D');
-
             if (!scene) {
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0xf4f6f7);
@@ -573,26 +586,20 @@
                 dirLight.shadow.mapSize.height = 2048;
                 dirLight.shadow.bias = -0.001;
 
-                // --- НОВЫЕ СТРОКИ: РАСШИРЯЕМ ЗОНУ ТЕНИ ---
-                const d = 50; // Радиус охвата тени (50 метров во все стороны)
-                dirLight.shadow.camera.left = -d;
-                dirLight.shadow.camera.right = d;
-                dirLight.shadow.camera.top = d;
-                dirLight.shadow.camera.bottom = -d;
-                dirLight.shadow.camera.near = 0.1;
-                dirLight.shadow.camera.far = 200;
-                // -----------------------------------------
+                const d = 50;
+                dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
+                dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200;
                 scene.add(dirLight);
 
-                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xecf0f1);
-                scene.add(gridHelper);
-
-                const planeGeo = new THREE.PlaneGeometry(200, 200);
-                const planeMat = new THREE.MeshLambertMaterial({ color: 0xe0e6ed });
+                const planeGeo = new THREE.PlaneGeometry(100, 100);
+                const planeMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 });
                 const planeMesh = new THREE.Mesh(planeGeo, planeMat);
                 planeMesh.rotation.x = -Math.PI / 2;
                 planeMesh.receiveShadow = true;
                 scene.add(planeMesh);
+
+                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9);
+                scene.add(gridHelper);
 
                 scene.add(objectsGroup);
                 animate();
@@ -613,99 +620,105 @@
             container.style.display = "block";
             init3D();
 
-            while (objectsGroup.children.length > 0) {
-                objectsGroup.remove(objectsGroup.children[0]);
-            }
+            while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
             const houseHeight = 4;
-            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0x2c3e50, linewidth: 2 });
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
 
-            // СТРОИМ КОРОБКУ ДОМА
-            const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
-            const houseMesh = new THREE.Mesh(houseGeo, houseMat);
-            houseMesh.position.y = houseHeight / 2;
-            houseMesh.castShadow = true;
-            houseMesh.receiveShadow = true;
-            objectsGroup.add(houseMesh);
+            if (vars.rType === 'multi_gable') {
+                let D = Math.min(vars.L, vars.W) * 0.5;
+                const box1Geo = new THREE.BoxGeometry(vars.L, houseHeight, D);
+                const box1 = new THREE.Mesh(box1Geo, wallMat);
+                box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true;
+                objectsGroup.add(box1); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1Geo), edgeMat));
 
-            const houseEdges = new THREE.EdgesGeometry(houseGeo);
-            const houseLines = new THREE.LineSegments(houseEdges, edgeMat);
-            houseMesh.add(houseLines);
+                const box2Geo = new THREE.BoxGeometry(D, houseHeight, vars.W);
+                const box2 = new THREE.Mesh(box2Geo, wallMat);
+                box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true;
+                objectsGroup.add(box2); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
 
-            // СТРОИМ КРЫШУ
-            let roofMesh;
+                let H = (D / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                const shape1 = new THREE.Shape(); shape1.moveTo(-D / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D / 2, 0);
+                const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: vars.L, bevelEnabled: false });
+                rGeo1.translate(0, 0, -vars.L / 2);
+                const roof1 = new THREE.Mesh(rGeo1, roofMat);
+                roof1.position.set(0, houseHeight, 0); roof1.rotation.y = Math.PI / 2; roof1.castShadow = true; roof1.receiveShadow = false;
+                objectsGroup.add(roof1); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
 
-            if (vars.rType === 'shed') {
-                const h = vars.W * Math.tan(vars.P1 * Math.PI / 180);
-                const shape = new THREE.Shape();
-                shape.moveTo(-vars.W / 2, 0); shape.lineTo(-vars.W / 2, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
+                const shape2 = new THREE.Shape(); shape2.moveTo(-D / 2, 0); shape2.lineTo(0, H); shape2.lineTo(D / 2, 0);
+                const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: vars.W, bevelEnabled: false });
+                rGeo2.translate(0, 0, -vars.W / 2);
+                const roof2 = new THREE.Mesh(rGeo2, roofMat);
+                roof2.position.set(0, houseHeight + 0.01, 0); roof2.castShadow = true; roof2.receiveShadow = false;
+                objectsGroup.add(roof2); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat));
 
-                const extrudeSettings = { depth: vars.L, bevelEnabled: false };
-                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofGeo.translate(0, 0, -vars.L / 2);
+            } else {
+                const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
+                const houseMesh = new THREE.Mesh(houseGeo, wallMat);
+                houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
+                objectsGroup.add(houseMesh); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
 
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
-                roofMesh.rotation.y = Math.PI / 2;
-
-            } else if (vars.rType === 'gable') {
-                const h = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                const shape = new THREE.Shape();
-                shape.moveTo(-vars.W / 2, 0); shape.lineTo(0, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
-
-                const extrudeSettings = { depth: vars.L, bevelEnabled: false };
-                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofGeo.translate(0, 0, -vars.L / 2);
-
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
-                roofMesh.rotation.y = Math.PI / 2;
-
-            } else if (vars.rType === 'hip') {
-                let H = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                let indent = H / Math.tan(vars.P2 * Math.PI / 180);
-                if (indent > vars.L / 2) {
-                    indent = vars.L / 2;
-                    H = (vars.L / 2) * Math.tan(vars.P2 * Math.PI / 180);
+                let roofMesh;
+                if (vars.rType === 'shed') {
+                    const h = vars.W * Math.tan(vars.P1 * Math.PI / 180);
+                    const shape = new THREE.Shape(); shape.moveTo(-vars.W / 2, 0); shape.lineTo(-vars.W / 2, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
+                    const rGeo = new THREE.ExtrudeGeometry(shape, { depth: vars.L, bevelEnabled: false });
+                    rGeo.translate(0, 0, -vars.L / 2);
+                    roofMesh = new THREE.Mesh(rGeo, roofMat);
+                    roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
+                } else if (vars.rType === 'gable') {
+                    const h = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    const shape = new THREE.Shape(); shape.moveTo(-vars.W / 2, 0); shape.lineTo(0, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
+                    const rGeo = new THREE.ExtrudeGeometry(shape, { depth: vars.L, bevelEnabled: false });
+                    rGeo.translate(0, 0, -vars.L / 2);
+                    roofMesh = new THREE.Mesh(rGeo, roofMat);
+                    roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
+                } else if (vars.rType === 'hip') {
+                    let H = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    let indent = H / Math.tan(vars.P2 * Math.PI / 180);
+                    if (indent > vars.L / 2) { indent = vars.L / 2; H = (vars.L / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                    const vertices = new Float32Array([
+                        -vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0,
+                        -vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0, -vars.L / 2 + indent, H, 0,
+                        vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2 - indent, H, 0,
+                        vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0,
+                        vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0, vars.L / 2 - indent, H, 0,
+                        -vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, vars.W / 2, -vars.L / 2 + indent, H, 0,
+                        -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2,
+                        -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2, -vars.L / 2, 0, vars.W / 2
+                    ]);
+                    const roofGeo = new THREE.BufferGeometry();
+                    roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    roofGeo.computeVertexNormals();
+                    roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                    roofMesh.position.set(0, houseHeight, 0);
+                } else if (vars.rType === 'tent') {
+                    let H = (Math.min(vars.L, vars.W) / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    const vertices = new Float32Array([
+                        -vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, vars.W / 2, 0, H, 0,
+                        vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, -vars.W / 2, 0, H, 0,
+                        vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, -vars.W / 2, 0, H, 0,
+                        -vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, vars.W / 2, 0, H, 0,
+                        -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2,
+                        -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2, -vars.L / 2, 0, vars.W / 2
+                    ]);
+                    const roofGeo = new THREE.BufferGeometry();
+                    roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    roofGeo.computeVertexNormals();
+                    roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                    roofMesh.position.set(0, houseHeight, 0);
                 }
 
-                const vertices = new Float32Array([
-                    // Трапеция 1 (Перед)
-                    -vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0,
-                    -vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0, -vars.L / 2 + indent, H, 0,
-                    // Треугольник 1 (Право)
-                    vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2 - indent, H, 0,
-                    // Трапеция 2 (Зад)
-                    vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0,
-                    vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0, vars.L / 2 - indent, H, 0,
-                    // Треугольник 2 (Лево)
-                    -vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, vars.W / 2, -vars.L / 2 + indent, H, 0,
-                    // Основание
-                    -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2,
-                    -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2, -vars.L / 2, 0, vars.W / 2
-                ]);
-
-                const roofGeo = new THREE.BufferGeometry();
-                roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                roofGeo.computeVertexNormals();
-
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
+                roofMesh.castShadow = true; roofMesh.receiveShadow = false;
+                objectsGroup.add(roofMesh);
+                objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
             }
-
-            roofMesh.castShadow = true;
-            roofMesh.receiveShadow = false;
-            objectsGroup.add(roofMesh);
-
-            const roofEdges = new THREE.EdgesGeometry(roofMesh.geometry);
-            const roofLines = new THREE.LineSegments(roofEdges, edgeMat);
-            roofMesh.add(roofLines);
 
             controls.target.set(0, houseHeight, 0);
             let maxDim = Math.max(vars.L, vars.W);
-            camera.position.set(maxDim * 1.2, houseHeight + maxDim * 0.8, maxDim * 1.2);
+            camera.position.set(maxDim * 1.3, houseHeight + maxDim * 0.9, maxDim * 1.3);
         }
     </script>
 </body>
