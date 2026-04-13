@@ -484,7 +484,7 @@
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
             if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
 
-            let vars = doMath();
+            let vars = doMath(); // Сначала считаем всё
             const schemeBox = document.getElementById('schemeResult');
             schemeBox.style.display = "block";
             schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
@@ -493,8 +493,15 @@
                 const response = await fetch('/generate_scheme', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2,
-                        slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
+                        roof_type: vars.rType,
+                        width: vars.L,
+                        height: vars.W,
+                        pitch: vars.P1,
+                        pitch_hip: vars.P2,
+                        slope_trap: vars.S1.toFixed(2),
+                        slope_hip: vars.S2.toFixed(2),
+                        ridge: vars.Ridge.toFixed(2),
+                        hip: vars.Hip.toFixed(2)
                     })
                 });
                 const data = await response.json();
