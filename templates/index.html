@@ -209,15 +209,30 @@
             padding: 10px 20px;
         }
 
+        /* КОНТЕЙНЕР ДЛЯ 3D */
         #container3D {
             width: 100%;
-            height: 400px;
-            background-color: #87CEEB;
+            height: 450px;
+            background-color: #ecf0f1;
             border-radius: 4px;
             margin-top: 15px;
             display: none;
             border: 2px solid #bdc3c7;
             overflow: hidden;
+            position: relative;
+        }
+
+        .instruction-3d {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #7f8c8d;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -289,7 +304,10 @@
             <div id="schemeResult"
                 style="text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none;">
             </div>
-            <div id="container3D"></div>
+
+            <div id="container3D">
+                <div class="instruction-3d">Используйте левую кнопку мыши для вращения, колесико для масштаба</div>
+            </div>
 
             <button class="btn-yellow" onclick="calculateFinal()">Рассчитать итоговые материалы</button>
         </div>
@@ -340,21 +358,15 @@
             if (rType === 'hip') {
                 document.getElementById('lblEaves').innerText = "Длина дома (Карниз трапеции), м:";
                 document.getElementById('lblRakes').innerText = "Ширина дома (Карниз вальмы), м:";
-
-                // Показываем поля для вальмы
                 document.getElementById('groupPitchHip').style.display = "block";
                 document.getElementById('groupSlopeTrap').style.display = "block";
                 document.getElementById('groupSlopeHip').style.display = "block";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (Карниз), м:";
                 document.getElementById('lblRakes').innerText = "Ширина дома (Торец), м:";
-
-                // Прячем поля для остальных типов
                 document.getElementById('groupPitchHip').style.display = "none";
                 document.getElementById('groupSlopeTrap').style.display = "none";
                 document.getElementById('groupSlopeHip').style.display = "none";
-
-                // Сбрасываем их значения, чтобы не мешали расчетам
                 document.getElementById('mSlopeTrap').value = 0;
                 document.getElementById('mSlopeHip').value = 0;
             }
@@ -490,31 +502,56 @@
         }
         document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
 
+        // ==========================================
+        // --- ПРОДВИНУТАЯ 3D ВИЗУАЛИЗАЦИЯ ---
+        // ==========================================
         let scene, camera, renderer, controls;
-        let roofMesh, houseMesh;
+        let objectsGroup = new THREE.Group();
 
         function init3D() {
             const container = document.getElementById('container3D');
-            if (scene) {
-                if (roofMesh) scene.remove(roofMesh);
-                if (houseMesh) scene.remove(houseMesh);
-                return;
+
+            if (!scene) {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf4f6f7); // Светло-серый фон
+
+                camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.shadowMap.enabled = true; // Включаем тени!
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
+
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+
+                // Освещение
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(20, 40, 20);
+                dirLight.castShadow = true; // Свет отбрасывает тень
+                dirLight.shadow.mapSize.width = 2048;
+                dirLight.shadow.mapSize.height = 2048;
+                scene.add(dirLight);
+
+                // Чертежная сетка
+                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xecf0f1);
+                scene.add(gridHelper);
+
+                // Земля (принимает тени)
+                const planeGeo = new THREE.PlaneGeometry(200, 200);
+                const planeMat = new THREE.MeshLambertMaterial({ color: 0xe0e6ed });
+                const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+                planeMesh.rotation.x = -Math.PI / 2;
+                planeMesh.receiveShadow = true;
+                scene.add(planeMesh);
+
+                scene.add(objectsGroup);
+                animate();
             }
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);
-            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(20, 20, 30);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(renderer.domElement);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(10, 20, 10);
-            scene.add(dirLight);
-            animate();
         }
 
         function animate() {
@@ -524,67 +561,60 @@
         }
 
         function render3D() {
-            let L = parseFloat(document.getElementById('mEaves').value) || 0;
-            let W = parseFloat(document.getElementById('mRakes').value) || 0;
-            let P1 = parseFloat(document.getElementById('mPitch').value) || 0;
-            const rType = document.getElementById('roofType').value;
-
-            if (L === 0 || W === 0) { alert("Сначала введите Длину и Ширину дома!"); return; }
+            // Выполняем математику для получения правильных высот
+            let vars = doMath();
+            if (vars.L === 0 || vars.W === 0) { alert("Сначала введите Длину и Ширину дома!"); return; }
 
             const container = document.getElementById('container3D');
             container.style.display = "block";
             init3D();
 
-            const houseHeight = 4;
-            const houseGeo = new THREE.BoxGeometry(L, houseHeight, W);
-            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-            houseMesh = new THREE.Mesh(houseGeo, houseMat);
-            houseMesh.position.y = houseHeight / 2;
-            scene.add(houseMesh);
-
-            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
-
-            if (rType === 'shed') {
-                const roofHeight = W * Math.tan(P1 * Math.PI / 180);
-                const shape = new THREE.Shape();
-                shape.moveTo(-W / 2, 0);
-                shape.lineTo(-W / 2, roofHeight);
-                shape.lineTo(W / 2, 0);
-                shape.lineTo(-W / 2, 0);
-
-                const extrudeSettings = { depth: L, bevelEnabled: false };
-                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofGeo.translate(0, 0, -L / 2);
-
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
-                roofMesh.rotation.y = Math.PI / 2;
-                scene.add(roofMesh);
-
-            } else if (rType === 'gable') {
-                const roofHeight = (W / 2) * Math.tan(P1 * Math.PI / 180);
-                const shape = new THREE.Shape();
-                shape.moveTo(-W / 2, 0);
-                shape.lineTo(0, roofHeight);
-                shape.lineTo(W / 2, 0);
-                shape.lineTo(-W / 2, 0);
-
-                const extrudeSettings = { depth: L, bevelEnabled: false };
-                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofGeo.translate(0, 0, -L / 2);
-
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
-                roofMesh.rotation.y = Math.PI / 2;
-                scene.add(roofMesh);
-            } else {
-                alert("3D Вальма в разработке! Пока показываем коробку.");
+            // Очищаем старые постройки
+            while (objectsGroup.children.length > 0) {
+                objectsGroup.remove(objectsGroup.children[0]);
             }
 
-            controls.target.set(0, houseHeight, 0);
-            camera.position.set(L * 1.5, houseHeight + 10, W * 1.5);
-        }
-    </script>
-</body>
+            const houseHeight = 4;
+            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x2c3e50, linewidth: 2 }); // Черные грани
 
-</html>
+            // --- 1. СТРОИМ КОРОБКУ ДОМА ---
+            const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
+            const houseMesh = new THREE.Mesh(houseGeo, houseMat);
+            houseMesh.position.y = houseHeight / 2;
+            houseMesh.castShadow = true;
+            houseMesh.receiveShadow = true;
+            objectsGroup.add(houseMesh);
+
+            // Грани для дома
+            const houseEdges = new THREE.EdgesGeometry(houseGeo);
+            const houseLines = new THREE.LineSegments(houseEdges, edgeMat);
+            houseMesh.add(houseLines);
+
+            // --- 2. СТРОИМ КРЫШУ ---
+            let roofMesh;
+
+            if (vars.rType === 'shed') {
+                const h = vars.W * Math.tan(vars.P1 * Math.PI / 180);
+                const shape = new THREE.Shape();
+                shape.moveTo(-vars.W / 2, 0); shape.lineTo(-vars.W / 2, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
+
+                const extrudeSettings = { depth: vars.L, bevelEnabled: false };
+                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                roofGeo.translate(0, 0, -vars.L / 2);
+
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.set(0, houseHeight, 0);
+                roofMesh.rotation.y = Math.PI / 2;
+
+            } else if (vars.rType === 'gable') {
+                const h = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                const shape = new THREE.Shape();
+                shape.moveTo(-vars.W / 2, 0); shape.lineTo(0, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
+
+                const extrudeSettings = { depth: vars.L, bevelEnabled: false };
+                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                roofGeo.translate(0, 0, -vars.L / 2);
+
+                roofMesh = new THREE.Mesh
