@@ -572,6 +572,16 @@
                 dirLight.shadow.mapSize.width = 2048;
                 dirLight.shadow.mapSize.height = 2048;
                 dirLight.shadow.bias = -0.001;
+
+                // --- НОВЫЕ СТРОКИ: РАСШИРЯЕМ ЗОНУ ТЕНИ ---
+                const d = 50; // Радиус охвата тени (50 метров во все стороны)
+                dirLight.shadow.camera.left = -d;
+                dirLight.shadow.camera.right = d;
+                dirLight.shadow.camera.top = d;
+                dirLight.shadow.camera.bottom = -d;
+                dirLight.shadow.camera.near = 0.1;
+                dirLight.shadow.camera.far = 200;
+                // -----------------------------------------
                 scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xecf0f1);
