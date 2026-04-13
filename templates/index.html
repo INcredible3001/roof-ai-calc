@@ -436,6 +436,7 @@
             const rType = document.getElementById('roofType').value;
             const w = parseFloat(document.getElementById('mEaves').value) || 0;
             const h = parseFloat(document.getElementById('mRakes').value) || 0;
+            const p = parseFloat(document.getElementById('mPitch').value) || 0; // ДОБАВЛЕНО: Считываем угол
             const schemeBox = document.getElementById('schemeResult');
 
             if (w === 0 || h === 0) {
@@ -450,7 +451,7 @@
                 const response = await fetch('/generate_scheme', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roof_type: rType, width: w, height: h })
+                    body: JSON.stringify({ roof_type: rType, width: w, height: h, pitch: p }) // ДОБАВЛЕНО: Отправляем pitch
                 });
                 const data = await response.json();
                 schemeBox.innerHTML = data.svg;
