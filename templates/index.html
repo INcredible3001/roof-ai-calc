@@ -620,6 +620,7 @@
             container.style.display = "block";
             init3D();
 
+            // Удаляем старые объекты
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
             const houseHeight = 4;
@@ -627,38 +628,51 @@
             const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
 
+            // СТРОИМ ДОМ И КРЫШУ
             if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5;
+
+                // Коробка 1
                 const box1Geo = new THREE.BoxGeometry(vars.L, houseHeight, D);
                 const box1 = new THREE.Mesh(box1Geo, wallMat);
                 box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true;
-                objectsGroup.add(box1); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1Geo), edgeMat));
+                // ПРАВИЛЬНО ПРИВЯЗЫВАЕМ ЛИНИИ К САМОЙ КОРОБКЕ
+                box1.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1Geo), edgeMat));
+                objectsGroup.add(box1);
 
+                // Коробка 2
                 const box2Geo = new THREE.BoxGeometry(D, houseHeight, vars.W);
                 const box2 = new THREE.Mesh(box2Geo, wallMat);
                 box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true;
-                objectsGroup.add(box2); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
+                box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
+                objectsGroup.add(box2);
 
+                // Крыша 1
                 let H = (D / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 const shape1 = new THREE.Shape(); shape1.moveTo(-D / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D / 2, 0);
                 const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: vars.L, bevelEnabled: false });
                 rGeo1.translate(0, 0, -vars.L / 2);
                 const roof1 = new THREE.Mesh(rGeo1, roofMat);
                 roof1.position.set(0, houseHeight, 0); roof1.rotation.y = Math.PI / 2; roof1.castShadow = true; roof1.receiveShadow = false;
-                objectsGroup.add(roof1); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
+                roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
+                objectsGroup.add(roof1);
 
+                // Крыша 2
                 const shape2 = new THREE.Shape(); shape2.moveTo(-D / 2, 0); shape2.lineTo(0, H); shape2.lineTo(D / 2, 0);
                 const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: vars.W, bevelEnabled: false });
                 rGeo2.translate(0, 0, -vars.W / 2);
                 const roof2 = new THREE.Mesh(rGeo2, roofMat);
                 roof2.position.set(0, houseHeight + 0.01, 0); roof2.castShadow = true; roof2.receiveShadow = false;
-                objectsGroup.add(roof2); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat));
+                roof2.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat));
+                objectsGroup.add(roof2);
 
             } else {
+                // ОБЫЧНАЯ ПРЯМОУГОЛЬНАЯ КОРОБКА
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
                 houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
-                objectsGroup.add(houseMesh); objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
+                houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
+                objectsGroup.add(houseMesh);
 
                 let roofMesh;
                 if (vars.rType === 'shed') {
@@ -712,8 +726,8 @@
                 }
 
                 roofMesh.castShadow = true; roofMesh.receiveShadow = false;
+                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
-                objectsGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
             }
 
             controls.target.set(0, houseHeight, 0);
