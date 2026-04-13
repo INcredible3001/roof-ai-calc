@@ -42,7 +42,7 @@
         .manual-box {
             background-color: #fef9e7;
             border: 2px solid #f1c40f;
-
+            /* Ручной ввод теперь открыт всегда! */
         }
 
         .final-box {
@@ -304,7 +304,6 @@
             const fileInput = document.getElementById('roofImage');
             const resultDiv = document.getElementById('aiResult');
             const loader = document.getElementById('loader');
-            const manualBox = document.getElementById('manualBox');
             const finalBox = document.getElementById('finalBox');
             const historyBox = document.getElementById('chatHistory');
 
@@ -315,7 +314,6 @@
 
             loader.style.display = "block";
             resultDiv.style.display = "none";
-            manualBox.style.display = "none";
             finalBox.style.display = "none";
 
             try {
@@ -340,8 +338,6 @@
                     document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
                     document.getElementById('mAbutments').value = extractNumber(aiText, 'Длина примыканий') || extractNumber(aiText, 'Примыкан');
 
-                    manualBox.style.display = "block";
-
                     // Сохраняем текстовый результат в память чата
                     conversationHistory = [];
                     conversationHistory.push({
@@ -361,6 +357,7 @@
             }
         }
 
+        // ЖЕЛЕЗОБЕТОННАЯ ФУНКЦИЯ РАСЧЕТА
         function calculateFinal() {
             const rType = document.getElementById('roofType').value;
             let area = parseFloat(document.getElementById('mArea').value) || 0;
@@ -372,7 +369,6 @@
             let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            // --- УМНЫЕ МНОЖИТЕЛИ ПО ТИПУ КРОВЛИ ---
             let calcEaves = eaves;
             let calcRakes = rakes;
             let calcRidges = ridges;
@@ -380,76 +376,56 @@
             let calcValleys = valleys;
             let calcAbutments = abutments;
 
+            // Множители
             if (rType === 'shed') {
-                // Односкатная
-                calcEaves = eaves * 1; // 1 карниз внизу
-                calcRakes = rakes * 2; // 2 торца по бокам
-                // Если примыкание не указали, оно обычно равно карнизу (наверху)
+                calcEaves = eaves * 1;
+                calcRakes = rakes * 2;
                 if (calcAbutments === 0 && eaves > 0) calcAbutments = eaves;
-            }
-            else if (rType === 'gable') {
-                // Двухскатная
-                calcEaves = eaves * 2; // 2 ската = 2 карниза
-                calcRakes = rakes * 4; // 2 фронтона по 2 ската = 4 торца
-                // Если конек не указали, берем длину карниза
+            } else if (rType === 'gable') {
+                calcEaves = eaves * 2;
+                calcRakes = rakes * 4;
                 if (calcRidges === 0 && eaves > 0) calcRidges = eaves;
-            }
-            else if (rType === 'hip') {
-                // Вальмовая
-                calcEaves = (eaves * 2) + (rakes * 2); // У вальмы все 4 стороны - это карнизы
-                calcRakes = 0; // Торцов нет вообще
-                // Обычно 4 хребта (если ввели длину одного)
+            } else if (rType === 'hip') {
+                calcEaves = (eaves * 2) + (rakes * 2);
+                calcRakes = 0;
                 if (calcHips === 0 && hips > 0) calcHips = hips * 4;
-                if (calcHips > 0 && hips > 0) calcHips = hips * 4; // Принудительно умножаем на 4
-                // Если конек не указали, высчитываем его примерно (длина минус ширина)
+                if (calcHips > 0 && hips > 0) calcHips = hips * 4;
                 if (calcRidges === 0 && eaves > rakes) calcRidges = eaves - rakes;
             }
 
-            // --- АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ ---
-            if (area === 0 && eaves > 0 && rakes > 0) {
-                if (rType === 'gable') {
-                    area = eaves * (rakes * 2); // Два ската
-                } else {
-                    area = eaves * rakes; // Односкатная или периметр вальмовой
-                }
-                // Показываем посчитанную площадь в ячейке
-                document.getElementById('mArea').value = area.toFixed(2);
-            }
-
-            // --- КОЭФФИЦИЕНТ СКАТА (КОСИНУС) ---
+            // Косинус
             let slopeFactor = 1;
             if (pitch > 0 && pitch < 89) {
                 slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
             }
 
-            // --- АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ (С УЧЕТОМ ЧЕЛОВЕЧЕСКОГО ОКРУГЛЕНИЯ) ---
-            let slopedArea = area * slopeFactor; // Площадь с учетом ската (по умолчанию)
+            // Человеческое округление ската (как на чертеже)
+            let trueRake = parseFloat((rakes * slopeFactor).toFixed(2));
+            let slopedArea = 0;
 
-            if (area === 0 && eaves > 0 && rakes > 0) {
-                // Берем округленный скат, чтобы математика 1 в 1 совпадала с цифрами на чертеже
-                let trueRake = parseFloat((rakes * slopeFactor).toFixed(2));
-
+            // ЖЕСТКАЯ ЛОГИКА: если есть карниз и торец, всегда считаем площадь по ним
+            if (eaves > 0 && rakes > 0) {
                 if (rType === 'gable') {
-                    area = eaves * (rakes * 2); // Площадь в плане (для ячейки)
-                    slopedArea = eaves * (trueRake * 2); // Истинная площадь для закупки
+                    area = eaves * (rakes * 2);
+                    slopedArea = eaves * (trueRake * 2);
                 } else {
                     area = eaves * rakes;
                     slopedArea = eaves * trueRake;
                 }
-                // Показываем площадь в плане в ячейке
+                // Показываем клиенту площадь в плане
                 document.getElementById('mArea').value = area.toFixed(2);
+            } else {
+                // Если карнизов и торцов нет, считаем просто от введенной площади
+                slopedArea = area * slopeFactor;
             }
 
-            // --- ИТОГОВЫЙ ВЫВОД С УГЛОМ И ЗАПАСАМИ (+5% и +10%) ---
-            // Используем новую slopedArea для покрытия
+            // Итоговый вывод (+10% для площади, +5% для планок)
             document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
 
-            // Горизонтальные элементы (без косинуса)
             document.getElementById('fEaves').innerText = (calcEaves * 1.05).toFixed(2);
             document.getElementById('fRidges').innerText = (calcRidges * 1.05).toFixed(2);
             document.getElementById('fAbutments').innerText = (calcAbutments * 1.05).toFixed(2);
 
-            // Наклонные элементы (умножаем на косинус)
             document.getElementById('fRakes').innerText = (calcRakes * slopeFactor * 1.05).toFixed(2);
             document.getElementById('fHips').innerText = (calcHips * slopeFactor * 1.05).toFixed(2);
             document.getElementById('fValleys').innerText = (calcValleys * slopeFactor * 1.05).toFixed(2);
@@ -496,12 +472,11 @@
             if (e.key === 'Enter') sendChatMessage();
         });
 
-        // НОВЫЙ БЛОК: Функция отрисовки чертежа
         async function drawScheme() {
             const rType = document.getElementById('roofType').value;
             const w = parseFloat(document.getElementById('mEaves').value) || 0;
             const h = parseFloat(document.getElementById('mRakes').value) || 0;
-            const p = parseFloat(document.getElementById('mPitch').value) || 0; // ДОБАВЛЕНО: Считываем угол
+            const p = parseFloat(document.getElementById('mPitch').value) || 0;
             const schemeBox = document.getElementById('schemeResult');
 
             if (w === 0 || h === 0) {
@@ -516,7 +491,7 @@
                 const response = await fetch('/generate_scheme', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roof_type: rType, width: w, height: h, pitch: p }) // ДОБАВЛЕНО: Отправляем pitch
+                    body: JSON.stringify({ roof_type: rType, width: w, height: h, pitch: p })
                 });
                 const data = await response.json();
                 schemeBox.innerHTML = data.svg;
