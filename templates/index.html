@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Умный калькулятор с ИИ и чатом</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -90,6 +94,15 @@
         .btn-dark {
             background-color: #34495e;
             padding: 10px;
+        }
+
+        .btn-3d {
+            background-color: #e74c3c;
+        }
+
+        /* Красная кнопка для 3D */
+        .btn-3d:hover {
+            background-color: #c0392b;
         }
 
         #aiResult {
@@ -196,6 +209,18 @@
             margin: 0;
             padding: 10px 20px;
         }
+
+        /* КОНТЕЙНЕР ДЛЯ 3D */
+        #container3D {
+            width: 100%;
+            height: 400px;
+            background-color: #87CEEB;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+            border: 2px solid #bdc3c7;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -207,12 +232,11 @@
         <div class="box manual-box" id="manualBox">
             <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры кровли</h3>
             <div class="grid-form">
-
                 <div class="form-group" style="grid-column: span 2;">
                     <label>Тип кровли:</label>
                     <select id="roofType" onchange="toggleRoofFields()"
                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <option value="shed">Односкатная (Плоская)</option>
+                        <option value="shed">Односкатная</option>
                         <option value="gable" selected>Двухскатная (Классика)</option>
                         <option value="hip">Вальмовая (Сложная)</option>
                     </select>
@@ -235,12 +259,12 @@
                 <div class="form-group">
                     <label id="lblSlopeTrap">Длина основного ската (м):</label>
                     <input type="number" id="mSlopeTrap" class="highlight-input" step="0.01" value="0"
-                        placeholder="Оставьте 0 для авторасчета">
+                        placeholder="Авторасчет">
                 </div>
                 <div class="form-group" id="groupSlopeHip" style="display: none;">
                     <label>Длина ската вальмы (м):</label>
                     <input type="number" id="mSlopeHip" class="highlight-input" step="0.01" value="0"
-                        placeholder="Оставьте 0 для авторасчета">
+                        placeholder="Авторасчет">
                 </div>
 
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
@@ -254,16 +278,20 @@
 
                 <div class="form-group" style="grid-column: span 2;">
                     <label>Общая площадь (м²):</label>
-                    <input type="number" id="mArea" step="0.01" value="0" placeholder="Оставьте 0 для авторасчета">
+                    <input type="number" id="mArea" step="0.01" value="0" placeholder="Авторасчет">
                 </div>
             </div>
 
-            <button class="btn-blue" onclick="processAndDraw()"
-                style="background-color: #9b59b6; margin-top: 15px; margin-bottom: 15px;">Нарисовать 2D схему
-                кровли</button>
-            <div id="schemeResult"
-                style="text-align: center; margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <button class="btn-blue" onclick="processAndDraw()" style="background-color: #9b59b6;">Нарисовать 2D
+                    схему</button>
+                <button class="btn-3d" onclick="render3D()">Показать 3D модель 🔄</button>
             </div>
+
+            <div id="schemeResult"
+                style="text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none;">
+            </div>
+            <div id="container3D"></div>
 
             <button class="btn-yellow" onclick="calculateFinal()">Рассчитать итоговые материалы</button>
         </div>
@@ -272,7 +300,6 @@
             <h3 style="margin-top: 0; color: #16a085;">Шаг 2: Итоговые материалы для закупки</h3>
             <p style="font-size: 13px; color: #7f8c8d; margin-top: -10px;">Математика: Площадь и торцы увеличены с
                 учетом косинуса угла наклона.</p>
-
             <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
                         id="fArea">0</span> м²</span></div>
             <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
@@ -290,7 +317,7 @@
         </div>
 
         <div class="box ai-box">
-            <h3 style="margin-top: 0;">Шаг 3: Есть чертеж? Распознать через ИИ (Опционально)</h3>
+            <h3 style="margin-top: 0;">Шаг 3: Есть чертеж? Распознать через ИИ</h3>
             <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf, application/pdf">
             <button class="btn-blue" onclick="analyzeImage()">Извлечь размеры с чертежа</button>
             <div class="loader" id="loader">Изучаю чертеж... Это займет около 5-10 секунд ⏳</div>
@@ -308,9 +335,9 @@
     </div>
 
     <script>
+        // --- СТАРЫЕ ФУНКЦИИ 2D И РАСЧЕТОВ (БЕЗ ИЗМЕНЕНИЙ) ---
         let conversationHistory = [];
 
-        // ДИНАМИЧЕСКИЙ ИНТЕРФЕЙС
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
             if (rType === 'hip') {
@@ -341,22 +368,14 @@
             const resultDiv = document.getElementById('aiResult');
             const loader = document.getElementById('loader');
             if (fileInput.files.length === 0) { alert("Выбери файл!"); return; }
-
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-
-            loader.style.display = "block";
-            resultDiv.style.display = "none";
-
+            const formData = new FormData(); formData.append("file", fileInput.files[0]);
+            loader.style.display = "block"; resultDiv.style.display = "none";
             try {
                 const response = await fetch('/analyze', { method: 'POST', body: formData });
                 const data = await response.json();
-                loader.style.display = "none";
-                resultDiv.style.display = "block";
-
-                if (data.error) {
-                    resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>";
-                } else {
+                loader.style.display = "none"; resultDiv.style.display = "block";
+                if (data.error) { resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>"; }
+                else {
                     resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + data.result;
                     document.getElementById('mPitch').value = extractNumber(data.result, 'Угол');
                     document.getElementById('mArea').value = extractNumber(data.result, 'Площадь');
@@ -365,15 +384,12 @@
                     document.getElementById('mRidges').value = extractNumber(data.result, 'Конь');
                     document.getElementById('mHips').value = extractNumber(data.result, 'Хреб');
                     document.getElementById('mValleys').value = extractNumber(data.result, 'Ендов');
+                    document.getElementById('mAbutments').value = extractNumber(data.result, 'Примыкан');
                     document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
                 }
-            } catch (error) {
-                loader.style.display = "none";
-                alert("Ошибка сервера.");
-            }
+            } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
         }
 
-        // ОБЩАЯ МАТЕМАТИКА ДЛЯ ЧЕРТЕЖА И РАСЧЕТА
         function doMath() {
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
@@ -381,7 +397,6 @@
             let P1 = parseFloat(document.getElementById('mPitch').value) || 0;
             let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
             if (P2 === 0) P2 = P1;
-
             let S1 = parseFloat(document.getElementById('mSlopeTrap').value) || 0;
             let S2 = parseFloat(document.getElementById('mSlopeHip').value) || 0;
             let Ridge = parseFloat(document.getElementById('mRidges').value) || 0;
@@ -390,7 +405,6 @@
             let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1;
             let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
 
-            // Вычисляем длины скатов, если они не введены руками
             if (rType === 'shed') {
                 if (S1 === 0 && W > 0) S1 = W / cos1;
             } else if (rType === 'gable') {
@@ -399,7 +413,6 @@
             } else if (rType === 'hip') {
                 if (S1 === 0 && W > 0) S1 = (W / 2) / cos1;
                 if (S2 === 0 && W > 0) S2 = (W / 2) / cos2;
-
                 let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
                 if (Ridge === 0 && L > W) Ridge = L - W;
                 if (Hip === 0 && W > 0) {
@@ -407,44 +420,30 @@
                     Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
                 }
             }
-
-            // Обновляем ячейки, чтобы менеджер видел цифры перед отправкой на чертеж
             if (S1 > 0) document.getElementById('mSlopeTrap').value = S1.toFixed(2);
             if (S2 > 0) document.getElementById('mSlopeHip').value = S2.toFixed(2);
             if (Ridge > 0) document.getElementById('mRidges').value = Ridge.toFixed(2);
             if (Hip > 0) document.getElementById('mHips').value = Hip.toFixed(2);
-
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, cos1, cos2 };
         }
 
         async function processAndDraw() {
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
-            if (L === 0 || W === 0) { alert("Сначала введите Длину и Ширину дома!"); return; }
-
-            // Запускаем математику перед отрисовкой
+            if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
             let vars = doMath();
-
             const schemeBox = document.getElementById('schemeResult');
-            schemeBox.style.display = "block";
-            schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим схему... 📐</div>";
-
+            schemeBox.style.display = "block"; schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
             try {
                 const response = await fetch('/generate_scheme', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        roof_type: vars.rType, width: vars.L, height: vars.W,
-                        pitch: vars.P1, pitch_hip: vars.P2,
-                        slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2),
-                        ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
+                        roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2,
+                        slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
                     })
                 });
-                const data = await response.json();
-                schemeBox.innerHTML = data.svg;
-            } catch (error) {
-                schemeBox.innerHTML = "<span style='color: red;'>Ошибка создания чертежа.</span>";
-            }
+                const data = await response.json(); schemeBox.innerHTML = data.svg;
+            } catch (error) { schemeBox.innerHTML = "<span style='color:red;'>Ошибка</span>"; }
         }
 
         function calculateFinal() {
@@ -453,41 +452,20 @@
             let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments;
-            let slopedArea = 0;
-
-            if (vars.rType === 'shed') {
-                cEaves = vars.L;
-                cRakes = vars.S1 * 2;
-                cAbutments = abutments > 0 ? abutments : vars.L;
-                slopedArea = vars.L * vars.S1;
-                area = vars.L * vars.W;
-            } else if (vars.rType === 'gable') {
-                cEaves = vars.L * 2;
-                cRakes = vars.S1 * 4;
-                cRidges = vars.Ridge;
-                slopedArea = (vars.L * vars.S1) * 2;
-                area = vars.L * vars.W;
-            } else if (vars.rType === 'hip') {
-                cEaves = (vars.L * 2) + (vars.W * 2);
-                cHips = vars.Hip * 4;
-                cRidges = vars.Ridge;
-                slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2);
-                area = vars.L * vars.W;
-            }
+            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments; let slopedArea = 0;
+            if (vars.rType === 'shed') { cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W; }
+            else if (vars.rType === 'gable') { cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W; }
+            else if (vars.rType === 'hip') { cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W; }
 
             document.getElementById('mArea').value = area.toFixed(2);
-
             document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
             document.getElementById('fEaves').innerText = (cEaves * 1.05).toFixed(2);
             document.getElementById('fRidges').innerText = (cRidges * 1.05).toFixed(2);
             document.getElementById('fAbutments').innerText = (cAbutments * 1.05).toFixed(2);
-            document.getElementById('fRakes').innerText = (cRakes * 1.05).toFixed(2); // Торцы (уже в скате)
-            document.getElementById('fHips').innerText = (cHips * 1.05).toFixed(2);   // Хребты (уже в скате)
+            document.getElementById('fRakes').innerText = (cRakes * 1.05).toFixed(2);
+            document.getElementById('fHips').innerText = (cHips * 1.05).toFixed(2);
             document.getElementById('fValleys').innerText = (cValleys * (1 / vars.cos1) * 1.05).toFixed(2);
-
-            document.getElementById('finalBox').style.display = "block";
-            document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('finalBox').style.display = "block"; document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function sendChatMessage() {
@@ -495,34 +473,141 @@
             const historyBox = document.getElementById('chatHistory');
             const message = inputField.value.trim();
             if (!message) return;
-
             historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
-            inputField.value = '';
-            historyBox.scrollTop = historyBox.scrollHeight;
-
+            inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
             try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message, history: conversationHistory })
-                });
+                const response = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message, history: conversationHistory }) });
                 const data = await response.json();
-                if (data.error) {
-                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`;
-                } else {
-                    historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`;
-                    conversationHistory.push({ role: "user", text: message });
-                    conversationHistory.push({ role: "model", text: data.reply });
-                }
+                if (data.error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`; }
+                else { historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`; conversationHistory.push({ role: "user", text: message }); conversationHistory.push({ role: "model", text: data.reply }); }
                 historyBox.scrollTop = historyBox.scrollHeight;
-            } catch (error) {
-                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>Не удалось связаться.</div><br>`;
+            } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
+        }
+        document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
+
+        // ==========================================
+        // --- МАГИЯ 3D: НАСТРОЙКА И ОТРИСОВКА ---
+        // ==========================================
+        let scene, camera, renderer, controls;
+        let roofMesh, houseMesh;
+
+        function init3D() {
+            const container = document.getElementById('container3D');
+
+            // Если сцена уже создана, просто очищаем её
+            if (scene) {
+                if (roofMesh) scene.remove(roofMesh);
+                if (houseMesh) scene.remove(houseMesh);
+                return;
             }
+
+            // Создаем сцену (мир)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Голубое небо
+
+            // Создаем камеру (глаза)
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(20, 20, 30);
+
+            // Создаем рендерер (художник)
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Управление мышкой (крутить, зумить)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // Добавляем свет (Солнце)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            // Запускаем анимацию
+            animate();
         }
 
-        document.getElementById('chatInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendChatMessage();
-        });
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        function render3D() {
+            let L = parseFloat(document.getElementById('mEaves').value) || 0;
+            let W = parseFloat(document.getElementById('mRakes').value) || 0;
+            let P1 = parseFloat(document.getElementById('mPitch').value) || 0;
+            const rType = document.getElementById('roofType').value;
+
+            if (L === 0 || W === 0) {
+                alert("Сначала введите Длину и Ширину дома!");
+                return;
+            }
+
+            const container = document.getElementById('container3D');
+            container.style.display = "block"; // Показываем холст
+
+            init3D(); // Инициализируем мир, если еще не был
+
+            // 1. Строим коробку дома (стены)
+            const houseHeight = 4; // Стандартная высота стен
+            const houseGeo = new THREE.BoxGeometry(L, houseHeight, W);
+            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Белые стены
+            houseMesh = new THREE.Mesh(houseGeo, houseMat);
+            houseMesh.position.y = houseHeight / 2;
+            scene.add(houseMesh);
+
+            // 2. Строим крышу в зависимости от типа
+            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide }); // Красная крыша
+
+            if (rType === 'shed') {
+                // Односкатная
+                const roofHeight = W * Math.tan(P1 * Math.PI / 180);
+
+                // Создаем профиль крыши (треугольник сбоку)
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(0, roofHeight);
+                shape.lineTo(W, 0);
+                shape.lineTo(0, 0);
+
+                const extrudeSettings = { depth: L, bevelEnabled: false };
+                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+
+                // Ставим крышу на дом
+                roofMesh.position.set(-L / 2, houseHeight, W / 2);
+                roofMesh.rotation.y = -Math.PI / 2; // Поворачиваем на 90 град
+                scene.add(roofMesh);
+
+            } else if (rType === 'gable') {
+                // Двухскатная
+                const roofHeight = (W / 2) * Math.tan(P1 * Math.PI / 180);
+
+                // Профиль (равнобедренный треугольник)
+                const shape = new THREE.Shape();
+                shape.moveTo(-W / 2, 0);
+                shape.lineTo(0, roofHeight);
+                shape.lineTo(W / 2, 0);
+                shape.lineTo(-W / 2, 0);
+
+                const extrudeSettings = { depth: L, bevelEnabled: false };
+                const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+
+                // Ставим крышу на дом
+                roofMesh.position.set(0, houseHeight, -L / 2);
+                scene.add(roofMesh);
+            } else {
+                alert("3D Вальма в разработке! Пока показываем коробку.");
+            }
+
+            // Направляем камеру на дом
+            controls.target.set(0, houseHeight, 0);
+            camera.position.set(L, houseHeight + 10, W + 10);
+        }
     </script>
 </body>
 
