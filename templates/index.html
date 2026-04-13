@@ -245,11 +245,12 @@
         <div class="box manual-box" id="manualBox">
             <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры кровли</h3>
             <div class="grid-form">
+
                 <div class="form-group" style="grid-column: span 2;">
                     <label>Тип кровли:</label>
                     <select id="roofType" onchange="toggleRoofFields()"
                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <option value="shed">Односкатная</option>
+                        <option value="shed">Односкатная (Плоская)</option>
                         <option value="gable" selected>Двухскатная (Классика)</option>
                         <option value="hip">Вальмовая (Сложная)</option>
                     </select>
@@ -353,24 +354,39 @@
     <script>
         let conversationHistory = [];
 
+        // ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ИНТЕРФЕЙСА
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
+
+            // Получаем элементы
+            const groupPitchHip = document.getElementById('groupPitchHip');
+            const groupSlopeTrap = document.getElementById('groupSlopeTrap');
+            const groupSlopeHip = document.getElementById('groupSlopeHip');
+
             if (rType === 'hip') {
                 document.getElementById('lblEaves').innerText = "Длина дома (Карниз трапеции), м:";
                 document.getElementById('lblRakes').innerText = "Ширина дома (Карниз вальмы), м:";
-                document.getElementById('groupPitchHip').style.display = "block";
-                document.getElementById('groupSlopeTrap').style.display = "block";
-                document.getElementById('groupSlopeHip').style.display = "block";
+
+                // Показываем поля для вальмы
+                groupPitchHip.style.display = "block";
+                groupSlopeTrap.style.display = "block";
+                groupSlopeHip.style.display = "block";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (Карниз), м:";
                 document.getElementById('lblRakes').innerText = "Ширина дома (Торец), м:";
-                document.getElementById('groupPitchHip').style.display = "none";
-                document.getElementById('groupSlopeTrap').style.display = "none";
-                document.getElementById('groupSlopeHip').style.display = "none";
+
+                // Прячем поля для остальных типов
+                groupPitchHip.style.display = "none";
+                groupSlopeTrap.style.display = "none";
+                groupSlopeHip.style.display = "none";
+
+                // Очищаем их
                 document.getElementById('mSlopeTrap').value = 0;
                 document.getElementById('mSlopeHip').value = 0;
+                document.getElementById('mPitchHip').value = 0;
             }
         }
+        // Запускаем при старте
         window.onload = toggleRoofFields;
 
         function extractNumber(text, keyword) {
@@ -414,6 +430,7 @@
             let P1 = parseFloat(document.getElementById('mPitch').value) || 0;
             let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
             if (P2 === 0) P2 = P1;
+
             let S1 = parseFloat(document.getElementById('mSlopeTrap').value) || 0;
             let S2 = parseFloat(document.getElementById('mSlopeHip').value) || 0;
             let Ridge = parseFloat(document.getElementById('mRidges').value) || 0;
@@ -430,6 +447,7 @@
             } else if (rType === 'hip') {
                 if (S1 === 0 && W > 0) S1 = (W / 2) / cos1;
                 if (S2 === 0 && W > 0) S2 = (W / 2) / cos2;
+
                 let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
                 if (Ridge === 0 && L > W) Ridge = L - W;
                 if (Hip === 0 && W > 0) {
@@ -437,10 +455,13 @@
                     Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
                 }
             }
+
+            // Перезаписываем ячейки
             if (S1 > 0 && rType === 'hip') document.getElementById('mSlopeTrap').value = S1.toFixed(2);
             if (S2 > 0 && rType === 'hip') document.getElementById('mSlopeHip').value = S2.toFixed(2);
             if (Ridge > 0) document.getElementById('mRidges').value = Ridge.toFixed(2);
             if (Hip > 0) document.getElementById('mHips').value = Hip.toFixed(2);
+
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, cos1, cos2 };
         }
 
@@ -448,9 +469,12 @@
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
             if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
+
             let vars = doMath();
             const schemeBox = document.getElementById('schemeResult');
-            schemeBox.style.display = "block"; schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
+            schemeBox.style.display = "block";
+            schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
+
             try {
                 const response = await fetch('/generate_scheme', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -459,8 +483,11 @@
                         slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
                     })
                 });
-                const data = await response.json(); schemeBox.innerHTML = data.svg;
-            } catch (error) { schemeBox.innerHTML = "<span style='color:red;'>Ошибка</span>"; }
+                const data = await response.json();
+                schemeBox.innerHTML = data.svg;
+            } catch (error) {
+                schemeBox.innerHTML = "<span style='color:red;'>Ошибка отрисовки 2D.</span>";
+            }
         }
 
         function calculateFinal() {
@@ -469,10 +496,18 @@
             let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments; let slopedArea = 0;
-            if (vars.rType === 'shed') { cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W; }
-            else if (vars.rType === 'gable') { cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W; }
-            else if (vars.rType === 'hip') { cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W; }
+            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments;
+            let slopedArea = 0;
+
+            if (vars.rType === 'shed') {
+                cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W;
+            }
+            else if (vars.rType === 'gable') {
+                cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W;
+            }
+            else if (vars.rType === 'hip') {
+                cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W;
+            }
 
             document.getElementById('mArea').value = area.toFixed(2);
             document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
@@ -482,7 +517,9 @@
             document.getElementById('fRakes').innerText = (cRakes * 1.05).toFixed(2);
             document.getElementById('fHips').innerText = (cHips * 1.05).toFixed(2);
             document.getElementById('fValleys').innerText = (cValleys * (1 / vars.cos1) * 1.05).toFixed(2);
-            document.getElementById('finalBox').style.display = "block"; document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
+
+            document.getElementById('finalBox').style.display = "block";
+            document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function sendChatMessage() {
@@ -513,35 +550,32 @@
 
             if (!scene) {
                 scene = new THREE.Scene();
-                scene.background = new THREE.Color(0xf4f6f7); // Светло-серый фон
+                scene.background = new THREE.Color(0xf4f6f7);
 
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.shadowMap.enabled = true; // Включаем тени!
+                renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
 
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
                 controls.enableDamping = true;
 
-                // Освещение
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 scene.add(ambientLight);
 
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 dirLight.position.set(20, 40, 20);
-                dirLight.castShadow = true; // Свет отбрасывает тень
+                dirLight.castShadow = true;
                 dirLight.shadow.mapSize.width = 2048;
                 dirLight.shadow.mapSize.height = 2048;
                 scene.add(dirLight);
 
-                // Чертежная сетка
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xecf0f1);
                 scene.add(gridHelper);
 
-                // Земля (принимает тени)
                 const planeGeo = new THREE.PlaneGeometry(200, 200);
                 const planeMat = new THREE.MeshLambertMaterial({ color: 0xe0e6ed });
                 const planeMesh = new THREE.Mesh(planeGeo, planeMat);
@@ -561,7 +595,6 @@
         }
 
         function render3D() {
-            // Выполняем математику для получения правильных высот
             let vars = doMath();
             if (vars.L === 0 || vars.W === 0) { alert("Сначала введите Длину и Ширину дома!"); return; }
 
@@ -569,7 +602,6 @@
             container.style.display = "block";
             init3D();
 
-            // Очищаем старые постройки
             while (objectsGroup.children.length > 0) {
                 objectsGroup.remove(objectsGroup.children[0]);
             }
@@ -577,9 +609,9 @@
             const houseHeight = 4;
             const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0x2c3e50, linewidth: 2 }); // Черные грани
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x2c3e50, linewidth: 2 });
 
-            // --- 1. СТРОИМ КОРОБКУ ДОМА ---
+            // СТРОИМ КОРОБКУ ДОМА
             const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
             const houseMesh = new THREE.Mesh(houseGeo, houseMat);
             houseMesh.position.y = houseHeight / 2;
@@ -587,12 +619,11 @@
             houseMesh.receiveShadow = true;
             objectsGroup.add(houseMesh);
 
-            // Грани для дома
             const houseEdges = new THREE.EdgesGeometry(houseGeo);
             const houseLines = new THREE.LineSegments(houseEdges, edgeMat);
             houseMesh.add(houseLines);
 
-            // --- 2. СТРОИМ КРЫШУ ---
+            // СТРОИМ КРЫШУ
             let roofMesh;
 
             if (vars.rType === 'shed') {
@@ -617,4 +648,55 @@
                 const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
                 roofGeo.translate(0, 0, -vars.L / 2);
 
-                roofMesh = new THREE.Mesh
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.set(0, houseHeight, 0);
+                roofMesh.rotation.y = Math.PI / 2;
+
+            } else if (vars.rType === 'hip') {
+                let H = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                let indent = H / Math.tan(vars.P2 * Math.PI / 180);
+                if (indent > vars.L / 2) {
+                    indent = vars.L / 2;
+                    H = (vars.L / 2) * Math.tan(vars.P2 * Math.PI / 180);
+                }
+
+                const vertices = new Float32Array([
+                    // Трапеция 1 (Перед)
+                    -vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0,
+                    -vars.L / 2, 0, vars.W / 2, vars.L / 2 - indent, H, 0, -vars.L / 2 + indent, H, 0,
+                    // Треугольник 1 (Право)
+                    vars.L / 2, 0, vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2 - indent, H, 0,
+                    // Трапеция 2 (Зад)
+                    vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0,
+                    vars.L / 2, 0, -vars.W / 2, -vars.L / 2 + indent, H, 0, vars.L / 2 - indent, H, 0,
+                    // Треугольник 2 (Лево)
+                    -vars.L / 2, 0, -vars.W / 2, -vars.L / 2, 0, vars.W / 2, -vars.L / 2 + indent, H, 0,
+                    // Основание
+                    -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2,
+                    -vars.L / 2, 0, -vars.W / 2, vars.L / 2, 0, vars.W / 2, -vars.L / 2, 0, vars.W / 2
+                ]);
+
+                const roofGeo = new THREE.BufferGeometry();
+                roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                roofGeo.computeVertexNormals();
+
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.set(0, houseHeight, 0);
+            }
+
+            roofMesh.castShadow = true;
+            roofMesh.receiveShadow = true;
+            objectsGroup.add(roofMesh);
+
+            const roofEdges = new THREE.EdgesGeometry(roofMesh.geometry);
+            const roofLines = new THREE.LineSegments(roofEdges, edgeMat);
+            roofMesh.add(roofLines);
+
+            controls.target.set(0, houseHeight, 0);
+            let maxDim = Math.max(vars.L, vars.W);
+            camera.position.set(maxDim * 1.2, houseHeight + maxDim * 0.8, maxDim * 1.2);
+        }
+    </script>
+</body>
+
+</html>
