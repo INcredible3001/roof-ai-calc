@@ -367,38 +367,73 @@
             const pitch = parseFloat(document.getElementById('mPitch').value) || 0;
             const eaves = parseFloat(document.getElementById('mEaves').value) || 0;
             const rakes = parseFloat(document.getElementById('mRakes').value) || 0;
-            const ridges = parseFloat(document.getElementById('mRidges').value) || 0;
-            const hips = parseFloat(document.getElementById('mHips').value) || 0;
-            const valleys = parseFloat(document.getElementById('mValleys').value) || 0;
-            const abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+            let ridges = parseFloat(document.getElementById('mRidges').value) || 0;
+            let hips = parseFloat(document.getElementById('mHips').value) || 0;
+            let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
+            let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            // --- НОВОЕ: АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ ---
-            // Если площадь 0, считаем ее исходя из длины и ширины ската
+            // --- УМНЫЕ МНОЖИТЕЛИ ПО ТИПУ КРОВЛИ ---
+            let calcEaves = eaves;
+            let calcRakes = rakes;
+            let calcRidges = ridges;
+            let calcHips = hips;
+            let calcValleys = valleys;
+            let calcAbutments = abutments;
+
+            if (rType === 'shed') {
+                // Односкатная
+                calcEaves = eaves * 1; // 1 карниз внизу
+                calcRakes = rakes * 2; // 2 торца по бокам
+                // Если примыкание не указали, оно обычно равно карнизу (наверху)
+                if (calcAbutments === 0 && eaves > 0) calcAbutments = eaves;
+            }
+            else if (rType === 'gable') {
+                // Двухскатная
+                calcEaves = eaves * 2; // 2 ската = 2 карниза
+                calcRakes = rakes * 4; // 2 фронтона по 2 ската = 4 торца
+                // Если конек не указали, берем длину карниза
+                if (calcRidges === 0 && eaves > 0) calcRidges = eaves;
+            }
+            else if (rType === 'hip') {
+                // Вальмовая
+                calcEaves = (eaves * 2) + (rakes * 2); // У вальмы все 4 стороны - это карнизы
+                calcRakes = 0; // Торцов нет вообще
+                // Обычно 4 хребта (если ввели длину одного)
+                if (calcHips === 0 && hips > 0) calcHips = hips * 4;
+                if (calcHips > 0 && hips > 0) calcHips = hips * 4; // Принудительно умножаем на 4
+                // Если конек не указали, высчитываем его примерно (длина минус ширина)
+                if (calcRidges === 0 && eaves > rakes) calcRidges = eaves - rakes;
+            }
+
+            // --- АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ ---
             if (area === 0 && eaves > 0 && rakes > 0) {
                 if (rType === 'gable') {
-                    area = eaves * rakes * 2; // Двухскатная = 2 ската
+                    area = eaves * (rakes * 2); // Два ската
                 } else {
-                    area = eaves * rakes; // Односкатная или вальмовая (упрощенно)
+                    area = eaves * rakes; // Односкатная или периметр вальмовой
                 }
-                // Записываем посчитанную площадь обратно в ячейку, чтобы клиент видел
+                // Показываем посчитанную площадь в ячейке
                 document.getElementById('mArea').value = area.toFixed(2);
             }
 
-            // Коэффициент ската (через косинус)
+            // --- КОЭФФИЦИЕНТ СКАТА (КОСИНУС) ---
             let slopeFactor = 1;
             if (pitch > 0 && pitch < 89) {
                 slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
             }
 
-            // Применяем коэффициент...
-            // (дальше идет твой старый код расчета fArea, fEaves и т.д.)
+            // --- ИТОГОВЫЙ ВЫВОД С УГЛОМ И ЗАПАСАМИ (+5% и +10%) ---
             document.getElementById('fArea').innerText = (area * slopeFactor * 1.10).toFixed(2);
-            document.getElementById('fEaves').innerText = (eaves * 1.05).toFixed(2);
-            document.getElementById('fRidges').innerText = (ridges * 1.05).toFixed(2);
-            document.getElementById('fRakes').innerText = (rakes * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fHips').innerText = (hips * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fValleys').innerText = (valleys * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fAbutments').innerText = (abutments * 1.05).toFixed(2);
+
+            // Горизонтальные элементы (без косинуса)
+            document.getElementById('fEaves').innerText = (calcEaves * 1.05).toFixed(2);
+            document.getElementById('fRidges').innerText = (calcRidges * 1.05).toFixed(2);
+            document.getElementById('fAbutments').innerText = (calcAbutments * 1.05).toFixed(2);
+
+            // Наклонные элементы (умножаем на косинус)
+            document.getElementById('fRakes').innerText = (calcRakes * slopeFactor * 1.05).toFixed(2);
+            document.getElementById('fHips').innerText = (calcHips * slopeFactor * 1.05).toFixed(2);
+            document.getElementById('fValleys').innerText = (calcValleys * slopeFactor * 1.05).toFixed(2); // Если есть ендовы
 
             document.getElementById('finalBox').style.display = "block";
         }
