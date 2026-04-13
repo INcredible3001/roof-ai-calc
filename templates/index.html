@@ -209,7 +209,7 @@
 
         <div class="box ai-box">
             <h3 style="margin-top: 0;">Шаг 1: Загрузи чертеж</h3>
-            <input type="file" id="roofImage" accept="image/png, image/jpeg">
+            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf, application/pdf">
             <button class="btn-blue" onclick="analyzeImage()">Распознать размеры через ИИ</button>
             <div class="loader" id="loader">Изучаю чертеж... Это займет около 5-10 секунд ⏳</div>
             <div id="aiResult"></div>
@@ -218,6 +218,17 @@
         <div class="box manual-box" id="manualBox">
             <h3 style="margin-top: 0;">Шаг 2: Проверь данные и угол наклона</h3>
             <div class="grid-form">
+
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Тип кровли для чертежа:</label>
+                    <select id="roofType"
+                        style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="shed">Односкатная (Плоская)</option>
+                        <option value="gable">Двухскатная (Классика)</option>
+                        <option value="hip">Вальмовая (4 ската)</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>Угол наклона (в градусах):</label>
                     <input type="number" id="mPitch" class="highlight-input" step="1" value="0">
@@ -237,6 +248,14 @@
                 <div class="form-group"><label>Длина примыканий (м):</label><input type="number" id="mAbutments"
                         step="0.01" value="0"></div>
             </div>
+
+            <button class="btn-blue" onclick="drawScheme()"
+                style="background-color: #9b59b6; margin-top: 15px; margin-bottom: 15px;">Нарисовать 2D схему
+                кровли</button>
+            <div id="schemeResult"
+                style="text-align: center; margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none;">
+            </div>
+
             <button class="btn-yellow" onclick="calculateFinal()">Рассчитать с углом и запасами</button>
         </div>
 
@@ -411,6 +430,34 @@
         document.getElementById('chatInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendChatMessage();
         });
+
+        // НОВЫЙ БЛОК: Функция отрисовки чертежа
+        async function drawScheme() {
+            const rType = document.getElementById('roofType').value;
+            const w = parseFloat(document.getElementById('mEaves').value) || 0;
+            const h = parseFloat(document.getElementById('mRakes').value) || 0;
+            const schemeBox = document.getElementById('schemeResult');
+
+            if (w === 0 || h === 0) {
+                alert("Пожалуйста, сначала введите 'Длина карнизов' и 'Длина торцов' (больше нуля)!");
+                return;
+            }
+
+            schemeBox.style.display = "block";
+            schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим схему... 📐</div>";
+
+            try {
+                const response = await fetch('/generate_scheme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roof_type: rType, width: w, height: h })
+                });
+                const data = await response.json();
+                schemeBox.innerHTML = data.svg;
+            } catch (error) {
+                schemeBox.innerHTML = "<span style='color: red;'>Ошибка создания чертежа.</span>";
+            }
+        }
     </script>
 </body>
 

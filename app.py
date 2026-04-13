@@ -69,6 +69,79 @@ def analyze_image():
         return jsonify({"error": str(e)})
 
 
+# --- НОВЫЙ БЛОК: ГЕНЕРАЦИЯ 2D-СХЕМЫ ---
+@app.route("/generate_scheme", methods=["POST"])
+def generate_scheme():
+    data = request.json
+    roof_type = data.get("roof_type", "shed")
+    w_input = float(data.get("width", 0))
+    h_input = float(data.get("height", 0))
+
+    if w_input <= 0 or h_input <= 0:
+        return jsonify(
+            {
+                "svg": "<p style='color:red;'>Укажите длину карнизов и торцов больше 0 для построения схемы.</p>"
+            }
+        )
+
+    # Масштабируем: чтобы схема умещалась в экран
+    max_dim = max(w_input, h_input)
+    scale = 300 / max_dim if max_dim > 0 else 50
+
+    w = w_input * scale
+    h = h_input * scale
+
+    # Отступы по краям, чтобы поместился текст
+    pad = 60
+    total_w = w + pad * 2
+    total_h = h + pad * 2
+
+    # Начинаем рисовать SVG
+    svg = f'<svg width="100%" height="{total_h}" viewBox="0 0 {total_w} {total_h}" xmlns="http://www.w3.org/2000/svg">'
+    svg += "<style>.line {stroke: #34495e; stroke-width: 3;} .ridge {stroke: #e74c3c; stroke-width: 4;} .hip {stroke: #2980b9; stroke-width: 2;} .text {font-family: sans-serif; font-size: 16px; font-weight: bold; fill: #2c3e50;}</style>"
+
+    cx, cy = pad, pad
+
+    if roof_type == "shed":
+        # Односкатная
+        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
+        # Пунктир показывает направление ската
+        svg += f'<line x1="{cx + w/2}" y1="{cy + h*0.2}" x2="{cx + w/2}" y2="{cy + h*0.8}" stroke="#bdc3c7" stroke-width="4" stroke-dasharray="5 5"/>'
+
+    elif roof_type == "gable":
+        # Двухскатная
+        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
+        # Конёк
+        svg += f'<line x1="{cx}" y1="{cy + h/2}" x2="{cx + w}" y2="{cy + h/2}" class="ridge"/>'
+
+    elif roof_type == "hip":
+        # Вальмовая
+        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
+        indent = min(w, h) * 0.3
+        if w >= h:
+            svg += f'<line x1="{cx + indent}" y1="{cy + h/2}" x2="{cx + w - indent}" y2="{cy + h/2}" class="ridge"/>'
+            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx + indent}" y2="{cy + h/2}" class="hip"/>'
+            svg += f'<line x1="{cx}" y1="{cy + h}" x2="{cx + indent}" y2="{cy + h/2}" class="hip"/>'
+            svg += f'<line x1="{cx + w}" y1="{cy}" x2="{cx + w - indent}" y2="{cy + h/2}" class="hip"/>'
+            svg += f'<line x1="{cx + w}" y1="{cy + h}" x2="{cx + w - indent}" y2="{cy + h/2}" class="hip"/>'
+        else:
+            svg += f'<line x1="{cx + w/2}" y1="{cy + indent}" x2="{cx + w/2}" y2="{cy + h - indent}" class="ridge"/>'
+            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx + w/2}" y2="{cy + indent}" class="hip"/>'
+            svg += f'<line x1="{cx + w}" y1="{cy}" x2="{cx + w/2}" y2="{cy + indent}" class="hip"/>'
+            svg += f'<line x1="{cx}" y1="{cy + h}" x2="{cx + w/2}" y2="{cy + h - indent}" class="hip"/>'
+            svg += f'<line x1="{cx + w}" y1="{cy + h}" x2="{cx + w/2}" y2="{cy + h - indent}" class="hip"/>'
+
+    # Подписи размеров
+    svg += f'<text x="{cx + w/2}" y="{cy - 15}" text-anchor="middle" class="text">Карниз: {w_input} м</text>'
+    svg += f'<text x="{cx - 15}" y="{cy + h/2}" text-anchor="middle" transform="rotate(-90, {cx - 15}, {cy + h/2})" class="text">Торец: {h_input} м</text>'
+
+    svg += "</svg>"
+    return jsonify({"svg": svg})
+
+
+# ----------------------------------------
+
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
