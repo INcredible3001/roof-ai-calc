@@ -362,8 +362,9 @@
         }
 
         function calculateFinal() {
+            const rType = document.getElementById('roofType').value;
+            let area = parseFloat(document.getElementById('mArea').value) || 0;
             const pitch = parseFloat(document.getElementById('mPitch').value) || 0;
-            const area = parseFloat(document.getElementById('mArea').value) || 0;
             const eaves = parseFloat(document.getElementById('mEaves').value) || 0;
             const rakes = parseFloat(document.getElementById('mRakes').value) || 0;
             const ridges = parseFloat(document.getElementById('mRidges').value) || 0;
@@ -371,19 +372,29 @@
             const valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             const abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
 
-            // Коэффициент ската (через косинус). Если угол 0, косинус 1 (коэффициент = 1)
+            // --- НОВОЕ: АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ ---
+            // Если площадь 0, считаем ее исходя из длины и ширины ската
+            if (area === 0 && eaves > 0 && rakes > 0) {
+                if (rType === 'gable') {
+                    area = eaves * rakes * 2; // Двухскатная = 2 ската
+                } else {
+                    area = eaves * rakes; // Односкатная или вальмовая (упрощенно)
+                }
+                // Записываем посчитанную площадь обратно в ячейку, чтобы клиент видел
+                document.getElementById('mArea').value = area.toFixed(2);
+            }
+
+            // Коэффициент ската (через косинус)
             let slopeFactor = 1;
             if (pitch > 0 && pitch < 89) {
                 slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
             }
 
-            // Применяем коэффициент к Площади, Торцам, Хребтам и Ендовам. 
-            // Карнизы и коньки остаются горизонтальными.
+            // Применяем коэффициент...
+            // (дальше идет твой старый код расчета fArea, fEaves и т.д.)
             document.getElementById('fArea').innerText = (area * slopeFactor * 1.10).toFixed(2);
-
             document.getElementById('fEaves').innerText = (eaves * 1.05).toFixed(2);
             document.getElementById('fRidges').innerText = (ridges * 1.05).toFixed(2);
-
             document.getElementById('fRakes').innerText = (rakes * slopeFactor * 1.05).toFixed(2);
             document.getElementById('fHips').innerText = (hips * slopeFactor * 1.05).toFixed(2);
             document.getElementById('fValleys').innerText = (valleys * slopeFactor * 1.05).toFixed(2);

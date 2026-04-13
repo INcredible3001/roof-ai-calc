@@ -70,105 +70,138 @@ def analyze_image():
         return jsonify({"error": str(e)})
 
 
-# --- НОВЫЙ БЛОК: ГЕНЕРАЦИЯ 2D-СХЕМЫ (С УГЛОМ И СТРЕЛКАМИ) ---
+# --- НОВЫЙ БЛОК: ГЕНЕРАЦИЯ 2D-СХЕМЫ (ЦВЕТА И РАЗМЕРЫ СО ВСЕХ СТОРОН) ---
 @app.route("/generate_scheme", methods=["POST"])
 def generate_scheme():
     data = request.json
     roof_type = data.get("roof_type", "shed")
     w_input = float(data.get("width", 0))
     h_input = float(data.get("height", 0))
-    pitch = float(data.get("pitch", 0))  # Получаем угол наклона
+    pitch = float(data.get("pitch", 0))
 
     if w_input <= 0 or h_input <= 0:
         return jsonify(
             {
-                "svg": "<p style='color:red;'>Укажите длину карнизов и торцов больше 0 для построения схемы.</p>"
+                "svg": "<p style='color:red;'>Укажите длину карнизов и торцов больше 0.</p>"
             }
         )
 
-    # Считаем реальную длину торца (ската) с учетом угла наклона по теореме косинусов
+    # Считаем реальную длину ската
     slope_factor = 1
     if 0 < pitch < 89:
         slope_factor = 1 / math.cos(math.radians(pitch))
-
     true_h = round(h_input * slope_factor, 2)
 
-    # Масштабируем: чтобы схема умещалась в экран (рисуем "вид сверху")
+    # Тексты для подписей
+    t_eaves = f"Карниз: {w_input} м"
+    t_rake = f"Торец (скат): {true_h} м" if pitch > 0 else f"Торец: {h_input} м"
+
     max_dim = max(w_input, h_input)
     scale = 300 / max_dim if max_dim > 0 else 50
-
     w = w_input * scale
     h = h_input * scale
-
-    # Отступы по краям
-    pad = 60
+    pad = 80
     total_w = w + pad * 2
     total_h = h + pad * 2
 
-    # Начинаем рисовать SVG
     svg = f'<svg width="100%" height="{total_h}" viewBox="0 0 {total_w} {total_h}" xmlns="http://www.w3.org/2000/svg">'
 
-    # Добавляем маркер для синей стрелочки (направление воды)
+    # Стрелка и стили с новыми цветами!
     svg += """
     <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#3498db" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#95a5a6" />
         </marker>
     </defs>
     """
-    svg += "<style>.line {stroke: #34495e; stroke-width: 3;} .ridge {stroke: #e74c3c; stroke-width: 4;} .hip {stroke: #2980b9; stroke-width: 2;} .text {font-family: sans-serif; font-size: 16px; font-weight: bold; fill: #2c3e50;} .water {stroke: #3498db; stroke-width: 2; marker-end: url(#arrow);}</style>"
+    svg += """<style>
+        .eaves {stroke: #2ecc71; stroke-width: 4;}   /* Зеленый - Карниз */
+        .rake {stroke: #f1c40f; stroke-width: 4;}    /* Желтый - Торец */
+        .ridge {stroke: #e74c3c; stroke-width: 4;}   /* Красный - Конек/Хребет */
+        .hip {stroke: #e74c3c; stroke-width: 3;}     /* Красный - Хребет */
+        .abutment {stroke: #3498db; stroke-width: 4;}/* Синий - Примыкание */
+        .valley {stroke: #e67e22; stroke-width: 3;}  /* Оранжевый - Ендова */
+        .water {stroke: #95a5a6; stroke-width: 2; marker-end: url(#arrow); stroke-dasharray: 4 4;}
+        .text {font-family: sans-serif; font-size: 14px; font-weight: bold; fill: #2c3e50;}
+    </style>"""
 
     cx, cy = pad, pad
 
     if roof_type == "shed":
         # Односкатная
-        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
-        # Стрелка ската воды вниз
-        svg += f'<line x1="{cx + w/2}" y1="{cy + h*0.2}" x2="{cx + w/2}" y2="{cy + h*0.8}" class="water"/>'
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'  # Низ (Карниз)
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="abutment"/>'  # Верх (Примыкание)
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'  # Лево (Торец)
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'  # Право (Торец)
+        svg += f'<line x1="{cx+w/2}" y1="{cy+h*0.2}" x2="{cx+w/2}" y2="{cy+h*0.8}" class="water"/>'
+
+        # Подписи
+        svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">Примыкание: {w_input} м</text>'
+        svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
+        svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_rake}</text>'
+        svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_rake}</text>'
 
     elif roof_type == "gable":
         # Двухскатная
-        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
-        svg += f'<line x1="{cx}" y1="{cy + h/2}" x2="{cx + w}" y2="{cy + h/2}" class="ridge"/>'
-        # Стрелки воды от конька к краям
-        svg += f'<line x1="{cx + w/2}" y1="{cy + h/2 - 10}" x2="{cx + w/2}" y2="{cy + h*0.1}" class="water"/>'
-        svg += f'<line x1="{cx + w/2}" y1="{cy + h/2 + 10}" x2="{cx + w/2}" y2="{cy + h*0.9}" class="water"/>'
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'  # Верх (Карниз)
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'  # Низ (Карниз)
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'  # Лево (Торец)
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'  # Право (Торец)
+        svg += f'<line x1="{cx}" y1="{cy+h/2}" x2="{cx+w}" y2="{cy+h/2}" class="ridge"/>'  # Конек
+
+        svg += f'<line x1="{cx+w/2}" y1="{cy+h/2-10}" x2="{cx+w/2}" y2="{cy+h*0.1}" class="water"/>'
+        svg += f'<line x1="{cx+w/2}" y1="{cy+h/2+10}" x2="{cx+w/2}" y2="{cy+h*0.9}" class="water"/>'
+
+        # Подписи
+        svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">{t_eaves}</text>'
+        svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
+        svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_rake}</text>'
+        svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_rake}</text>'
 
     elif roof_type == "hip":
-        # Вальмовая
-        svg += f'<rect x="{cx}" y="{cy}" width="{w}" height="{h}" fill="#ecf0f1" class="line"/>'
+        # Вальмовая (у вальмы все 4 стороны - это карнизы)
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="eaves"/>'
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'
+
         indent = min(w, h) * 0.3
         if w >= h:
-            svg += f'<line x1="{cx + indent}" y1="{cy + h/2}" x2="{cx + w - indent}" y2="{cy + h/2}" class="ridge"/>'
-            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx + indent}" y2="{cy + h/2}" class="hip"/>'
-            svg += f'<line x1="{cx}" y1="{cy + h}" x2="{cx + indent}" y2="{cy + h/2}" class="hip"/>'
-            svg += f'<line x1="{cx + w}" y1="{cy}" x2="{cx + w - indent}" y2="{cy + h/2}" class="hip"/>'
-            svg += f'<line x1="{cx + w}" y1="{cy + h}" x2="{cx + w - indent}" y2="{cy + h/2}" class="hip"/>'
-            # Стрелки воды
-            svg += f'<line x1="{cx + w/2}" y1="{cy + h/2 - 10}" x2="{cx + w/2}" y2="{cy + h*0.1}" class="water"/>'
-            svg += f'<line x1="{cx + w/2}" y1="{cy + h/2 + 10}" x2="{cx + w/2}" y2="{cy + h*0.9}" class="water"/>'
-            svg += f'<line x1="{cx + indent - 10}" y1="{cy + h/2}" x2="{cx + indent*0.2}" y2="{cy + h/2}" class="water"/>'
-            svg += f'<line x1="{cx + w - indent + 10}" y1="{cy + h/2}" x2="{cx + w - indent*0.2}" y2="{cy + h/2}" class="water"/>'
+            svg += f'<line x1="{cx+indent}" y1="{cy+h/2}" x2="{cx+w-indent}" y2="{cy+h/2}" class="ridge"/>'
+            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
+            svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
+            svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
+            svg += f'<line x1="{cx+w}" y1="{cy+h}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
         else:
-            svg += f'<line x1="{cx + w/2}" y1="{cy + indent}" x2="{cx + w/2}" y2="{cy + h - indent}" class="ridge"/>'
-            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx + w/2}" y2="{cy + indent}" class="hip"/>'
-            svg += f'<line x1="{cx + w}" y1="{cy}" x2="{cx + w/2}" y2="{cy + indent}" class="hip"/>'
-            svg += f'<line x1="{cx}" y1="{cy + h}" x2="{cx + w/2}" y2="{cy + h - indent}" class="hip"/>'
-            svg += f'<line x1="{cx + w}" y1="{cy + h}" x2="{cx + w/2}" y2="{cy + h - indent}" class="hip"/>'
-            # Стрелки воды
-            svg += f'<line x1="{cx + w/2 + 10}" y1="{cy + h/2}" x2="{cx + w*0.9}" y2="{cy + h/2}" class="water"/>'
-            svg += f'<line x1="{cx + w/2 - 10}" y1="{cy + h/2}" x2="{cx + w*0.1}" y2="{cy + h/2}" class="water"/>'
-            svg += f'<line x1="{cx + w/2}" y1="{cy + indent - 10}" x2="{cx + w/2}" y2="{cy + indent*0.2}" class="water"/>'
-            svg += f'<line x1="{cx + w/2}" y1="{cy + h - indent + 10}" x2="{cx + w/2}" y2="{cy + h - indent*0.2}" class="water"/>'
+            svg += f'<line x1="{cx+w/2}" y1="{cy+indent}" x2="{cx+w/2}" y2="{cy+h-indent}" class="ridge"/>'
+            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w/2}" y2="{cy+indent}" class="hip"/>'
+            svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w/2}" y2="{cy+indent}" class="hip"/>'
+            svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w/2}" y2="{cy+h-indent}" class="hip"/>'
+            svg += f'<line x1="{cx+w}" y1="{cy+h}" x2="{cx+w/2}" y2="{cy+h-indent}" class="hip"/>'
 
-    # Подписи: если есть угол, пишем реальную длину в скате!
-    h_label = f"Торец (скат): {true_h} м" if pitch > 0 else f"Торец: {h_input} м"
-
-    svg += f'<text x="{cx + w/2}" y="{cy - 15}" text-anchor="middle" class="text">Карниз: {w_input} м</text>'
-    svg += f'<text x="{cx - 15}" y="{cy + h/2}" text-anchor="middle" transform="rotate(-90, {cx - 15}, {cy + h/2})" class="text">{h_label}</text>'
+        # Подписи
+        t_hip_side = (
+            f"Карниз (скат): {true_h} м" if pitch > 0 else f"Карниз: {h_input} м"
+        )
+        svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">{t_eaves}</text>'
+        svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
+        svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_hip_side}</text>'
+        svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_hip_side}</text>'
 
     svg += "</svg>"
-    return jsonify({"svg": svg})
+
+    # Легенда цветов
+    legend = """
+    <div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; font-size: 14px; font-weight: bold; background: #fdfefe; padding: 10px; border-radius: 5px; border: 1px solid #eee;">
+       <div><span style="color: #2ecc71; font-size: 18px;">■</span> Карниз</div>
+       <div><span style="color: #f1c40f; font-size: 18px;">■</span> Торец</div>
+       <div><span style="color: #e74c3c; font-size: 18px;">■</span> Конек/Хребет</div>
+       <div><span style="color: #e67e22; font-size: 18px;">■</span> Ендова</div>
+       <div><span style="color: #3498db; font-size: 18px;">■</span> Примыкание</div>
+    </div>
+    """
+
+    return jsonify({"svg": svg + legend})
 
 
 # ----------------------------------------
