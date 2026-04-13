@@ -422,8 +422,27 @@
                 slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
             }
 
+            // --- АВТОМАТИЧЕСКИЙ РАСЧЕТ ПЛОЩАДИ (С УЧЕТОМ ЧЕЛОВЕЧЕСКОГО ОКРУГЛЕНИЯ) ---
+            let slopedArea = area * slopeFactor; // Площадь с учетом ската (по умолчанию)
+
+            if (area === 0 && eaves > 0 && rakes > 0) {
+                // Берем округленный скат, чтобы математика 1 в 1 совпадала с цифрами на чертеже
+                let trueRake = parseFloat((rakes * slopeFactor).toFixed(2));
+
+                if (rType === 'gable') {
+                    area = eaves * (rakes * 2); // Площадь в плане (для ячейки)
+                    slopedArea = eaves * (trueRake * 2); // Истинная площадь для закупки
+                } else {
+                    area = eaves * rakes;
+                    slopedArea = eaves * trueRake;
+                }
+                // Показываем площадь в плане в ячейке
+                document.getElementById('mArea').value = area.toFixed(2);
+            }
+
             // --- ИТОГОВЫЙ ВЫВОД С УГЛОМ И ЗАПАСАМИ (+5% и +10%) ---
-            document.getElementById('fArea').innerText = (area * slopeFactor * 1.10).toFixed(2);
+            // Используем новую slopedArea для покрытия
+            document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
 
             // Горизонтальные элементы (без косинуса)
             document.getElementById('fEaves').innerText = (calcEaves * 1.05).toFixed(2);
@@ -433,7 +452,7 @@
             // Наклонные элементы (умножаем на косинус)
             document.getElementById('fRakes').innerText = (calcRakes * slopeFactor * 1.05).toFixed(2);
             document.getElementById('fHips').innerText = (calcHips * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fValleys').innerText = (calcValleys * slopeFactor * 1.05).toFixed(2); // Если есть ендовы
+            document.getElementById('fValleys').innerText = (calcValleys * slopeFactor * 1.05).toFixed(2);
 
             document.getElementById('finalBox').style.display = "block";
         }
