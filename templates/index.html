@@ -207,26 +207,35 @@
         <div class="box manual-box" id="manualBox">
             <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры кровли</h3>
             <div class="grid-form">
+
                 <div class="form-group" style="grid-column: span 2;">
                     <label>Тип кровли:</label>
-                    <select id="roofType"
+                    <select id="roofType" onchange="toggleRoofFields()"
                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                         <option value="shed">Односкатная (Плоская)</option>
-                        <option value="gable">Двухскатная (Классика)</option>
-                        <option value="hip">Вальмовая (4 ската)</option>
+                        <option value="gable" selected>Двухскатная (Классика)</option>
+                        <option value="hip">Вальмовая (Сложная)</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Угол наклона (в градусах):</label>
+                    <label id="lblPitch">Угол наклона (в градусах):</label>
                     <input type="number" id="mPitch" class="highlight-input" step="1" value="0">
                 </div>
+
+                <div class="form-group" id="groupPitchHip" style="display: none;">
+                    <label>Угол вальмы (треугольника):</label>
+                    <input type="number" id="mPitchHip" class="highlight-input" step="1" value="0"
+                        placeholder="Если отличается">
+                </div>
+
                 <div class="form-group"><label>Общая площадь (в плане):</label><input type="number" id="mArea"
                         step="0.01" value="0"></div>
-                <div class="form-group"><label>Длина карнизов (м):</label><input type="number" id="mEaves" step="0.01"
-                        value="0"></div>
-                <div class="form-group"><label>Длина торцов (м):</label><input type="number" id="mRakes" step="0.01"
-                        value="0"></div>
+                <div class="form-group"><label id="lblEaves">Длина карнизов (м):</label><input type="number" id="mEaves"
+                        step="0.01" value="0"></div>
+                <div class="form-group"><label id="lblRakes">Длина торцов (м):</label><input type="number" id="mRakes"
+                        step="0.01" value="0"></div>
+
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
                         value="0"></div>
                 <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01"
@@ -289,6 +298,28 @@
     <script>
         let conversationHistory = [];
 
+        // ДИНАМИЧЕСКИЙ ИНТЕРФЕЙС
+        function toggleRoofFields() {
+            const rType = document.getElementById('roofType').value;
+            const lblPitch = document.getElementById('lblPitch');
+            const groupPitchHip = document.getElementById('groupPitchHip');
+            const lblEaves = document.getElementById('lblEaves');
+            const lblRakes = document.getElementById('lblRakes');
+
+            if (rType === 'hip') {
+                lblPitch.innerText = "Угол трапеции (град):";
+                groupPitchHip.style.display = "block";
+                lblEaves.innerText = "Карниз трапеции (длина дома), м:";
+                lblRakes.innerText = "Карниз вальмы (ширина дома), м:";
+            } else {
+                lblPitch.innerText = "Угол наклона (в градусах):";
+                groupPitchHip.style.display = "none";
+                lblEaves.innerText = "Длина карнизов (м):";
+                lblRakes.innerText = "Длина торцов (м):";
+            }
+        }
+        window.onload = toggleRoofFields; // Запускаем при загрузке
+
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
             let match = text.match(regex);
@@ -335,16 +366,10 @@
                     document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
 
                     conversationHistory = [];
-                    conversationHistory.push({
-                        role: "user",
-                        text: "Я загрузил чертеж. Вот текстовые данные, которые ты из него извлек. Запомни их: \n" + aiText
-                    });
-                    conversationHistory.push({
-                        role: "model",
-                        text: "Принято! Я запомнил эти размеры и готов помочь с расчетами."
-                    });
+                    conversationHistory.push({ role: "user", text: "Я загрузил чертеж. Запомни: \n" + aiText });
+                    conversationHistory.push({ role: "model", text: "Принято! Готов помочь." });
 
-                    historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Я извлек цифры с чертежа и заполнил форму выше! Можем продолжать расчет.</div><br>`;
+                    historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Я извлек цифры с чертежа и заполнил форму выше!</div><br>`;
                     historyBox.scrollTop = historyBox.scrollHeight;
                 }
             } catch (error) {
@@ -358,10 +383,11 @@
             const w = parseFloat(document.getElementById('mEaves').value) || 0;
             const h = parseFloat(document.getElementById('mRakes').value) || 0;
             const p = parseFloat(document.getElementById('mPitch').value) || 0;
+            const pHip = parseFloat(document.getElementById('mPitchHip').value) || 0;
             const schemeBox = document.getElementById('schemeResult');
 
             if (w === 0 || h === 0) {
-                alert("Пожалуйста, сначала введите 'Длина карнизов' и 'Длина торцов' (больше нуля)!");
+                alert("Пожалуйста, введите размеры!");
                 return;
             }
 
@@ -372,7 +398,7 @@
                 const response = await fetch('/generate_scheme', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roof_type: rType, width: w, height: h, pitch: p })
+                    body: JSON.stringify({ roof_type: rType, width: w, height: h, pitch: p, pitch_hip: pHip })
                 });
                 const data = await response.json();
                 schemeBox.innerHTML = data.svg;
@@ -381,16 +407,21 @@
             }
         }
 
+        // ЖЕЛЕЗОБЕТОННАЯ И УМНАЯ МАТЕМАТИКА
         function calculateFinal() {
             const rType = document.getElementById('roofType').value;
             let area = parseFloat(document.getElementById('mArea').value) || 0;
             const pitch = parseFloat(document.getElementById('mPitch').value) || 0;
+            let pitchHip = parseFloat(document.getElementById('mPitchHip').value) || 0;
+
             const eaves = parseFloat(document.getElementById('mEaves').value) || 0;
             const rakes = parseFloat(document.getElementById('mRakes').value) || 0;
             let ridges = parseFloat(document.getElementById('mRidges').value) || 0;
             let hips = parseFloat(document.getElementById('mHips').value) || 0;
             let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+
+            if (pitchHip === 0) pitchHip = pitch;
 
             let calcEaves = eaves;
             let calcRakes = rakes;
@@ -415,34 +446,57 @@
                 if (calcRidges === 0 && eaves > rakes) calcRidges = eaves - rakes;
             }
 
-            let slopeFactor = 1;
-            if (pitch > 0 && pitch < 89) {
-                slopeFactor = 1 / Math.cos(pitch * Math.PI / 180);
-            }
+            // Косинусы углов
+            let slopeFactor1 = 1; // Для трапеции (основного)
+            let slopeFactor2 = 1; // Для вальмы (треугольника)
 
-            let trueRake = parseFloat((rakes * slopeFactor).toFixed(2));
+            if (pitch > 0 && pitch < 89) slopeFactor1 = 1 / Math.cos(pitch * Math.PI / 180);
+            if (pitchHip > 0 && pitchHip < 89) slopeFactor2 = 1 / Math.cos(pitchHip * Math.PI / 180);
+
+            let trueRake = parseFloat((rakes * slopeFactor1).toFixed(2));
             let slopedArea = 0;
 
             if (eaves > 0 && rakes > 0) {
                 if (rType === 'gable') {
                     area = eaves * (rakes * 2);
                     slopedArea = eaves * (trueRake * 2);
+                } else if (rType === 'hip') {
+                    area = eaves * rakes; // Площадь в плане (L * W)
+
+                    // Геометрия сложной вальмы с ДВУМЯ разными углами
+                    if (pitch !== pitchHip && pitch > 0 && pitchHip > 0) {
+                        let H = (rakes / 2) * Math.tan(pitch * Math.PI / 180); // Высота крыши
+                        let x = H / Math.tan(pitchHip * Math.PI / 180); // Отступ вальмы в плане
+                        if (x > eaves / 2) x = eaves / 2; // Защита от перехлеста
+
+                        let planTriangleArea = rakes * x; // 2 треугольника
+                        let planTrapezeArea = area - planTriangleArea; // 2 трапеции
+
+                        slopedArea = (planTriangleArea * slopeFactor2) + (planTrapezeArea * slopeFactor1);
+                    } else {
+                        slopedArea = area * slopeFactor1; // Если углы равны
+                    }
                 } else {
                     area = eaves * rakes;
                     slopedArea = eaves * trueRake;
                 }
                 document.getElementById('mArea').value = area.toFixed(2);
             } else {
-                slopedArea = area * slopeFactor;
+                slopedArea = area * slopeFactor1;
             }
 
             document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
+
             document.getElementById('fEaves').innerText = (calcEaves * 1.05).toFixed(2);
             document.getElementById('fRidges').innerText = (calcRidges * 1.05).toFixed(2);
             document.getElementById('fAbutments').innerText = (calcAbutments * 1.05).toFixed(2);
-            document.getElementById('fRakes').innerText = (calcRakes * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fHips').innerText = (calcHips * slopeFactor * 1.05).toFixed(2);
-            document.getElementById('fValleys').innerText = (calcValleys * slopeFactor * 1.05).toFixed(2);
+
+            // Если вальма - хребты считаем по углу вальмы, иначе по основному
+            let hipSlope = rType === 'hip' ? slopeFactor2 : slopeFactor1;
+
+            document.getElementById('fRakes').innerText = (calcRakes * slopeFactor1 * 1.05).toFixed(2);
+            document.getElementById('fHips').innerText = (calcHips * hipSlope * 1.05).toFixed(2);
+            document.getElementById('fValleys').innerText = (calcValleys * slopeFactor1 * 1.05).toFixed(2);
 
             document.getElementById('finalBox').style.display = "block";
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
@@ -463,10 +517,7 @@
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: message,
-                        history: conversationHistory
-                    })
+                    body: JSON.stringify({ message: message, history: conversationHistory })
                 });
                 const data = await response.json();
 

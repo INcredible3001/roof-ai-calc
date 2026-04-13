@@ -23,11 +23,9 @@ app.config["JSON_AS_ASCII"] = False
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 # ---------------------------------------
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/analyze", methods=["POST"])
 def analyze_image():
@@ -70,7 +68,7 @@ def analyze_image():
         return jsonify({"error": str(e)})
 
 
-# --- НОВЫЙ БЛОК: ГЕНЕРАЦИЯ 2D-СХЕМЫ (ЦВЕТА И РАЗМЕРЫ СО ВСЕХ СТОРОН) ---
+# --- ГЕНЕРАЦИЯ 2D-СХЕМЫ С УЧЕТОМ ДВУХ УГЛОВ ДЛЯ ВАЛЬМЫ ---
 @app.route("/generate_scheme", methods=["POST"])
 def generate_scheme():
     data = request.json
@@ -78,23 +76,18 @@ def generate_scheme():
     w_input = float(data.get("width", 0))
     h_input = float(data.get("height", 0))
     pitch = float(data.get("pitch", 0))
+    pitch_hip = float(data.get("pitch_hip", 0))
+    
+    if pitch_hip == 0:
+        pitch_hip = pitch # Если второй угол не ввели, считаем их одинаковыми
 
     if w_input <= 0 or h_input <= 0:
-        return jsonify(
-            {
-                "svg": "<p style='color:red;'>Укажите длину карнизов и торцов больше 0.</p>"
-            }
-        )
+        return jsonify({"svg": "<p style='color:red;'>Укажите размеры больше 0.</p>"})
 
-    # Считаем реальную длину ската
     slope_factor = 1
     if 0 < pitch < 89:
         slope_factor = 1 / math.cos(math.radians(pitch))
     true_h = round(h_input * slope_factor, 2)
-
-    # Тексты для подписей
-    t_eaves = f"Карниз: {w_input} м"
-    t_rake = f"Торец (скат): {true_h} м" if pitch > 0 else f"Торец: {h_input} м"
 
     max_dim = max(w_input, h_input)
     scale = 300 / max_dim if max_dim > 0 else 50
@@ -105,93 +98,89 @@ def generate_scheme():
     total_h = h + pad * 2
 
     svg = f'<svg width="100%" height="{total_h}" viewBox="0 0 {total_w} {total_h}" xmlns="http://www.w3.org/2000/svg">'
-
-    # Стрелка и стили с новыми цветами!
-    svg += """
+    
+    svg += '''
     <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#95a5a6" />
         </marker>
     </defs>
-    """
-    svg += """<style>
-        .eaves {stroke: #2ecc71; stroke-width: 4;}   /* Зеленый - Карниз */
-        .rake {stroke: #f1c40f; stroke-width: 4;}    /* Желтый - Торец */
-        .ridge {stroke: #e74c3c; stroke-width: 4;}   /* Красный - Конек/Хребет */
-        .hip {stroke: #e74c3c; stroke-width: 3;}     /* Красный - Хребет */
-        .abutment {stroke: #3498db; stroke-width: 4;}/* Синий - Примыкание */
-        .valley {stroke: #e67e22; stroke-width: 3;}  /* Оранжевый - Ендова */
+    '''
+    svg += '''<style>
+        .eaves {stroke: #2ecc71; stroke-width: 4;}   
+        .rake {stroke: #f1c40f; stroke-width: 4;}    
+        .ridge {stroke: #e74c3c; stroke-width: 4;}   
+        .hip {stroke: #e74c3c; stroke-width: 3;}     
+        .abutment {stroke: #3498db; stroke-width: 4;}
+        .valley {stroke: #e67e22; stroke-width: 3;}  
         .water {stroke: #95a5a6; stroke-width: 2; marker-end: url(#arrow); stroke-dasharray: 4 4;}
         .text {font-family: sans-serif; font-size: 14px; font-weight: bold; fill: #2c3e50;}
-    </style>"""
-
+    </style>'''
+    
     cx, cy = pad, pad
+    t_eaves = f"Карниз: {w_input} м"
+    t_rake = f"Торец (скат): {true_h} м" if pitch > 0 else f"Торец: {h_input} м"
 
-    if roof_type == "shed":
-        # Односкатная
-        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'  # Низ (Карниз)
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="abutment"/>'  # Верх (Примыкание)
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'  # Лево (Торец)
-        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'  # Право (Торец)
+    if roof_type == 'shed':
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'      
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="abutment"/>'       
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'           
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'       
         svg += f'<line x1="{cx+w/2}" y1="{cy+h*0.2}" x2="{cx+w/2}" y2="{cy+h*0.8}" class="water"/>'
-
-        # Подписи
+        
         svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">Примыкание: {w_input} м</text>'
         svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
         svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_rake}</text>'
         svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_rake}</text>'
 
-    elif roof_type == "gable":
-        # Двухскатная
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'  # Верх (Карниз)
-        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'  # Низ (Карниз)
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'  # Лево (Торец)
-        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'  # Право (Торец)
-        svg += f'<line x1="{cx}" y1="{cy+h/2}" x2="{cx+w}" y2="{cy+h/2}" class="ridge"/>'  # Конек
-
+    elif roof_type == 'gable':
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'          
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'      
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="rake"/>'           
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="rake"/>'       
+        svg += f'<line x1="{cx}" y1="{cy+h/2}" x2="{cx+w}" y2="{cy+h/2}" class="ridge"/>'  
+        
         svg += f'<line x1="{cx+w/2}" y1="{cy+h/2-10}" x2="{cx+w/2}" y2="{cy+h*0.1}" class="water"/>'
         svg += f'<line x1="{cx+w/2}" y1="{cy+h/2+10}" x2="{cx+w/2}" y2="{cy+h*0.9}" class="water"/>'
-
-        # Подписи
+        
         svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">{t_eaves}</text>'
         svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
         svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_rake}</text>'
         svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_rake}</text>'
 
-    elif roof_type == "hip":
-        # Вальмовая (у вальмы все 4 стороны - это карнизы)
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'
-        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'
-        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="eaves"/>'
-        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'
-
-        indent = min(w, h) * 0.3
-        if w >= h:
-            svg += f'<line x1="{cx+indent}" y1="{cy+h/2}" x2="{cx+w-indent}" y2="{cy+h/2}" class="ridge"/>'
-            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
-            svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
-            svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
-            svg += f'<line x1="{cx+w}" y1="{cy+h}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
-        else:
-            svg += f'<line x1="{cx+w/2}" y1="{cy+indent}" x2="{cx+w/2}" y2="{cy+h-indent}" class="ridge"/>'
-            svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w/2}" y2="{cy+indent}" class="hip"/>'
-            svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w/2}" y2="{cy+indent}" class="hip"/>'
-            svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w/2}" y2="{cy+h-indent}" class="hip"/>'
-            svg += f'<line x1="{cx+w}" y1="{cy+h}" x2="{cx+w/2}" y2="{cy+h-indent}" class="hip"/>'
-
-        # Подписи
-        t_hip_side = (
-            f"Карниз (скат): {true_h} м" if pitch > 0 else f"Карниз: {h_input} м"
-        )
-        svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">{t_eaves}</text>'
-        svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_eaves}</text>'
+    elif roof_type == 'hip':
+        # Для вальмы: w - это всегда Трапеция (длина дома), h - Треугольник (ширина)
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+w}" y2="{cy}" class="eaves"/>'          
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'      
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy+h}" class="eaves"/>'           
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w}" y2="{cy+h}" class="eaves"/>'       
+        
+        # Умный расчет длины конька на основе двух разных углов
+        indent = h / 2
+        if pitch > 0 and pitch_hip > 0 and pitch != pitch_hip:
+            p1 = math.radians(pitch)
+            p2 = math.radians(pitch_hip)
+            height_of_roof = (h / 2) * math.tan(p1)
+            indent = height_of_roof / math.tan(p2)
+            if indent > w / 2: # Защита от перехлеста (шатра)
+                indent = w / 2
+                
+        svg += f'<line x1="{cx+indent}" y1="{cy+h/2}" x2="{cx+w-indent}" y2="{cy+h/2}" class="ridge"/>'
+        svg += f'<line x1="{cx}" y1="{cy}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
+        svg += f'<line x1="{cx}" y1="{cy+h}" x2="{cx+indent}" y2="{cy+h/2}" class="hip"/>'
+        svg += f'<line x1="{cx+w}" y1="{cy}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
+        svg += f'<line x1="{cx+w}" y1="{cy+h}" x2="{cx+w-indent}" y2="{cy+h/2}" class="hip"/>'
+            
+        t_hip_side = f"Карниз вальмы: {h_input} м"
+        t_trap_side = f"Карниз трап.: {w_input} м"
+        svg += f'<text x="{cx+w/2}" y="{cy-15}" text-anchor="middle" class="text">{t_trap_side}</text>'
+        svg += f'<text x="{cx+w/2}" y="{cy+h+20}" text-anchor="middle" class="text">{t_trap_side}</text>'
         svg += f'<text x="{cx-15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90, {cx-15}, {cy+h/2})" class="text">{t_hip_side}</text>'
         svg += f'<text x="{cx+w+15}" y="{cy+h/2}" text-anchor="middle" transform="rotate(90, {cx+w+15}, {cy+h/2})" class="text">{t_hip_side}</text>'
 
-    svg += "</svg>"
-
-    # Легенда цветов
-    legend = """
+    svg += '</svg>'
+    
+    legend = '''
     <div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; font-size: 14px; font-weight: bold; background: #fdfefe; padding: 10px; border-radius: 5px; border: 1px solid #eee;">
        <div><span style="color: #2ecc71; font-size: 18px;">■</span> Карниз</div>
        <div><span style="color: #f1c40f; font-size: 18px;">■</span> Торец</div>
@@ -199,13 +188,9 @@ def generate_scheme():
        <div><span style="color: #e67e22; font-size: 18px;">■</span> Ендова</div>
        <div><span style="color: #3498db; font-size: 18px;">■</span> Примыкание</div>
     </div>
-    """
-
+    '''
+    
     return jsonify({"svg": svg + legend})
-
-
-# ----------------------------------------
-
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -218,17 +203,13 @@ def chat():
 
     formatted_contents = []
     for msg in chat_history:
-        formatted_contents.append(
-            {"role": msg["role"], "parts": [{"text": msg["text"]}]}
-        )
+        formatted_contents.append({"role": msg["role"], "parts": [{"text": msg["text"]}]})
 
     formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
-
     sys_instruct = "Ты профи-помощник по кровле. Помогай клиенту с расчетами, терминами и отвечай на вопросы по тем данным, которые сохранены в памяти чата."
 
     try:
         from google.genai import types
-
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=formatted_contents,
@@ -238,8 +219,6 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 if __name__ == "__main__":
-    # Для сервера в интернете используем такие настройки:
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
