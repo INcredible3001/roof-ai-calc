@@ -18,7 +18,7 @@ import io
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
-# ТВОЙ КЛЮЧ
+# ТВОЙ КЛЮЧ (убедись, что он в переменных окружения)
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
@@ -193,7 +193,10 @@ def generate_scheme():
 
         # 5. Подписи текстом (как на твоем рисунке)
         svg += f'<text x="{cx-10}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90,{cx-10},{cy+h/2})" class="txt">Торец</text>'
-        svg += f'<text x="{cx+w/4}" y="{cy+h/2-D/2-10}" text-anchor="middle" class="txt">Карниз</text>'
+
+        # <--- ВОТ ИСПРАВЛЕННАЯ СТРОКА: ТЕКСТ СМЕЩЕН В УГОЛ И В СТОРОНУ (на 25 влево и на 15 вниз) --->
+        svg += f'<text x="{cx+w/2-D/2-25}" y="{cy+h/2-D/2+15}" text-anchor="middle" class="txt">Карниз</text>'
+
         svg += f'<text x="{cx+w*0.75}" y="{cy+h/2-5}" text-anchor="middle" class="txt-r">Конек</text>'
         svg += f'<text x="{cx+w/2-D/4-10}" y="{cy+h/2+D/4+15}" text-anchor="middle" class="txt" style="fill:#e67e22;">Ендова</text>'
         svg += f'<text x="{cx+w/2}" y="{cy+h+25}" text-anchor="middle" class="txt">Длина: {w_in}м | Ширина: {h_in}м | Скат: {s_trap}м</text>'
@@ -210,32 +213,6 @@ def generate_scheme():
     </div>
     """
     return jsonify({"svg": svg + legend})
-
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    data = request.json
-    user_message = data.get("message")
-    chat_history = data.get("history", [])
-    if not user_message:
-        return jsonify({"error": "Пустое сообщение"})
-    formatted_contents = [
-        {"role": m["role"], "parts": [{"text": m["text"]}]} for m in chat_history
-    ]
-    formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
-    try:
-        from google.genai import types
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=formatted_contents,
-            config=types.GenerateContentConfig(
-                system_instruction="Ты профи-помощник по кровле."
-            ),
-        )
-        return jsonify({"reply": response.text})
-    except Exception as e:
-        return jsonify({"error": str(e)})
 
 
 if __name__ == "__main__":
