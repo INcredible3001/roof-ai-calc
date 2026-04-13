@@ -571,6 +571,7 @@
                 dirLight.castShadow = true;
                 dirLight.shadow.mapSize.width = 2048;
                 dirLight.shadow.mapSize.height = 2048;
+                dirLight.shadow.bias = -0.001;
                 scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xecf0f1);
@@ -685,7 +686,7 @@
             }
 
             roofMesh.castShadow = true;
-            roofMesh.receiveShadow = true;
+            roofMesh.receiveShadow = false;
             objectsGroup.add(roofMesh);
 
             const roofEdges = new THREE.EdgesGeometry(roofMesh.geometry);
