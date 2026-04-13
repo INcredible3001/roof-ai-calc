@@ -547,46 +547,42 @@
             }
 
             const container = document.getElementById('container3D');
-            container.style.display = "block"; // Показываем холст
+            container.style.display = "block";
 
-            init3D(); // Инициализируем мир, если еще не был
+            init3D();
 
             // 1. Строим коробку дома (стены)
-            const houseHeight = 4; // Стандартная высота стен
+            const houseHeight = 4;
             const houseGeo = new THREE.BoxGeometry(L, houseHeight, W);
-            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Белые стены
+            const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             houseMesh = new THREE.Mesh(houseGeo, houseMat);
             houseMesh.position.y = houseHeight / 2;
             scene.add(houseMesh);
 
             // 2. Строим крышу в зависимости от типа
-            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide }); // Красная крыша
+            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
 
             if (rType === 'shed') {
                 // Односкатная
                 const roofHeight = W * Math.tan(P1 * Math.PI / 180);
-
-                // Создаем профиль крыши (треугольник сбоку)
                 const shape = new THREE.Shape();
-                shape.moveTo(0, 0);
-                shape.lineTo(0, roofHeight);
-                shape.lineTo(W, 0);
-                shape.lineTo(0, 0);
+                shape.moveTo(-W / 2, 0);
+                shape.lineTo(-W / 2, roofHeight);
+                shape.lineTo(W / 2, 0);
+                shape.lineTo(-W / 2, 0);
 
                 const extrudeSettings = { depth: L, bevelEnabled: false };
                 const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofGeo.translate(0, 0, -L / 2); // Центрируем крышу
 
-                // Ставим крышу на дом
-                roofMesh.position.set(-L / 2, houseHeight, W / 2);
-                roofMesh.rotation.y = -Math.PI / 2; // Поворачиваем на 90 град
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.set(0, houseHeight, 0);
+                roofMesh.rotation.y = Math.PI / 2; // Разворачиваем на 90 градусов!
                 scene.add(roofMesh);
 
             } else if (rType === 'gable') {
                 // Двухскатная
                 const roofHeight = (W / 2) * Math.tan(P1 * Math.PI / 180);
-
-                // Профиль (равнобедренный треугольник)
                 const shape = new THREE.Shape();
                 shape.moveTo(-W / 2, 0);
                 shape.lineTo(0, roofHeight);
@@ -595,18 +591,19 @@
 
                 const extrudeSettings = { depth: L, bevelEnabled: false };
                 const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofGeo.translate(0, 0, -L / 2); // Центрируем крышу
 
-                // Ставим крышу на дом
-                roofMesh.position.set(0, houseHeight, -L / 2);
+                roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.set(0, houseHeight, 0);
+                roofMesh.rotation.y = Math.PI / 2; // Разворачиваем на 90 градусов!
                 scene.add(roofMesh);
             } else {
                 alert("3D Вальма в разработке! Пока показываем коробку.");
             }
 
-            // Направляем камеру на дом
+            // Направляем камеру чуть сбоку и сверху
             controls.target.set(0, houseHeight, 0);
-            camera.position.set(L, houseHeight + 10, W + 10);
+            camera.position.set(L * 1.5, houseHeight + 10, W * 1.5);
         }
     </script>
 </body>
