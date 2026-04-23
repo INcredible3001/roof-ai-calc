@@ -4,63 +4,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Умный калькулятор с ИИ и чатом</title>
+    <title>3D Планировщик Кровли PRO</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <style>
+        /* НОВАЯ АРХИТЕКТУРА WEB-ПРИЛОЖЕНИЯ */
         body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
-            padding: 20px;
             color: #333;
+            overflow: hidden;
+            /* Запрещаем общую прокрутку страницы */
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
+        /* ЛЕВАЯ ЧАСТЬ - 3D СЦЕНА */
+        #viewport {
+            flex: 1;
+            /* Занимает всё оставшееся свободное место */
+            position: relative;
+            background: #ecf0f1;
+        }
+
+        .instruction-3d {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            pointer-events: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
+        /* ПРАВАЯ ЧАСТЬ - ПАНЕЛЬ УПРАВЛЕНИЯ */
+        #sidebar {
+            width: 450px;
+            min-width: 450px;
+            background: #ffffff;
+            height: 100vh;
+            overflow-y: auto;
+            /* Прокрутка только внутри боковой панели */
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        /* СТИЛИ ЭЛЕМЕНТОВ (адаптированы под панель) */
         h2 {
             color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
         }
 
         .box {
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
 
-        .ai-box {
-            background-color: #fdfefe;
-            border: 2px dashed #3498db;
-        }
-
-        .manual-box {
-            background-color: #fef9e7;
-            border: 2px solid #f1c40f;
-        }
-
-        .final-box {
-            background-color: #e8f8f5;
-            border: 2px solid #1abc9c;
-            display: none;
-        }
-
-        .chat-box {
-            background-color: #f4f6f7;
-            border: 1px solid #bdc3c7;
-        }
-
-        input[type="file"] {
+        .box h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #34495e;
             margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .highlight-input {
+            border: 2px solid #3498db !important;
+            background-color: #eaf2f8;
+        }
+
+        /* Двойная сетка для полей ввода */
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
 
         button {
@@ -68,11 +128,12 @@
             padding: 14px;
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
             margin-top: 10px;
+            transition: 0.2s;
         }
 
         .btn-blue {
@@ -91,71 +152,24 @@
             background-color: #e67e22;
         }
 
+        .btn-purple {
+            background-color: #9b59b6;
+        }
+
+        .btn-purple:hover {
+            background-color: #8e44ad;
+        }
+
         .btn-dark {
             background-color: #34495e;
             padding: 10px;
-        }
-
-        .btn-3d {
-            background-color: #e74c3c;
-        }
-
-        .btn-3d:hover {
-            background-color: #c0392b;
-        }
-
-        #aiResult {
-            margin-top: 15px;
-            font-size: 14px;
-            white-space: pre-wrap;
-            background: #fff;
-            padding: 15px;
-            border-radius: 4px;
-            border: 1px solid #ecf0f1;
-            display: none;
-        }
-
-        .loader {
-            display: none;
-            color: #3498db;
-            font-weight: bold;
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .grid-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-
-        .highlight-input {
-            border: 2px solid #3498db !important;
-            background-color: #eaf2f8;
         }
 
         .result-item {
             display: flex;
             justify-content: space-between;
             margin-bottom: 10px;
-            font-size: 16px;
+            font-size: 14px;
             border-bottom: 1px dashed #bdc3c7;
             padding-bottom: 5px;
         }
@@ -165,29 +179,34 @@
             color: #c0392b;
         }
 
+        .final-box {
+            background-color: #e8f8f5;
+            border: 2px solid #1abc9c;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #schemeResult {
+            text-align: center;
+            margin-top: 15px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            border: 1px solid #eee;
+        }
+
         #chatHistory {
             height: 200px;
             overflow-y: auto;
-            background: #fff;
+            background: #fdfefe;
             padding: 15px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
             margin-bottom: 10px;
-            font-size: 14px;
+            font-size: 13px;
             white-space: pre-wrap;
-        }
-
-        .msg-user {
-            color: #2980b9;
-            font-weight: bold;
-            margin-bottom: 2px;
-        }
-
-        .msg-ai {
-            color: #27ae60;
-            font-weight: bold;
-            margin-bottom: 2px;
-            margin-top: 10px;
         }
 
         .chat-input-group {
@@ -197,10 +216,6 @@
 
         #chatInput {
             flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 15px;
         }
 
         #chatBtn {
@@ -209,114 +224,100 @@
             padding: 10px 20px;
         }
 
-        #container3D {
-            width: 100%;
-            height: 480px;
-            background-color: #ecf0f1;
-            border-radius: 4px;
-            margin-top: 15px;
+        .loader {
             display: none;
-            border: 2px solid #bdc3c7;
-            overflow: hidden;
-            position: relative;
+            color: #3498db;
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
         }
 
-        .instruction-3d {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 5px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            color: #5f6c7c;
-            pointer-events: none;
-            border: 1px solid #eee;
+        #aiResult {
+            margin-top: 15px;
+            font-size: 13px;
+            white-space: pre-wrap;
+            background: #fdfefe;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ecf0f1;
+            display: none;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
-        <h2>Профессиональный расчет кровли</h2>
+    <div id="viewport">
+        <div class="instruction-3d">Используйте левую кнопку мыши для вращения, колесико для масштаба</div>
+    </div>
 
-        <div class="box manual-box" id="manualBox">
-            <h3 style="margin-top: 0;">Шаг 1: Укажите размеры и параметры</h3>
-            <div class="grid-form">
+    <div id="sidebar">
+        <h2>Настройки проекта</h2>
 
-                <div class="form-group" style="grid-column: span 2;">
-                    <label>Тип кровли:</label>
-                    <select id="roofType" onchange="toggleRoofFields()"
-                        style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <option value="shed">Односкатная (Плоская)</option>
-                        <option value="gable" selected>Двухскатная (Классика)</option>
-                        <option value="hip">Вальмовая (Сложная)</option>
-                        <option value="tent">Шатровая (Пирамида)</option>
-                        <option value="multi_gable">Многощипцовая (Крест)</option>
-                    </select>
-                </div>
+        <div class="box">
+            <h3>1. Параметры здания</h3>
+            <div class="form-group">
+                <label>Тип кровли:</label>
+                <select id="roofType" onchange="toggleRoofFields(); render3D();">
+                    <option value="shed">Односкатная (Плоская)</option>
+                    <option value="gable" selected>Двухскатная (Классика)</option>
+                    <option value="hip">Вальмовая (Сложная)</option>
+                    <option value="tent">Шатровая (Пирамида)</option>
+                    <option value="multi_gable">Многощипцовая (Крест)</option>
+                </select>
+            </div>
 
+            <div class="grid-2-col">
                 <div class="form-group"><label id="lblEaves">Длина дома (м):</label><input type="number" id="mEaves"
-                        step="0.01" value="0"></div>
+                        step="0.01" value="10"></div>
                 <div class="form-group"><label id="lblRakes">Ширина дома (м):</label><input type="number" id="mRakes"
-                        step="0.01" value="0"></div>
+                        step="0.01" value="8"></div>
 
                 <div class="form-group">
-                    <label id="lblPitch">Угол основного ската (град):</label>
-                    <input type="number" id="mPitch" class="highlight-input" step="1" value="0">
+                    <label id="lblPitch">Угол ската (град):</label>
+                    <input type="number" id="mPitch" class="highlight-input" step="1" value="30">
                 </div>
                 <div class="form-group" id="groupPitchHip" style="display: none;">
-                    <label>Угол ската вальмы (град):</label>
+                    <label>Угол вальмы (град):</label>
                     <input type="number" id="mPitchHip" class="highlight-input" step="1" value="0">
                 </div>
 
-                <div class="form-group" id="groupSlopeTrap" style="display: none;">
-                    <label>Длина ската (м):</label>
-                    <input type="number" id="mSlopeTrap" class="highlight-input" step="0.01" value="0"
-                        placeholder="Авторасчет">
+                <div class="form-group" id="groupSlopeTrap" style="display: none;"><label>Скат трапеции
+                        (м):</label><input type="number" id="mSlopeTrap" class="highlight-input" step="0.01" value="0">
                 </div>
-                <div class="form-group" id="groupSlopeHip" style="display: none;">
-                    <label>Длина ската вальмы (м):</label>
-                    <input type="number" id="mSlopeHip" class="highlight-input" step="0.01" value="0"
-                        placeholder="Авторасчет">
-                </div>
+                <div class="form-group" id="groupSlopeHip" style="display: none;"><label>Скат вальмы (м):</label><input
+                        type="number" id="mSlopeHip" class="highlight-input" step="0.01" value="0"></div>
+            </div>
 
+            <button class="btn-blue" onclick="render3D()">Обновить 3D модель 🔄</button>
+        </div>
+
+        <div class="box">
+            <h3>2. Детализация 2D и расчет</h3>
+            <div class="grid-2-col">
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
                         value="0"></div>
                 <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01"
                         value="0"></div>
                 <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01"
                         value="0"></div>
-                <div class="form-group"><label>Длина примыканий (м):</label><input type="number" id="mAbutments"
-                        step="0.01" value="0"></div>
-
-                <div class="form-group" style="grid-column: span 2;">
-                    <label>Общая площадь (м²):</label>
-                    <input type="number" id="mArea" step="0.01" value="0" placeholder="Авторасчет">
-                </div>
+                <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01"
+                        value="0"></div>
             </div>
+            <div class="form-group"><label>Общая площадь в плане (м²):</label><input type="number" id="mArea"
+                    step="0.01" value="0" placeholder="Авторасчет"></div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <button class="btn-blue" onclick="processAndDraw()" style="background-color: #9b59b6;">Нарисовать 2D
-                    схему</button>
-                <button class="btn-3d" onclick="render3D()">Показать 3D модель 🔄</button>
-            </div>
+            <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
+            <div id="schemeResult"></div>
 
-            <div id="schemeResult"
-                style="text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none;">
-            </div>
-
-            <div id="container3D">
-                <div class="instruction-3d">Используйте левую кнопку мыши для вращения, колесико для масштаба</div>
-            </div>
-
-            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать материалы</button>
+            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать итоговые материалы</button>
         </div>
 
-        <div class="box final-box" id="finalBox">
-            <h3 style="margin-top: 0; color: #16a085;">Шаг 2: Итоговые материалы</h3>
+        <div class="final-box" id="finalBox">
+            <h3 style="margin-top: 0; color: #16a085;">Спецификация материалов</h3>
+            <p style="font-size: 11px; color: #7f8c8d; margin-top: -10px;">Математика: Площадь и торцы увеличены с
+                учетом угла.</p>
             <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
                         id="fArea">0</span> м²</span></div>
             <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
@@ -333,26 +334,38 @@
                         id="fAbutments">0</span> м</span></div>
         </div>
 
-        <div class="box ai-box">
-            <h3 style="margin-top: 0;">Шаг 3: Есть чертеж? Распознать через ИИ</h3>
-            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf, application/pdf">
-            <button class="btn-blue" onclick="analyzeImage()">Извлечь размеры с чертежа</button>
+        <hr style="border: 0; border-top: 1px solid #ecf0f1; margin: 30px 0;">
+
+        <div class="box">
+            <h3>Загрузить чертеж (ИИ)</h3>
+            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf" style="margin-bottom: 10px;">
+            <button class="btn-dark" onclick="analyzeImage()" style="width: 100%;">Распознать чертеж</button>
             <div class="loader" id="loader">Изучаю... ⏳</div>
             <div id="aiResult"></div>
         </div>
 
-        <div class="box chat-box">
-            <h3 style="margin-top: 0; color: #34495e;">Спроси ИИ-ассистента</h3>
+        <div class="box">
+            <h3>ИИ-Ассистент</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
-                <input type="text" id="chatInput" placeholder="Задай вопрос...">
-                <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
+                <input type="text" id="chatInput" placeholder="Ваш вопрос...">
+                <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Ответить</button>
             </div>
         </div>
     </div>
 
     <script>
         let conversationHistory = [];
+
+        // Адаптивность 3D при изменении размера окна
+        window.addEventListener('resize', () => {
+            const vp = document.getElementById('viewport');
+            if (camera && renderer) {
+                camera.aspect = vp.clientWidth / vp.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(vp.clientWidth, vp.clientHeight);
+            }
+        });
 
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
@@ -361,32 +374,31 @@
             const groupSlopeHip = document.getElementById('groupSlopeHip');
 
             if (rType === 'hip') {
-                document.getElementById('lblEaves').innerText = "Длина дома (Карниз трапеции), м:";
-                document.getElementById('lblRakes').innerText = "Ширина дома (Карниз вальмы), м:";
+                document.getElementById('lblEaves').innerText = "Длина дома (м):";
+                document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "block";
                 groupSlopeTrap.style.display = "block";
                 groupSlopeHip.style.display = "block";
             } else if (rType === 'multi_gable') {
-                document.getElementById('lblEaves').innerText = "Длина главного фасада, м:";
-                document.getElementById('lblRakes').innerText = "Ширина пересечения, м:";
-                groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "none";
-                groupSlopeHip.style.display = "none";
-            } else if (rType === 'tent') {
-                document.getElementById('lblEaves').innerText = "Длина дома, м:";
-                document.getElementById('lblRakes').innerText = "Ширина дома, м:";
+                document.getElementById('lblEaves').innerText = "Длина фасада (м):";
+                document.getElementById('lblRakes').innerText = "Пересечение (м):";
                 groupPitchHip.style.display = "none";
                 groupSlopeTrap.style.display = "none";
                 groupSlopeHip.style.display = "none";
             } else {
-                document.getElementById('lblEaves').innerText = "Длина дома (Карниз), м:";
-                document.getElementById('lblRakes').innerText = "Ширина дома (Торец), м:";
+                document.getElementById('lblEaves').innerText = "Длина дома (м):";
+                document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "none";
                 groupSlopeTrap.style.display = "none";
                 groupSlopeHip.style.display = "none";
             }
         }
-        window.onload = toggleRoofFields;
+
+        window.onload = function () {
+            toggleRoofFields();
+            init3D();   // Инициализируем сцену при загрузке страницы
+            render3D(); // Рисуем дом по умолчанию
+        };
 
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
@@ -417,7 +429,7 @@
                     document.getElementById('mHips').value = extractNumber(data.result, 'Хреб');
                     document.getElementById('mValleys').value = extractNumber(data.result, 'Ендов');
                     document.getElementById('mAbutments').value = extractNumber(data.result, 'Примыкан');
-                    document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
+                    render3D(); // Сразу рисуем 3D по найденным данным
                 }
             } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
         }
@@ -484,7 +496,7 @@
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
             if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
 
-            let vars = doMath(); // Сначала считаем всё
+            let vars = doMath();
             const schemeBox = document.getElementById('schemeResult');
             schemeBox.style.display = "block";
             schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
@@ -493,15 +505,8 @@
                 const response = await fetch('/generate_scheme', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        roof_type: vars.rType,
-                        width: vars.L,
-                        height: vars.W,
-                        pitch: vars.P1,
-                        pitch_hip: vars.P2,
-                        slope_trap: vars.S1.toFixed(2),
-                        slope_hip: vars.S2.toFixed(2),
-                        ridge: vars.Ridge.toFixed(2),
-                        hip: vars.Hip.toFixed(2)
+                        roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2,
+                        slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
                     })
                 });
                 const data = await response.json();
@@ -563,11 +568,14 @@
         }
         document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
 
+        // ==========================================
+        // --- ПРОДВИНУТАЯ 3D ВИЗУАЛИЗАЦИЯ ---
+        // ==========================================
         let scene, camera, renderer, controls;
         let objectsGroup = new THREE.Group();
 
         function init3D() {
-            const container = document.getElementById('container3D');
+            const container = document.getElementById('viewport'); // ТЕПЕРЬ В ЛЕВОЙ ЧАСТИ
             if (!scene) {
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0xf4f6f7);
@@ -621,13 +629,8 @@
 
         function render3D() {
             let vars = doMath();
-            if (vars.L === 0 || vars.W === 0) { alert("Сначала введите Длину и Ширину дома!"); return; }
+            if (vars.L === 0 || vars.W === 0) return;
 
-            const container = document.getElementById('container3D');
-            container.style.display = "block";
-            init3D();
-
-            // Удаляем старые объекты
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
             const houseHeight = 4;
@@ -635,26 +638,21 @@
             const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
 
-            // СТРОИМ ДОМ И КРЫШУ
             if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5;
 
-                // Коробка 1
                 const box1Geo = new THREE.BoxGeometry(vars.L, houseHeight, D);
                 const box1 = new THREE.Mesh(box1Geo, wallMat);
                 box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true;
-                // ПРАВИЛЬНО ПРИВЯЗЫВАЕМ ЛИНИИ К САМОЙ КОРОБКЕ
                 box1.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1Geo), edgeMat));
                 objectsGroup.add(box1);
 
-                // Коробка 2
                 const box2Geo = new THREE.BoxGeometry(D, houseHeight, vars.W);
                 const box2 = new THREE.Mesh(box2Geo, wallMat);
                 box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true;
                 box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
                 objectsGroup.add(box2);
 
-                // Крыша 1
                 let H = (D / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 const shape1 = new THREE.Shape(); shape1.moveTo(-D / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D / 2, 0);
                 const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: vars.L, bevelEnabled: false });
@@ -664,7 +662,6 @@
                 roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
                 objectsGroup.add(roof1);
 
-                // Крыша 2
                 const shape2 = new THREE.Shape(); shape2.moveTo(-D / 2, 0); shape2.lineTo(0, H); shape2.lineTo(D / 2, 0);
                 const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: vars.W, bevelEnabled: false });
                 rGeo2.translate(0, 0, -vars.W / 2);
@@ -674,7 +671,6 @@
                 objectsGroup.add(roof2);
 
             } else {
-                // ОБЫЧНАЯ ПРЯМОУГОЛЬНАЯ КОРОБКА
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
                 houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
@@ -737,9 +733,13 @@
                 objectsGroup.add(roofMesh);
             }
 
-            controls.target.set(0, houseHeight, 0);
-            let maxDim = Math.max(vars.L, vars.W);
-            camera.position.set(maxDim * 1.3, houseHeight + maxDim * 0.9, maxDim * 1.3);
+            // Направляем камеру только если она еще не была настроена пользователем
+            if (!camera.userData.hasBeenSet) {
+                controls.target.set(0, houseHeight, 0);
+                let maxDim = Math.max(vars.L, vars.W);
+                camera.position.set(maxDim * 1.2, houseHeight + maxDim * 0.8, maxDim * 1.2);
+                camera.userData.hasBeenSet = true;
+            }
         }
     </script>
 </body>
