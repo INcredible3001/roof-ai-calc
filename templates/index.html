@@ -23,7 +23,6 @@
             overflow: hidden;
         }
 
-        /* ЛЕВАЯ ЧАСТЬ - 3D СЦЕНА */
         #viewport {
             flex: 1;
             position: relative;
@@ -45,7 +44,7 @@
             z-index: 100;
         }
 
-        /* СТИЛЬ ПАРЯЩИХ 3D-РАЗМЕРОВ (КАК В IKEA) */
+        /* СТИЛЬ ПАРЯЩИХ 3D-РАЗМЕРОВ */
         .label-3d {
             color: #ffffff;
             font-family: sans-serif;
@@ -55,8 +54,9 @@
             font-size: 12px;
             font-weight: bold;
             pointer-events: none;
-            /* Чтобы мышка пролетала сквозь них */
             border: 1px solid #555;
+            white-space: nowrap;
+            transition: opacity 0.2s;
         }
 
         /* ПРАВАЯ ЧАСТЬ - ПАНЕЛЬ УПРАВЛЕНИЯ */
@@ -410,7 +410,6 @@
         }
 
         async function analyzeImage() {
-            // КОД ИИ ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ
             const fileInput = document.getElementById('roofImage');
             const resultDiv = document.getElementById('aiResult');
             const loader = document.getElementById('loader');
@@ -438,7 +437,6 @@
         }
 
         function doMath() {
-            // МАТЕМАТИКА ОСТАЛАСЬ БЕЗ ИЗМЕНЕНИЙ
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
@@ -571,7 +569,7 @@
         }
 
         // ==========================================
-        // --- 3D ВИЗУАЛИЗАЦИЯ И РАЗМЕРЫ (IKEA STYLE) ---
+        // --- 3D ВИЗУАЛИЗАЦИЯ И РАЗМЕРЫ ---
         // ==========================================
         let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
@@ -585,19 +583,17 @@
 
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 
-                // Основной рендерер графики
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setSize(container.clientWidth, container.clientHeight);
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
 
-                // --- НОВОЕ: РЕНДЕРЕР ДЛЯ HTML РАЗМЕРОВ ---
                 labelRenderer = new THREE.CSS2DRenderer();
                 labelRenderer.setSize(container.clientWidth, container.clientHeight);
                 labelRenderer.domElement.style.position = 'absolute';
                 labelRenderer.domElement.style.top = '0px';
-                labelRenderer.domElement.style.pointerEvents = 'none'; // Кликаем сквозь текст
+                labelRenderer.domElement.style.pointerEvents = 'none';
                 container.appendChild(labelRenderer.domElement);
 
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -638,24 +634,28 @@
             if (controls) controls.update();
             if (renderer && scene && camera) {
                 renderer.render(scene, camera);
-                if (labelRenderer) labelRenderer.render(scene, camera); // Рисуем HTML плашки
+                if (labelRenderer) labelRenderer.render(scene, camera);
             }
         }
 
-        // Функция создания 3D-плашки
-        function createLabel(text, position) {
+        // Функция привязки текста к координатам (x, y, z) внутри родителя
+        function addLabel(parent, text, x, y, z) {
             const div = document.createElement('div');
             div.className = 'label-3d';
             div.textContent = text;
             const label = new THREE.CSS2DObject(div);
-            label.position.copy(position);
-            return label;
+            label.position.set(x, y, z);
+            parent.add(label);
         }
 
         function render3D() {
             let vars = doMath();
             if (vars.L === 0 || vars.W === 0) return;
 
+            // ЖЕСТКАЯ ОЧИСТКА ДОМ-ДЕРЕВА ОТ СТАРЫХ ЛЕЙБЛОВ (УБИРАЕМ "ПРИЗРАКОВ")
+            document.querySelectorAll('.label-3d').forEach(el => el.remove());
+
+            // ОЧИСТКА СЦЕНЫ
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
             const houseHeight = 4;
@@ -679,25 +679,32 @@
                 box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
                 objectsGroup.add(box2);
 
-                // Размеры для креста
-                box1.add(createLabel(vars.L + ' м', new THREE.Vector3(0, -houseHeight / 2 + 0.5, D / 2)));
-                box2.add(createLabel(vars.W + ' м', new THREE.Vector3(D / 2, -houseHeight / 2 + 0.5, 0)));
-
                 let H = (D / 2) * Math.tan(vars.P1 * Math.PI / 180);
+
+                // Крыша 1
                 const shape1 = new THREE.Shape(); shape1.moveTo(-D / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D / 2, 0);
                 const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: vars.L, bevelEnabled: false });
                 rGeo1.translate(0, 0, -vars.L / 2);
                 const roof1 = new THREE.Mesh(rGeo1, roofMat);
                 roof1.position.set(0, houseHeight, 0); roof1.rotation.y = Math.PI / 2; roof1.castShadow = true; roof1.receiveShadow = false;
                 roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
+
+                // Лейблы для Крыши 1
+                addLabel(roof1, 'Конек: ' + vars.L + ' м', 0, H + 0.5, 0);
+                addLabel(roof1, 'Фронтон: ' + vars.S1.toFixed(2) + ' м', -vars.L / 2 - 0.5, H / 2, 0);
                 objectsGroup.add(roof1);
 
+                // Крыша 2
                 const shape2 = new THREE.Shape(); shape2.moveTo(-D / 2, 0); shape2.lineTo(0, H); shape2.lineTo(D / 2, 0);
                 const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: vars.W, bevelEnabled: false });
                 rGeo2.translate(0, 0, -vars.W / 2);
                 const roof2 = new THREE.Mesh(rGeo2, roofMat);
                 roof2.position.set(0, houseHeight + 0.01, 0); roof2.castShadow = true; roof2.receiveShadow = false;
                 roof2.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat));
+
+                // Лейблы для Крыши 2
+                addLabel(roof2, 'Конек: ' + vars.W + ' м', 0, H + 0.5, 0);
+                addLabel(roof2, 'Фронтон: ' + vars.S1.toFixed(2) + ' м', -vars.W / 2 - 0.5, H / 2, 0);
                 objectsGroup.add(roof2);
 
             } else {
@@ -705,11 +712,6 @@
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
                 houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
                 houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
-
-                // ВЕШАЕМ ПЛАШКИ РАЗМЕРОВ НА СТЕНЫ
-                houseMesh.add(createLabel(vars.L + ' м', new THREE.Vector3(0, -houseHeight / 2 + 0.5, vars.W / 2)));
-                houseMesh.add(createLabel(vars.W + ' м', new THREE.Vector3(vars.L / 2, -houseHeight / 2 + 0.5, 0)));
-
                 objectsGroup.add(houseMesh);
 
                 let roofMesh;
@@ -720,6 +722,10 @@
                     rGeo.translate(0, 0, -vars.L / 2);
                     roofMesh = new THREE.Mesh(rGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
+
+                    addLabel(roofMesh, 'Карниз: ' + vars.L + ' м', 0, 0, vars.W / 2 + 0.5);
+                    addLabel(roofMesh, 'Торец: ' + vars.S1.toFixed(2) + ' м', -vars.L / 2 - 0.5, h / 2, 0);
+
                 } else if (vars.rType === 'gable') {
                     const h = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     const shape = new THREE.Shape(); shape.moveTo(-vars.W / 2, 0); shape.lineTo(0, h); shape.lineTo(vars.W / 2, 0); shape.lineTo(-vars.W / 2, 0);
@@ -727,8 +733,11 @@
                     rGeo.translate(0, 0, -vars.L / 2);
                     roofMesh = new THREE.Mesh(rGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
-                    // Плашка конька
-                    if (vars.Ridge > 0) roofMesh.add(createLabel('Конёк: ' + vars.Ridge + ' м', new THREE.Vector3(-vars.L / 2, h + 0.5, 0)));
+
+                    addLabel(roofMesh, 'Карниз: ' + vars.L + ' м', 0, 0, vars.W / 2 + 0.5);
+                    addLabel(roofMesh, 'Торец: ' + vars.S1.toFixed(2) + ' м', -vars.L / 2 - 0.5, h / 2, 0);
+                    if (vars.Ridge > 0) addLabel(roofMesh, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, h + 0.5, 0);
+
                 } else if (vars.rType === 'hip') {
                     let H = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     let indent = H / Math.tan(vars.P2 * Math.PI / 180);
@@ -748,7 +757,12 @@
                     roofGeo.computeVertexNormals();
                     roofMesh = new THREE.Mesh(roofGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0);
-                    if (vars.Ridge > 0) roofMesh.add(createLabel('Конёк: ' + vars.Ridge + ' м', new THREE.Vector3(0, H + 0.5, 0)));
+
+                    addLabel(roofMesh, 'Карниз: ' + vars.L + ' м', 0, 0, vars.W / 2 + 0.5);
+                    addLabel(roofMesh, 'Карниз вальмы: ' + vars.W + ' м', -vars.L / 2 - 0.5, 0, 0);
+                    if (vars.Ridge > 0) addLabel(roofMesh, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, H + 0.5, 0);
+                    addLabel(roofMesh, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -vars.L / 2 + indent / 2 - 0.5, H / 2 + 0.5, vars.W / 4 + 0.5);
+
                 } else if (vars.rType === 'tent') {
                     let H = (Math.min(vars.L, vars.W) / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     const vertices = new Float32Array([
@@ -764,6 +778,10 @@
                     roofGeo.computeVertexNormals();
                     roofMesh = new THREE.Mesh(roofGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0);
+
+                    addLabel(roofMesh, 'Карниз: ' + vars.L + ' м', 0, 0, vars.W / 2 + 0.5);
+                    addLabel(roofMesh, 'Карниз: ' + vars.W + ' м', -vars.L / 2 - 0.5, 0, 0);
+                    addLabel(roofMesh, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -vars.L / 4 - 0.5, H / 2 + 0.5, vars.W / 4 + 0.5);
                 }
 
                 roofMesh.castShadow = true; roofMesh.receiveShadow = false;
