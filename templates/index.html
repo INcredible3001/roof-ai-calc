@@ -8,9 +8,10 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
 
     <style>
-        /* НОВАЯ АРХИТЕКТУРА WEB-ПРИЛОЖЕНИЯ */
+        /* АРХИТЕКТУРА WEB-ПРИЛОЖЕНИЯ */
         body {
             margin: 0;
             padding: 0;
@@ -20,13 +21,11 @@
             background-color: #f4f7f6;
             color: #333;
             overflow: hidden;
-            /* Запрещаем общую прокрутку страницы */
         }
 
         /* ЛЕВАЯ ЧАСТЬ - 3D СЦЕНА */
         #viewport {
             flex: 1;
-            /* Занимает всё оставшееся свободное место */
             position: relative;
             background: #ecf0f1;
         }
@@ -46,6 +45,20 @@
             z-index: 100;
         }
 
+        /* СТИЛЬ ПАРЯЩИХ 3D-РАЗМЕРОВ (КАК В IKEA) */
+        .label-3d {
+            color: #ffffff;
+            font-family: sans-serif;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            /* Чтобы мышка пролетала сквозь них */
+            border: 1px solid #555;
+        }
+
         /* ПРАВАЯ ЧАСТЬ - ПАНЕЛЬ УПРАВЛЕНИЯ */
         #sidebar {
             width: 450px;
@@ -53,14 +66,12 @@
             background: #ffffff;
             height: 100vh;
             overflow-y: auto;
-            /* Прокрутка только внутри боковой панели */
             box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
             padding: 30px;
             box-sizing: border-box;
             z-index: 10;
         }
 
-        /* СТИЛИ ЭЛЕМЕНТОВ (адаптированы под панель) */
         h2 {
             color: #2c3e50;
             font-size: 22px;
@@ -116,7 +127,6 @@
             background-color: #eaf2f8;
         }
 
-        /* Двойная сетка для полей ввода */
         .grid-2-col {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -270,17 +280,17 @@
 
             <div class="grid-2-col">
                 <div class="form-group"><label id="lblEaves">Длина дома (м):</label><input type="number" id="mEaves"
-                        step="0.01" value="10"></div>
+                        step="0.01" value="10" oninput="render3D()"></div>
                 <div class="form-group"><label id="lblRakes">Ширина дома (м):</label><input type="number" id="mRakes"
-                        step="0.01" value="8"></div>
+                        step="0.01" value="8" oninput="render3D()"></div>
 
                 <div class="form-group">
                     <label id="lblPitch">Угол ската (град):</label>
-                    <input type="number" id="mPitch" class="highlight-input" step="1" value="30">
+                    <input type="number" id="mPitch" class="highlight-input" step="1" value="30" oninput="render3D()">
                 </div>
                 <div class="form-group" id="groupPitchHip" style="display: none;">
                     <label>Угол вальмы (град):</label>
-                    <input type="number" id="mPitchHip" class="highlight-input" step="1" value="0">
+                    <input type="number" id="mPitchHip" class="highlight-input" step="1" value="0" oninput="render3D()">
                 </div>
 
                 <div class="form-group" id="groupSlopeTrap" style="display: none;"><label>Скат трапеции
@@ -316,8 +326,6 @@
 
         <div class="final-box" id="finalBox">
             <h3 style="margin-top: 0; color: #16a085;">Спецификация материалов</h3>
-            <p style="font-size: 11px; color: #7f8c8d; margin-top: -10px;">Математика: Площадь и торцы увеличены с
-                учетом угла.</p>
             <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
                         id="fArea">0</span> м²</span></div>
             <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
@@ -357,13 +365,13 @@
     <script>
         let conversationHistory = [];
 
-        // Адаптивность 3D при изменении размера окна
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
-            if (camera && renderer) {
+            if (camera && renderer && labelRenderer) {
                 camera.aspect = vp.clientWidth / vp.clientHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(vp.clientWidth, vp.clientHeight);
+                labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
             }
         });
 
@@ -377,27 +385,21 @@
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "block";
-                groupSlopeTrap.style.display = "block";
-                groupSlopeHip.style.display = "block";
             } else if (rType === 'multi_gable') {
                 document.getElementById('lblEaves').innerText = "Длина фасада (м):";
                 document.getElementById('lblRakes').innerText = "Пересечение (м):";
                 groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "none";
-                groupSlopeHip.style.display = "none";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "none";
-                groupSlopeHip.style.display = "none";
             }
         }
 
         window.onload = function () {
             toggleRoofFields();
-            init3D();   // Инициализируем сцену при загрузке страницы
-            render3D(); // Рисуем дом по умолчанию
+            init3D();
+            render3D();
         };
 
         function extractNumber(text, keyword) {
@@ -408,6 +410,7 @@
         }
 
         async function analyzeImage() {
+            // КОД ИИ ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ
             const fileInput = document.getElementById('roofImage');
             const resultDiv = document.getElementById('aiResult');
             const loader = document.getElementById('loader');
@@ -429,12 +432,13 @@
                     document.getElementById('mHips').value = extractNumber(data.result, 'Хреб');
                     document.getElementById('mValleys').value = extractNumber(data.result, 'Ендов');
                     document.getElementById('mAbutments').value = extractNumber(data.result, 'Примыкан');
-                    render3D(); // Сразу рисуем 3D по найденным данным
+                    render3D();
                 }
             } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
         }
 
         function doMath() {
+            // МАТЕМАТИКА ОСТАЛАСЬ БЕЗ ИЗМЕНЕНИЙ
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
             let W = parseFloat(document.getElementById('mRakes').value) || 0;
@@ -548,7 +552,6 @@
             document.getElementById('fValleys').innerText = (cValleys * 1.05).toFixed(2);
 
             document.getElementById('finalBox').style.display = "block";
-            document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function sendChatMessage() {
@@ -566,27 +569,36 @@
                 historyBox.scrollTop = historyBox.scrollHeight;
             } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
         }
-        document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
 
         // ==========================================
-        // --- ПРОДВИНУТАЯ 3D ВИЗУАЛИЗАЦИЯ ---
+        // --- 3D ВИЗУАЛИЗАЦИЯ И РАЗМЕРЫ (IKEA STYLE) ---
         // ==========================================
-        let scene, camera, renderer, controls;
+        let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
 
         function init3D() {
-            const container = document.getElementById('viewport'); // ТЕПЕРЬ В ЛЕВОЙ ЧАСТИ
+            const container = document.getElementById('viewport');
+
             if (!scene) {
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0xf4f6f7);
 
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 
+                // Основной рендерер графики
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setSize(container.clientWidth, container.clientHeight);
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
+
+                // --- НОВОЕ: РЕНДЕРЕР ДЛЯ HTML РАЗМЕРОВ ---
+                labelRenderer = new THREE.CSS2DRenderer();
+                labelRenderer.setSize(container.clientWidth, container.clientHeight);
+                labelRenderer.domElement.style.position = 'absolute';
+                labelRenderer.domElement.style.top = '0px';
+                labelRenderer.domElement.style.pointerEvents = 'none'; // Кликаем сквозь текст
+                container.appendChild(labelRenderer.domElement);
 
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
                 controls.enableDamping = true;
@@ -624,7 +636,20 @@
         function animate() {
             requestAnimationFrame(animate);
             if (controls) controls.update();
-            if (renderer && scene && camera) renderer.render(scene, camera);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+                if (labelRenderer) labelRenderer.render(scene, camera); // Рисуем HTML плашки
+            }
+        }
+
+        // Функция создания 3D-плашки
+        function createLabel(text, position) {
+            const div = document.createElement('div');
+            div.className = 'label-3d';
+            div.textContent = text;
+            const label = new THREE.CSS2DObject(div);
+            label.position.copy(position);
+            return label;
         }
 
         function render3D() {
@@ -638,6 +663,7 @@
             const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
 
+            // СТРОИМ ДОМ И КРЫШУ
             if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5;
 
@@ -652,6 +678,10 @@
                 box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true;
                 box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
                 objectsGroup.add(box2);
+
+                // Размеры для креста
+                box1.add(createLabel(vars.L + ' м', new THREE.Vector3(0, -houseHeight / 2 + 0.5, D / 2)));
+                box2.add(createLabel(vars.W + ' м', new THREE.Vector3(D / 2, -houseHeight / 2 + 0.5, 0)));
 
                 let H = (D / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 const shape1 = new THREE.Shape(); shape1.moveTo(-D / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D / 2, 0);
@@ -675,6 +705,11 @@
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
                 houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
                 houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
+
+                // ВЕШАЕМ ПЛАШКИ РАЗМЕРОВ НА СТЕНЫ
+                houseMesh.add(createLabel(vars.L + ' м', new THREE.Vector3(0, -houseHeight / 2 + 0.5, vars.W / 2)));
+                houseMesh.add(createLabel(vars.W + ' м', new THREE.Vector3(vars.L / 2, -houseHeight / 2 + 0.5, 0)));
+
                 objectsGroup.add(houseMesh);
 
                 let roofMesh;
@@ -692,6 +727,8 @@
                     rGeo.translate(0, 0, -vars.L / 2);
                     roofMesh = new THREE.Mesh(rGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
+                    // Плашка конька
+                    if (vars.Ridge > 0) roofMesh.add(createLabel('Конёк: ' + vars.Ridge + ' м', new THREE.Vector3(-vars.L / 2, h + 0.5, 0)));
                 } else if (vars.rType === 'hip') {
                     let H = (vars.W / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     let indent = H / Math.tan(vars.P2 * Math.PI / 180);
@@ -711,6 +748,7 @@
                     roofGeo.computeVertexNormals();
                     roofMesh = new THREE.Mesh(roofGeo, roofMat);
                     roofMesh.position.set(0, houseHeight, 0);
+                    if (vars.Ridge > 0) roofMesh.add(createLabel('Конёк: ' + vars.Ridge + ' м', new THREE.Vector3(0, H + 0.5, 0)));
                 } else if (vars.rType === 'tent') {
                     let H = (Math.min(vars.L, vars.W) / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     const vertices = new Float32Array([
@@ -733,11 +771,10 @@
                 objectsGroup.add(roofMesh);
             }
 
-            // Направляем камеру только если она еще не была настроена пользователем
             if (!camera.userData.hasBeenSet) {
                 controls.target.set(0, houseHeight, 0);
                 let maxDim = Math.max(vars.L, vars.W);
-                camera.position.set(maxDim * 1.2, houseHeight + maxDim * 0.8, maxDim * 1.2);
+                camera.position.set(maxDim * 1.5, houseHeight + maxDim, maxDim * 1.5);
                 camera.userData.hasBeenSet = true;
             }
         }
