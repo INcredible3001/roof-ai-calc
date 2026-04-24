@@ -54,6 +54,7 @@
             pointer-events: none;
             border: 1px solid #555;
             white-space: nowrap;
+            transition: opacity 0.2s;
         }
 
         #sidebar {
@@ -121,6 +122,14 @@
         .highlight-input {
             border: 2px solid #3498db !important;
             background-color: #eaf2f8;
+        }
+
+        /* Делаем недоступные для ручного ввода поля серыми */
+        input[readonly] {
+            background-color: #f8f9fa;
+            color: #7f8c8d;
+            cursor: not-allowed;
+            border: 1px dashed #bdc3c7;
         }
 
         .grid-2-col {
@@ -290,10 +299,9 @@
                 </div>
 
                 <div class="form-group" id="groupSlopeTrap" style="display: none;"><label>Скат трапеции
-                        (м):</label><input type="number" id="mSlopeTrap" class="highlight-input" step="0.01" value="0">
-                </div>
+                        (м):</label><input type="number" id="mSlopeTrap" step="0.01" value="0" readonly></div>
                 <div class="form-group" id="groupSlopeHip" style="display: none;"><label>Скат вальмы (м):</label><input
-                        type="number" id="mSlopeHip" class="highlight-input" step="0.01" value="0"></div>
+                        type="number" id="mSlopeHip" step="0.01" value="0" readonly></div>
             </div>
 
             <button class="btn-blue" onclick="render3D()">Обновить 3D модель 🔄</button>
@@ -303,16 +311,17 @@
             <h3>2. Детализация 2D и расчет</h3>
             <div class="grid-2-col">
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
-                        value="0"></div>
+                        value="0" readonly></div>
                 <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01"
-                        value="0"></div>
+                        value="0" readonly></div>
                 <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01"
-                        value="0"></div>
+                        value="0" readonly></div>
+
                 <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01"
                         value="0"></div>
             </div>
             <div class="form-group"><label>Общая площадь в плане (м²):</label><input type="number" id="mArea"
-                    step="0.01" value="0" placeholder="Авторасчет"></div>
+                    step="0.01" value="0" placeholder="Авторасчет" readonly></div>
 
             <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
             <div id="schemeResult"></div>
@@ -363,11 +372,11 @@
 
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
-            if (camera && renderer) {
+            if (camera && renderer && labelRenderer) {
                 camera.aspect = vp.clientWidth / vp.clientHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(vp.clientWidth, vp.clientHeight);
-                if (labelRenderer) labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
+                labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
             }
         });
 
@@ -381,14 +390,20 @@
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "block";
+                groupSlopeTrap.style.display = "block";
+                groupSlopeHip.style.display = "block";
             } else if (rType === 'multi_gable') {
                 document.getElementById('lblEaves').innerText = "Длина фасада (м):";
                 document.getElementById('lblRakes').innerText = "Пересечение (м):";
                 groupPitchHip.style.display = "none";
+                groupSlopeTrap.style.display = "none";
+                groupSlopeHip.style.display = "none";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "none";
+                groupSlopeTrap.style.display = "none";
+                groupSlopeHip.style.display = "none";
             }
         }
 
@@ -420,13 +435,8 @@
                 else {
                     resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + data.result;
                     document.getElementById('mPitch').value = extractNumber(data.result, 'Угол');
-                    document.getElementById('mArea').value = extractNumber(data.result, 'Площадь');
                     document.getElementById('mEaves').value = extractNumber(data.result, 'Карниз');
                     document.getElementById('mRakes').value = extractNumber(data.result, 'Торц');
-                    document.getElementById('mRidges').value = extractNumber(data.result, 'Конь');
-                    document.getElementById('mHips').value = extractNumber(data.result, 'Хреб');
-                    document.getElementById('mValleys').value = extractNumber(data.result, 'Ендов');
-                    document.getElementById('mAbutments').value = extractNumber(data.result, 'Примыкан');
                     render3D();
                 }
             } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
@@ -440,52 +450,47 @@
             let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
             if (P2 === 0) P2 = P1;
 
-            let S1 = parseFloat(document.getElementById('mSlopeTrap').value) || 0;
-            let S2 = parseFloat(document.getElementById('mSlopeHip').value) || 0;
-            let Ridge = parseFloat(document.getElementById('mRidges').value) || 0;
-            let Hip = parseFloat(document.getElementById('mHips').value) || 0;
-            let Valleys = parseFloat(document.getElementById('mValleys').value) || 0;
-
             let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1;
             let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
 
+            let S1 = 0, S2 = 0, Ridge = 0, Hip = 0, Valleys = 0;
+
+            // ЖЕСТКАЯ ПРИВЯЗКА К УГЛАМ
             if (rType === 'shed') {
-                if (S1 === 0 && W > 0) S1 = W / cos1;
-                Ridge = L; // Жесткая привязка: Конёк всегда равен длине
+                S1 = W / cos1;
+                Ridge = L;
             } else if (rType === 'gable') {
-                if (S1 === 0 && W > 0) S1 = (W / 2) / cos1;
-                Ridge = L; // Жесткая привязка: Конёк всегда равен длине
+                S1 = (W / 2) / cos1;
+                Ridge = L;
             } else if (rType === 'hip') {
-                if (S1 === 0 && W > 0) S1 = (W / 2) / cos1;
-                if (S2 === 0 && W > 0) S2 = (W / 2) / cos2;
+                S1 = (W / 2) / cos1;
+                S2 = (W / 2) / cos2;
                 let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
-                if (Ridge === 0 && L > W) Ridge = L - W;
-                if (Hip === 0 && W > 0) {
-                    let planHip = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(W / 2, 2));
-                    Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
-                }
+                Ridge = L > W ? L - W : 0;
+                let planHip = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(W / 2, 2));
+                Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
             } else if (rType === 'tent') {
                 let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180);
-                if (S1 === 0 && L > 0) S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H);
-                if (S2 === 0 && W > 0) S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H);
+                S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H);
+                S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H);
                 Ridge = 0;
                 let planHip = Math.sqrt(Math.pow(L / 2, 2) + Math.pow(W / 2, 2));
-                if (Hip === 0 && planHip > 0) Hip = Math.sqrt(planHip * planHip + H * H);
+                Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(H, 2));
             } else if (rType === 'multi_gable') {
                 let D = Math.min(L, W) * 0.5;
-                if (S1 === 0 && W > 0) S1 = (D / 2) / cos1;
-                if (Ridge === 0 && L > 0) Ridge = L + W - D;
+                S1 = (D / 2) / cos1;
+                Ridge = L + W - D;
                 let planValley = (D / 2) * Math.sqrt(2);
                 let H = (D / 2) * Math.tan(P1 * Math.PI / 180);
-                let sValley = Math.sqrt(planValley * planValley + H * H);
-                if (Valleys === 0) Valleys = sValley * 4;
+                Valleys = Math.sqrt(Math.pow(planValley, 2) + Math.pow(H, 2)) * 4;
             }
 
-            if (S1 > 0 && rType === 'hip') document.getElementById('mSlopeTrap').value = S1.toFixed(2);
-            if (S2 > 0 && rType === 'hip') document.getElementById('mSlopeHip').value = S2.toFixed(2);
-            if (Ridge > 0) document.getElementById('mRidges').value = Ridge.toFixed(2);
-            if (Hip > 0) document.getElementById('mHips').value = Hip.toFixed(2);
-            if (Valleys > 0) document.getElementById('mValleys').value = Valleys.toFixed(2);
+            // Записываем правильные данные обратно в поля
+            document.getElementById('mSlopeTrap').value = S1 > 0 ? S1.toFixed(2) : 0;
+            document.getElementById('mSlopeHip').value = S2 > 0 ? S2.toFixed(2) : 0;
+            document.getElementById('mRidges').value = Ridge > 0 ? Ridge.toFixed(2) : 0;
+            document.getElementById('mHips').value = Hip > 0 ? Hip.toFixed(2) : 0;
+            document.getElementById('mValleys').value = Valleys > 0 ? Valleys.toFixed(2) : 0;
 
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
@@ -566,7 +571,7 @@
         }
 
         // ==========================================
-        // --- 3D ВИЗУАЛИЗАЦИЯ ---
+        // --- 3D ВИЗУАЛИЗАЦИЯ И ГЛОБАЛЬНЫЕ РАЗМЕРЫ ---
         // ==========================================
         let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
