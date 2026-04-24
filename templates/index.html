@@ -124,7 +124,6 @@
             background-color: #eaf2f8;
         }
 
-        /* Делаем недоступные для ручного ввода поля серыми */
         input[readonly] {
             background-color: #f8f9fa;
             color: #7f8c8d;
@@ -316,7 +315,6 @@
                         value="0" readonly></div>
                 <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01"
                         value="0" readonly></div>
-
                 <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01"
                         value="0"></div>
             </div>
@@ -455,7 +453,6 @@
 
             let S1 = 0, S2 = 0, Ridge = 0, Hip = 0, Valleys = 0;
 
-            // ЖЕСТКАЯ ПРИВЯЗКА К УГЛАМ
             if (rType === 'shed') {
                 S1 = W / cos1;
                 Ridge = L;
@@ -485,7 +482,6 @@
                 Valleys = Math.sqrt(Math.pow(planValley, 2) + Math.pow(H, 2)) * 4;
             }
 
-            // Записываем правильные данные обратно в поля
             document.getElementById('mSlopeTrap').value = S1 > 0 ? S1.toFixed(2) : 0;
             document.getElementById('mSlopeHip').value = S2 > 0 ? S2.toFixed(2) : 0;
             document.getElementById('mRidges').value = Ridge > 0 ? Ridge.toFixed(2) : 0;
@@ -701,7 +697,9 @@
 
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H + 0.5, 0);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -vars.L / 2 - 0.5, houseHeight + H / 2, 0);
-                addLabel(objectsGroup, 'Ендова', -D / 4, houseHeight + H / 2 + 0.5, D / 4);
+
+                // ИСПРАВЛЕНО: Добавлена переменная длины ендовы (делим общую на 4, так как у нас 4 ендовы)
+                addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -D / 4, houseHeight + H / 2 + 0.5, D / 4);
 
             } else {
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
