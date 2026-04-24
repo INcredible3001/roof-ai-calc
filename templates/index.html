@@ -211,6 +211,49 @@
             border: 1px solid #eee;
         }
 
+        /* СТИЛИ ДЛЯ ПАЛИТРЫ ЦВЕТОВ */
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+            border-color: #bdc3c7;
+        }
+
+        input[type="color"] {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
         #chatHistory {
             height: 200px;
             overflow-y: auto;
@@ -302,12 +345,38 @@
                 <div class="form-group" id="groupSlopeHip" style="display: none;"><label>Скат вальмы (м):</label><input
                         type="number" id="mSlopeHip" step="0.01" value="0" readonly></div>
             </div>
+        </div>
 
-            <button class="btn-blue" onclick="render3D()">Обновить 3D модель 🔄</button>
+        <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
+            <h3>2. Внешний вид (3D)</h3>
+            <div class="form-group">
+                <label>Покрытие крыши:</label>
+                <select id="materialType" onchange="changeMaterial()">
+                    <option value="metal">Металлочерепица / Профнастил (Глянец)</option>
+                    <option value="soft">Гибкая черепица (Матовая)</option>
+                </select>
+            </div>
+
+            <label style="font-weight: 600; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; display: block;">Цвет
+                по RAL:</label>
+            <div class="color-palette">
+                <div class="color-swatch" style="background-color: #3b2821;" onclick="changeColor(0x3b2821)"
+                    title="RAL 8017 Шоколад"></div>
+                <div class="color-swatch" style="background-color: #2b2c2f;" onclick="changeColor(0x2b2c2f)"
+                    title="RAL 7024 Графит"></div>
+                <div class="color-swatch" style="background-color: #5e2028;" onclick="changeColor(0x5e2028)"
+                    title="RAL 3005 Красное вино"></div>
+                <div class="color-swatch" style="background-color: #2a3a32;" onclick="changeColor(0x2a3a32)"
+                    title="RAL 6005 Зеленый мох"></div>
+                <div class="color-swatch" style="background-color: #6d3f2b;" onclick="changeColor(0x6d3f2b)"
+                    title="RAL 8004 Медь"></div>
+                <input type="color" id="customColor" value="#c0392b" oninput="changeColor(this.value)"
+                    title="Свой цвет">
+            </div>
         </div>
 
         <div class="box">
-            <h3>2. Детализация 2D и расчет</h3>
+            <h3>3. Детализация 2D и расчет</h3>
             <div class="grid-2-col">
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
                         value="0" readonly></div>
@@ -368,6 +437,11 @@
     <script>
         let conversationHistory = [];
 
+        // Глобальные переменные для цвета и материала
+        let currentRoofColor = 0x5e2028; // По умолчанию Красное вино
+        let currentRoofRoughness = 0.3;  // Для металла 0.3, для мягкой 0.9
+        let currentRoofMetalness = 0.2;  // Для металла 0.2, для мягкой 0.0
+
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
             if (camera && renderer && labelRenderer) {
@@ -377,6 +451,28 @@
                 labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
             }
         });
+
+        // ФУНКЦИИ ИЗМЕНЕНИЯ ЦВЕТА И МАТЕРИАЛА
+        function changeColor(colorValue) {
+            if (typeof colorValue === 'string') {
+                currentRoofColor = parseInt(colorValue.replace('#', '0x'));
+            } else {
+                currentRoofColor = colorValue;
+            }
+            render3D();
+        }
+
+        function changeMaterial() {
+            const matType = document.getElementById('materialType').value;
+            if (matType === 'metal') {
+                currentRoofRoughness = 0.3;
+                currentRoofMetalness = 0.2;
+            } else {
+                currentRoofRoughness = 0.95; // Шероховатая матовая поверхность
+                currentRoofMetalness = 0.0;
+            }
+            render3D();
+        }
 
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
@@ -396,8 +492,8 @@
                 document.getElementById('lblEaves').innerText = "Длина фасада (м):";
                 document.getElementById('lblRakes').innerText = "Пересечение (м):";
                 groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "block"; // ПОКАЗЫВАЕМ поле торца
-                lblSlopeTrap.innerText = "Скат (Торец, м):"; // Меняем подпись
+                groupSlopeTrap.style.display = "block";
+                lblSlopeTrap.innerText = "Скат (Торец, м):";
                 groupSlopeHip.style.display = "none";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
@@ -570,7 +666,7 @@
         }
 
         // ==========================================
-        // --- 3D ВИЗУАЛИЗАЦИЯ И ГЛОБАЛЬНЫЕ РАЗМЕРЫ ---
+        // --- 3D ВИЗУАЛИЗАЦИЯ И МАТЕРИАЛЫ ---
         // ==========================================
         let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
@@ -604,7 +700,8 @@
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
                 controls.enableDamping = true;
 
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                // Улучшаем свет для корректного отображения бликов металла
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
                 scene.add(ambientLight);
 
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -618,6 +715,11 @@
                 dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
                 dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200;
                 scene.add(dirLight);
+
+                // Добавляем контровой свет для красоты
+                const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+                backLight.position.set(-20, 20, -20);
+                scene.add(backLight);
 
                 const planeGeo = new THREE.PlaneGeometry(100, 100);
                 const planeMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 });
@@ -663,8 +765,16 @@
 
             const houseHeight = 4;
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-            const roofMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
+
+            // ПРИМЕНЯЕМ PBR МАТЕРИАЛ (Physically Based Rendering)
+            const roofMat = new THREE.MeshStandardMaterial({
+                color: currentRoofColor,
+                roughness: currentRoofRoughness,
+                metalness: currentRoofMetalness,
+                side: THREE.DoubleSide
+            });
+
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 });
 
             if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5;
@@ -700,8 +810,6 @@
 
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H + 0.5, 0);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -vars.L / 2 - 0.5, houseHeight + H / 2, 0);
-
-                // ИСПРАВЛЕНО: Добавлена переменная длины ендовы (делим общую на 4, так как у нас 4 ендовы)
                 addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -D / 4, houseHeight + H / 2 + 0.5, D / 4);
 
             } else {
