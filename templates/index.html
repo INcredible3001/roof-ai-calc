@@ -383,18 +383,21 @@
             const groupPitchHip = document.getElementById('groupPitchHip');
             const groupSlopeTrap = document.getElementById('groupSlopeTrap');
             const groupSlopeHip = document.getElementById('groupSlopeHip');
+            const lblSlopeTrap = document.querySelector('#groupSlopeTrap label');
 
             if (rType === 'hip') {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
                 groupPitchHip.style.display = "block";
                 groupSlopeTrap.style.display = "block";
+                lblSlopeTrap.innerText = "Скат трапеции (м):";
                 groupSlopeHip.style.display = "block";
             } else if (rType === 'multi_gable') {
                 document.getElementById('lblEaves').innerText = "Длина фасада (м):";
                 document.getElementById('lblRakes').innerText = "Пересечение (м):";
                 groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "none";
+                groupSlopeTrap.style.display = "block"; // ПОКАЗЫВАЕМ поле торца
+                lblSlopeTrap.innerText = "Скат (Торец, м):"; // Меняем подпись
                 groupSlopeHip.style.display = "none";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
