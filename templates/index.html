@@ -182,10 +182,10 @@
         .result-item {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
+            margin-bottom: 8px;
+            font-size: 13px;
             border-bottom: 1px dashed #bdc3c7;
-            padding-bottom: 5px;
+            padding-bottom: 3px;
         }
 
         .result-value {
@@ -193,12 +193,35 @@
             color: #c0392b;
         }
 
+        /* Стили для обновленной финальной спецификации */
         .final-box {
-            background-color: #e8f8f5;
+            background-color: #fdfefe;
             border: 2px solid #1abc9c;
             padding: 20px;
             border-radius: 8px;
             display: none;
+        }
+
+        .spec-title {
+            font-weight: bold;
+            color: #16a085;
+            border-bottom: 2px solid #1abc9c;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .spec-section-head {
+            font-weight: bold;
+            font-size: 13px;
+            color: #34495e;
+            background: #e8f8f5;
+            padding: 8px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #1abc9c;
         }
 
         #schemeResult {
@@ -335,6 +358,11 @@
                     <label id="lblPitch">Угол ската (град):</label>
                     <input type="number" id="mPitch" class="highlight-input" step="1" value="30" oninput="render3D()">
                 </div>
+                <div class="form-group">
+                    <label>Высота стен (м):</label>
+                    <input type="number" id="mWallHeight" value="3.5" step="0.1" oninput="render3D()">
+                </div>
+
                 <div class="form-group" id="groupPitchHip" style="display: none;">
                     <label>Угол вальмы (град):</label>
                     <input type="number" id="mPitchHip" class="highlight-input" step="1" value="0" oninput="render3D()">
@@ -375,8 +403,22 @@
             </div>
         </div>
 
+        <div class="box" style="border-left: 4px solid #3498db;">
+            <h3>3. Водосток и Софиты</h3>
+            <div class="grid-2-col">
+                <div class="form-group">
+                    <label>Кол-во стояков (воронок):</label>
+                    <input type="number" id="vOutlets" value="2" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Ширина свеса (софит, м):</label>
+                    <input type="number" id="vSoffitWidth" value="0.5" step="0.1">
+                </div>
+            </div>
+        </div>
+
         <div class="box">
-            <h3>3. Детализация 2D и расчет</h3>
+            <h3>4. Детализация 2D и расчет</h3>
             <div class="grid-2-col">
                 <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01"
                         value="0" readonly></div>
@@ -393,25 +435,16 @@
             <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
             <div id="schemeResult"></div>
 
-            <button class="btn-yellow" onclick="calculateFinal()">Рассчитать итоговые материалы</button>
+            <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
         </div>
 
         <div class="final-box" id="finalBox">
-            <h3 style="margin-top: 0; color: #16a085;">Спецификация материалов</h3>
-            <div class="result-item"><span>Кровельное покрытие (+10%):</span> <span class="result-value"><span
-                        id="fArea">0</span> м²</span></div>
-            <div class="result-item"><span>Планка карнизная (+5%):</span> <span class="result-value"><span
-                        id="fEaves">0</span> м</span></div>
-            <div class="result-item"><span>Планка торцевая (+5%):</span> <span class="result-value"><span
-                        id="fRakes">0</span> м</span></div>
-            <div class="result-item"><span>Планка конька (+5%):</span> <span class="result-value"><span
-                        id="fRidges">0</span> м</span></div>
-            <div class="result-item"><span>Планка хребта/вальмы (+5%):</span> <span class="result-value"><span
-                        id="fHips">0</span> м</span></div>
-            <div class="result-item"><span>Ендова нижняя/верхняя (+5%):</span> <span class="result-value"><span
-                        id="fValleys">0</span> м</span></div>
-            <div class="result-item"><span>Планка примыкания (+5%):</span> <span class="result-value"><span
-                        id="fAbutments">0</span> м</span></div>
+            <div class="spec-title">Итоговая спецификация</div>
+
+            <div id="specContent">
+            </div>
+
+            <button class="btn-blue" style="margin-top: 20px;">ОТПРАВИТЬ СЧЕТ В 1С (API)</button>
         </div>
 
         <hr style="border: 0; border-top: 1px solid #ecf0f1; margin: 30px 0;">
@@ -438,9 +471,9 @@
         let conversationHistory = [];
 
         // Глобальные переменные для цвета и материала
-        let currentRoofColor = 0x5e2028; // По умолчанию Красное вино
-        let currentRoofRoughness = 0.3;  // Для металла 0.3, для мягкой 0.9
-        let currentRoofMetalness = 0.2;  // Для металла 0.2, для мягкой 0.0
+        let currentRoofColor = 0x5e2028;
+        let currentRoofRoughness = 0.3;
+        let currentRoofMetalness = 0.2;
 
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
@@ -468,7 +501,7 @@
                 currentRoofRoughness = 0.3;
                 currentRoofMetalness = 0.2;
             } else {
-                currentRoofRoughness = 0.95; // Шероховатая матовая поверхность
+                currentRoofRoughness = 0.95;
                 currentRoofMetalness = 0.0;
             }
             render3D();
@@ -619,6 +652,9 @@
             let vars = doMath();
             let area = parseFloat(document.getElementById('mArea').value) || 0;
             let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+            let H_wall = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
+            let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
+            let soffWidth = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
 
             let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = vars.Valleys, cAbutments = abutments;
             let slopedArea = 0;
@@ -638,15 +674,67 @@
             }
 
             document.getElementById('mArea').value = area.toFixed(2);
-            document.getElementById('fArea').innerText = (slopedArea * 1.10).toFixed(2);
-            document.getElementById('fEaves').innerText = (cEaves * 1.05).toFixed(2);
-            document.getElementById('fRidges').innerText = (cRidges * 1.05).toFixed(2);
-            document.getElementById('fAbutments').innerText = (cAbutments * 1.05).toFixed(2);
-            document.getElementById('fRakes').innerText = (cRakes * 1.05).toFixed(2);
-            document.getElementById('fHips').innerText = (cHips * 1.05).toFixed(2);
-            document.getElementById('fValleys').innerText = (cValleys * 1.05).toFixed(2);
 
+            // --- РАСЧЕТ ВОДОСТОКА ---
+            let gutterMeters = cEaves;
+            let nGutters = Math.ceil(gutterMeters / 3);
+            let nBrackets = Math.ceil(gutterMeters / 0.6) + 4;
+            let nConnectors = Math.ceil(gutterMeters / 3) + 2;
+
+            let nEndCaps = 0;
+            if (vars.rType === 'shed') nEndCaps = 2;
+            if (vars.rType === 'gable') nEndCaps = 4;
+            if (vars.rType === 'multi_gable') nEndCaps = 8;
+
+            let nCorners = 0;
+            if (vars.rType === 'hip' || vars.rType === 'tent') nCorners = 4;
+            if (vars.rType === 'multi_gable') nCorners = 4; // Внутренние углы для ендов
+
+            let pipeMeters = Math.max(0, (H_wall - 0.3)) * nOutlets;
+            let nPipes = Math.ceil(pipeMeters / 3);
+            let nElbows = nOutlets * 3;
+            let nClamps = Math.ceil(pipeMeters / 1.5) + nOutlets;
+
+            // --- РАСЧЕТ СОФИТОВ ---
+            let soffitArea = cEaves * soffWidth;
+            if (vars.rType === 'gable' || vars.rType === 'shed' || vars.rType === 'multi_gable') {
+                soffitArea += cRakes * soffWidth;
+            }
+
+            // --- ГЕНЕРАЦИЯ HTML ИТОГОВ ---
+            let html = `
+                <div class="spec-section">
+                    <div class="spec-section-head">ОСНОВНАЯ КРОВЛЯ (запас +10%)</div>
+                    <div class="result-item"><span>Покрытие (м²):</span> <span class="result-value">${(slopedArea * 1.1).toFixed(2)}</span></div>
+                    <div class="result-item"><span>Коньки / Хребты (м.п.):</span> <span class="result-value">${((cRidges + cHips) * 1.05).toFixed(2)}</span></div>
+                    <div class="result-item"><span>Торцевые планки (м.п.):</span> <span class="result-value">${(cRakes * 1.05).toFixed(2)}</span></div>
+                    <div class="result-item"><span>Карнизные планки (м.п.):</span> <span class="result-value">${(cEaves * 1.05).toFixed(2)}</span></div>
+                    <div class="result-item"><span>Ендовы (м.п.):</span> <span class="result-value">${(cValleys * 1.05).toFixed(2)}</span></div>
+                    <div class="result-item"><span>Примыкания (м.п.):</span> <span class="result-value">${(cAbutments * 1.05).toFixed(2)}</span></div>
+                </div>
+
+                <div class="spec-section">
+                    <div class="spec-section-head">ВОДОСТОЧНАЯ СИСТЕМА</div>
+                    <div class="result-item"><span>Желоб водосточный (3м):</span> <span class="result-value">${nGutters} шт</span></div>
+                    <div class="result-item"><span>Кронштейн желоба:</span> <span class="result-value">${nBrackets} шт</span></div>
+                    <div class="result-item"><span>Воронка выпускная:</span> <span class="result-value">${nOutlets} шт</span></div>
+                    <div class="result-item"><span>Заглушка желоба:</span> <span class="result-value">${nEndCaps} шт</span></div>
+                    <div class="result-item"><span>Угол желоба 90°:</span> <span class="result-value">${nCorners} шт</span></div>
+                    <div class="result-item"><span>Соединитель желоба:</span> <span class="result-value">${nConnectors} шт</span></div>
+                    <div class="result-item"><span>Труба водосточная (3м):</span> <span class="result-value">${nPipes} шт</span></div>
+                    <div class="result-item"><span>Колено трубы:</span> <span class="result-value">${nElbows} шт</span></div>
+                    <div class="result-item"><span>Хомут трубы:</span> <span class="result-value">${nClamps} шт</span></div>
+                </div>
+
+                <div class="spec-section">
+                    <div class="spec-section-head">ПОДШИВКА СВЕСОВ (СОФИТЫ)</div>
+                    <div class="result-item"><span>Площадь софитов (+5% запас):</span> <span class="result-value">${(soffitArea * 1.05).toFixed(2)} м²</span></div>
+                </div>
+            `;
+
+            document.getElementById('specContent').innerHTML = html;
             document.getElementById('finalBox').style.display = "block";
+            document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function sendChatMessage() {
@@ -700,7 +788,6 @@
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
                 controls.enableDamping = true;
 
-                // Улучшаем свет для корректного отображения бликов металла
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
                 scene.add(ambientLight);
 
@@ -716,7 +803,6 @@
                 dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200;
                 scene.add(dirLight);
 
-                // Добавляем контровой свет для красоты
                 const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
                 backLight.position.set(-20, 20, -20);
                 scene.add(backLight);
@@ -763,10 +849,10 @@
             document.querySelectorAll('.label-3d').forEach(el => el.remove());
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
-            const houseHeight = 4;
-            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            // ДИНАМИЧЕСКАЯ ВЫСОТА СТЕН
+            const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
 
-            // ПРИМЕНЯЕМ PBR МАТЕРИАЛ (Physically Based Rendering)
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             const roofMat = new THREE.MeshStandardMaterial({
                 color: currentRoofColor,
                 roughness: currentRoofRoughness,
