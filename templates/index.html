@@ -455,7 +455,6 @@
     <script>
         let conversationHistory = [];
 
-        // Глобальные переменные для цвета и материала
         let currentRoofColor = 0x5e2028;
         let currentRoofRoughness = 0.3;
         let currentRoofMetalness = 0.2;
@@ -470,7 +469,6 @@
             }
         });
 
-        // ФУНКЦИИ ИЗМЕНЕНИЯ ЦВЕТА И МАТЕРИАЛА
         function changeColor(colorValue) {
             if (typeof colorValue === 'string') {
                 currentRoofColor = parseInt(colorValue.replace('#', '0x'));
@@ -492,7 +490,6 @@
             render3D();
         }
 
-        // ПЕРЕКЛЮЧЕНИЕ ПОЛЕЙ В ЗАВИСИМОСТИ ОТ ТИПА КРЫШИ
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
             const groupPitchHip = document.getElementById('groupPitchHip');
@@ -529,7 +526,6 @@
             render3D();
         };
 
-        // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ИИ
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
             let match = text.match(regex);
@@ -542,10 +538,7 @@
             const resultDiv = document.getElementById('aiResult');
             const loader = document.getElementById('loader');
 
-            if (fileInput.files.length === 0) {
-                alert("Выбери файл!");
-                return;
-            }
+            if (fileInput.files.length === 0) { alert("Выбери файл!"); return; }
 
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
@@ -570,8 +563,7 @@
                     render3D();
                 }
             } catch (error) {
-                loader.style.display = "none";
-                alert("Ошибка сервера.");
+                loader.style.display = "none"; alert("Ошибка сервера.");
             }
         }
 
@@ -588,8 +580,7 @@
 
             try {
                 const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: message, history: conversationHistory })
                 });
 
@@ -608,7 +599,6 @@
             }
         }
 
-        // --- МАТЕМАТИЧЕСКОЕ ЯДРО ---
         function doMath() {
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0;
@@ -624,29 +614,24 @@
             let S1 = 0, S2 = 0, Ridge = 0, Hip = 0, Valleys = 0;
 
             if (rType === 'shed') {
-                S1 = W / cos1;
-                Ridge = L;
+                S1 = W / cos1; Ridge = L;
             } else if (rType === 'gable') {
-                S1 = (W / 2) / cos1;
-                Ridge = L;
+                S1 = (W / 2) / cos1; Ridge = L;
             } else if (rType === 'hip') {
-                S1 = (W / 2) / cos1;
-                S2 = (W / 2) / cos2;
+                S1 = (W / 2) / cos1; S2 = (W / 2) / cos2;
                 let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
                 Ridge = L > W ? L - W : 0;
                 let planHip = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(W / 2, 2));
                 Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
             } else if (rType === 'tent') {
                 let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180);
-                S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H);
-                S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H);
+                S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H); S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H);
                 Ridge = 0;
                 let planHip = Math.sqrt(Math.pow(L / 2, 2) + Math.pow(W / 2, 2));
                 Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(H, 2));
             } else if (rType === 'multi_gable') {
                 let D = Math.min(L, W) * 0.5;
-                S1 = (D / 2) / cos1;
-                Ridge = L + W - D;
+                S1 = (D / 2) / cos1; Ridge = L + W - D;
                 let planValley = (D / 2) * Math.sqrt(2);
                 let H = (D / 2) * Math.tan(P1 * Math.PI / 180);
                 Valleys = Math.sqrt(Math.pow(planValley, 2) + Math.pow(H, 2)) * 4;
@@ -673,8 +658,7 @@
 
             try {
                 const response = await fetch('/generate_scheme', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2,
                         slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
@@ -699,42 +683,21 @@
             let slopedArea = 0;
 
             if (vars.rType === 'shed') {
-                cEaves = vars.L;
-                cRakes = vars.S1 * 2;
-                cAbutments = abutments > 0 ? abutments : vars.L;
-                slopedArea = vars.L * vars.S1;
-                area = vars.L * vars.W;
+                cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W;
             } else if (vars.rType === 'gable') {
-                cEaves = vars.L * 2;
-                cRakes = vars.S1 * 4;
-                cRidges = vars.Ridge;
-                slopedArea = (vars.L * vars.S1) * 2;
-                area = vars.L * vars.W;
+                cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W;
             } else if (vars.rType === 'hip') {
-                cEaves = (vars.L * 2) + (vars.W * 2);
-                cHips = vars.Hip * 4;
-                cRidges = vars.Ridge;
-                slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2);
-                area = vars.L * vars.W;
+                cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W;
             } else if (vars.rType === 'tent') {
-                cEaves = vars.L * 2 + vars.W * 2;
-                cHips = vars.Hip * 4;
-                cRidges = 0;
-                cRakes = 0;
-                slopedArea = (vars.L * vars.S2) + (vars.W * vars.S1);
-                area = vars.L * vars.W;
+                cEaves = vars.L * 2 + vars.W * 2; cHips = vars.Hip * 4; cRidges = 0; cRakes = 0; slopedArea = (vars.L * vars.S2) + (vars.W * vars.S1); area = vars.L * vars.W;
             } else if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5;
-                cEaves = 2 * vars.L + 2 * vars.W - 4 * D;
-                cRakes = vars.S1 * 8;
-                cRidges = vars.Ridge;
-                area = vars.L * D + vars.W * D - D * D;
-                slopedArea = area * (1 / vars.cos1);
+                cEaves = 2 * vars.L + 2 * vars.W - 4 * D; cRakes = vars.S1 * 8; cRidges = vars.Ridge;
+                area = vars.L * D + vars.W * D - D * D; slopedArea = area * (1 / vars.cos1);
             }
 
             document.getElementById('mArea').value = area.toFixed(2);
 
-            // --- РАСЧЕТ ВОДОСТОКА ---
             let gutterMeters = cEaves;
             let nGutters = Math.ceil(gutterMeters / 3);
             let nBrackets = Math.ceil(gutterMeters / 0.6) + 4;
@@ -754,13 +717,11 @@
             let nElbows = nOutlets * 3;
             let nClamps = Math.ceil(pipeMeters / 1.5) + nOutlets;
 
-            // --- РАСЧЕТ СОФИТОВ ---
             let soffitArea = cEaves * soffWidth;
             if (vars.rType === 'gable' || vars.rType === 'shed' || vars.rType === 'multi_gable') {
                 soffitArea += cRakes * soffWidth;
             }
 
-            // --- ГЕНЕРАЦИЯ HTML ИТОГОВ ---
             let html = `
                 <div class="spec-section">
                     <div class="spec-section-head">ОСНОВНАЯ КРОВЛЯ (запас +10%)</div>
@@ -798,7 +759,7 @@
 
 
         // ==========================================
-        // --- 3D ВИЗУАЛИЗАЦИЯ И МАТЕРИАЛЫ ---
+        // --- 3D ВИЗУАЛИЗАЦИЯ ---
         // ==========================================
         let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
@@ -885,19 +846,18 @@
             parent.add(label);
         }
 
-        // --- ИДЕАЛЬНЫЙ ЖЕЛОБ (Буква U, смотрит ВВЕРХ) ---
+        // --- ИДЕАЛЬНЫЙ ЖЕЛОБ (буква U, строго смотрит вверх) ---
         function createGutter(length) {
             let shape = new THREE.Shape();
-            // Рисуем правильную U-образную форму
-            shape.absarc(0, 0, 0.07, Math.PI, 0, false);
-            shape.lineTo(0.06, 0);
-            shape.absarc(0, 0, 0.06, 0, Math.PI, true);
 
-            let curve = new THREE.LineCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, length));
-            let geo = new THREE.ExtrudeGeometry(shape, { extrudePath: curve, steps: 1, bevelEnabled: false });
+            // В 2D пространстве Three.js рисуем нижнюю дугу от PI до 2PI (чтобы в 3D она смотрела вниз, а открытая часть - вверх)
+            shape.absarc(0, 0, 0.07, Math.PI, Math.PI * 2, false);
+            shape.lineTo(0.06, 0); // толщина стенки
+            shape.absarc(0, 0, 0.06, Math.PI * 2, Math.PI, true);
+            shape.lineTo(-0.07, 0); // замыкаем контур
 
-            // Жестко переворачиваем на 180 градусов, чтобы вогнутость гарантированно смотрела в небо
-            geo.rotateZ(Math.PI);
+            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false });
+            geo.translate(0, 0, -length / 2); // центрируем по длине
             return geo;
         }
 
@@ -909,7 +869,6 @@
             document.querySelectorAll('.label-3d').forEach(el => el.remove());
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
-            // ДИНАМИЧЕСКИЕ ПАРАМЕТРЫ СТЕН И СВЕСОВ
             const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
@@ -923,7 +882,7 @@
             });
 
             const drainMat = new THREE.MeshStandardMaterial({
-                color: 0x444444, // Темно-серый цвет для водостока
+                color: 0x444444, // Темно-серый цвет пластика/металла
                 roughness: 0.3,
                 metalness: 0.2,
                 side: THREE.DoubleSide
@@ -931,7 +890,7 @@
 
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 });
 
-            // 1. КОРОБКА ДОМА
+            // 1. КОРОБКА ДОМА (Габариты самих стен)
             const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
             const houseMesh = new THREE.Mesh(houseGeo, wallMat);
             houseMesh.position.y = houseHeight / 2;
@@ -971,85 +930,82 @@
 
                 // --- ФИЗИЧЕСКИ КОРРЕКТНЫЙ 3D ВОДОСТОК ---
                 if (L_roof > 0) {
+
+                    // Желоб спереди (крепится на край свеса W_roof)
                     let gFront = new THREE.Mesh(createGutter(L_roof), drainMat);
-                    gFront.position.set(-L_roof / 2, houseHeight - 0.05, W_roof / 2);
-                    gFront.rotation.y = Math.PI / 2;
+                    gFront.position.set(0, houseHeight - 0.05, W_roof / 2);
+                    gFront.rotation.y = Math.PI / 2; // Разворачиваем вдоль фасада
                     objectsGroup.add(gFront);
 
+                    // Желоб сзади
                     let gBack = new THREE.Mesh(createGutter(L_roof), drainMat);
-                    gBack.position.set(L_roof / 2, houseHeight - 0.05, -W_roof / 2);
-                    gBack.rotation.y = -Math.PI / 2;
+                    gBack.position.set(0, houseHeight - 0.05, -W_roof / 2);
+                    gBack.rotation.y = Math.PI / 2;
                     objectsGroup.add(gBack);
 
                     if (nOutlets > 0) {
                         let frontOutlets = Math.ceil(nOutlets / 2);
                         let backOutlets = nOutlets - frontOutlets;
 
-                        // Функция точной расстановки труб с хомутами
+                        // Функция точной расстановки труб (строго по ширине физической стены!)
                         let placePipes = (count, zGutter, zWall) => {
                             for (let i = 0; i < count; i++) {
-                                let px = -L_roof / 2 + 0.3 + i * ((L_roof - 0.6) / Math.max(1, count - 1));
-                                if (count === 1) px = 0;
+
+                                // Трубы распределяем СТРОГО в пределах физической длины стены (vars.L), а не крыши
+                                let minX = -(vars.L / 2) + 0.2; // Отступ 20см от края стены
+                                let maxX = (vars.L / 2) - 0.2;
+                                let px = minX;
+
+                                if (count > 1) {
+                                    px = minX + i * ((maxX - minX) / (count - 1));
+                                } else {
+                                    px = 0; // Если труба одна - строго по центру
+                                }
 
                                 // Воронка (под желобом)
                                 let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.15, 16), drainMat);
                                 funnel.position.set(px, houseHeight - 0.07, zGutter);
                                 objectsGroup.add(funnel);
 
-                                // Наклонное колено (идеальный расчет угла и длины до стены)
+                                // Наклонное колено (точный математический расчет угла и длины)
                                 let y1 = houseHeight - 0.145; // Низ воронки
-                                let y2 = houseHeight - 0.6;   // Точка входа в вертикальную трубу на стене
-                                let z1 = zGutter;             // Координата карниза
+                                let y2 = houseHeight - 0.6;   // Точка входа в трубу на стене
+                                let z1 = zGutter;             // Координата вылета карниза
                                 let z2 = zWall;               // Координата стены (с зазором 1мм)
 
                                 let dy = y1 - y2;
                                 let dz = z1 - z2;
-                                let len = Math.sqrt(dy * dy + dz * dz);
+                                let len = Math.sqrt(dy * dy + dz * dz); // Теорема Пифагора
 
                                 let slant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 16), drainMat);
                                 slant.position.set(px, (y1 + y2) / 2, (z1 + z2) / 2);
-                                slant.rotation.x = Math.atan2(dz, dy); // Математически идеальный наклон
+                                slant.rotation.x = Math.atan2(dz, dy); // Математически идеальный наклон!
                                 objectsGroup.add(slant);
 
                                 // Вертикальная труба вплотную к стене
-                                let pipeLen = y2 - 0.2; // 0.2м - расстояние от земли
+                                let pipeLen = y2 - 0.2; // 0.2м - расстояние от земли до слива
                                 if (pipeLen > 0) {
                                     let pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, pipeLen, 16), drainMat);
                                     pipe.position.set(px, 0.2 + pipeLen / 2, z2);
                                     objectsGroup.add(pipe);
 
-                                    // Сливное колено в самом низу (точный расчет позиции 45 градусов)
+                                    // Сливное колено в самом низу (точный расчет позиции и угла 45 градусов)
                                     let spoutLen = 0.2;
-                                    let spoutAngle = Math.sign(dz) * Math.PI / 4;
+                                    let dir = Math.sign(dz); // Направление сгиба (к зрителю или от него)
+                                    let tiltAngle = Math.PI / 4; // 45 градусов
+
                                     let spout = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, spoutLen, 16), drainMat);
-                                    let sy = 0.2 - (spoutLen / 2) * Math.cos(Math.PI / 4);
-                                    let sz = z2 + Math.sign(dz) * (spoutLen / 2) * Math.sin(Math.PI / 4);
+                                    let sy = 0.2 - (spoutLen / 2) * Math.cos(tiltAngle);
+                                    let sz = z2 + dir * (spoutLen / 2) * Math.sin(tiltAngle);
+
                                     spout.position.set(px, sy, sz);
-                                    spout.rotation.x = spoutAngle;
+                                    spout.rotation.x = dir * tiltAngle;
                                     objectsGroup.add(spout);
-
-                                    // Добавляем реалистичные ХОМУТЫ, крепящие трубу к стене
-                                    let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
-                                    for (let j = 0; j <= clampCount; j++) {
-                                        let cy = 0.4 + j * ((pipeLen - 0.4) / clampCount); // Высота хомута
-
-                                        // Кольцо хомута
-                                        let clampRing = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.008, 8, 16), drainMat);
-                                        clampRing.rotation.x = Math.PI / 2;
-                                        clampRing.position.set(px, cy, z2);
-                                        objectsGroup.add(clampRing);
-
-                                        // Штырь (дюбель) уходящий в стену фасада
-                                        let pin = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.06, 8), drainMat);
-                                        pin.rotation.x = Math.PI / 2;
-                                        pin.position.set(px, cy, z2 - Math.sign(dz) * 0.03);
-                                        objectsGroup.add(pin);
-                                    }
                                 }
                             }
                         };
 
-                        // zWall = vars.W/2 + 0.051 (оставляем 1мм зазор от фасада для реализма)
+                        // zWall = vars.W/2 + 0.051 (оставляем 1мм зазор от фасада для физического реализма)
                         placePipes(frontOutlets, W_roof / 2, vars.W / 2 + 0.051);
                         if (backOutlets > 0) placePipes(backOutlets, -W_roof / 2, -vars.W / 2 - 0.051);
                     }
