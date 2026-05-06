@@ -193,7 +193,6 @@
             color: #c0392b;
         }
 
-        /* Стили для финальной спецификации */
         .final-box {
             background-color: #fdfefe;
             border: 2px solid #1abc9c;
@@ -234,7 +233,6 @@
             border: 1px solid #eee;
         }
 
-        /* СТИЛИ ДЛЯ ПАЛИТРЫ ЦВЕТОВ */
         .color-palette {
             display: flex;
             gap: 10px;
@@ -402,8 +400,8 @@
                         step="0.1" oninput="render3D()"></div>
                 <div class="form-group"><label>Свес (софит, м):</label><input type="number" id="vSoffitWidth"
                         value="0.5" step="0.1" oninput="render3D()"></div>
-                <div class="form-group"><label>Воронки (стояки):</label><input type="number" id="vOutlets" value="4"
-                        min="0" oninput="render3D()"></div>
+                <div class="form-group" style="grid-column: span 2;"><label>Воронки (стояки):</label><input
+                        type="number" id="vOutlets" value="4" min="0" oninput="render3D()"></div>
             </div>
         </div>
 
@@ -887,13 +885,20 @@
             parent.add(label);
         }
 
-        // Вспомогательные функции для рисования 3D труб водостока
+        // --- ИДЕАЛЬНЫЙ ЖЕЛОБ (Буква U, смотрит ВВЕРХ) ---
         function createGutter(length) {
             let shape = new THREE.Shape();
+            // Рисуем правильную U-образную форму
             shape.absarc(0, 0, 0.07, Math.PI, 0, false);
+            shape.lineTo(0.06, 0);
             shape.absarc(0, 0, 0.06, 0, Math.PI, true);
+
             let curve = new THREE.LineCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, length));
-            return new THREE.ExtrudeGeometry(shape, { extrudePath: curve, steps: 1, bevelEnabled: false });
+            let geo = new THREE.ExtrudeGeometry(shape, { extrudePath: curve, steps: 1, bevelEnabled: false });
+
+            // Жестко переворачиваем на 180 градусов, чтобы вогнутость гарантированно смотрела в небо
+            geo.rotateZ(Math.PI);
+            return geo;
         }
 
         function render3D() {
@@ -904,7 +909,7 @@
             document.querySelectorAll('.label-3d').forEach(el => el.remove());
             while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
 
-            // Динамическая высота стен и свесы
+            // ДИНАМИЧЕСКИЕ ПАРАМЕТРЫ СТЕН И СВЕСОВ
             const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
@@ -918,7 +923,7 @@
             });
 
             const drainMat = new THREE.MeshStandardMaterial({
-                color: 0x444444, // Темно-серый металлик для водостока
+                color: 0x444444, // Темно-серый цвет для водостока
                 roughness: 0.3,
                 metalness: 0.2,
                 side: THREE.DoubleSide
@@ -926,7 +931,7 @@
 
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 });
 
-            // 1. Отрисовка коробки дома (без изменений)
+            // 1. КОРОБКА ДОМА
             const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
             const houseMesh = new THREE.Mesh(houseGeo, wallMat);
             houseMesh.position.y = houseHeight / 2;
@@ -935,10 +940,10 @@
             houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
             objectsGroup.add(houseMesh);
 
-            // 2. Отрисовка крыш
+            // 2. ОТРИСОВКА КРЫШ С ФИЗИЧЕСКИМИ СВЕСАМИ
             if (vars.rType === 'gable') {
 
-                // Двухскатная: Строим крышу с учетом ВЫЛЕТА (свеса)
+                // Увеличиваем размеры крыши на величину софитов (свесов)
                 let L_roof = vars.L + soffit * 2;
                 let W_roof = vars.W + soffit * 2;
 
@@ -964,62 +969,89 @@
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
 
-                // --- 3D ВОДОСТОК ДЛЯ ДВУХСКАТНОЙ КРЫШИ ---
+                // --- ФИЗИЧЕСКИ КОРРЕКТНЫЙ 3D ВОДОСТОК ---
                 if (L_roof > 0) {
-                    // Желоб спереди
                     let gFront = new THREE.Mesh(createGutter(L_roof), drainMat);
                     gFront.position.set(-L_roof / 2, houseHeight - 0.05, W_roof / 2);
                     gFront.rotation.y = Math.PI / 2;
                     objectsGroup.add(gFront);
 
-                    // Желоб сзади
                     let gBack = new THREE.Mesh(createGutter(L_roof), drainMat);
                     gBack.position.set(L_roof / 2, houseHeight - 0.05, -W_roof / 2);
                     gBack.rotation.y = -Math.PI / 2;
                     objectsGroup.add(gBack);
 
-                    // Трубы и Воронки
                     if (nOutlets > 0) {
                         let frontOutlets = Math.ceil(nOutlets / 2);
                         let backOutlets = nOutlets - frontOutlets;
 
+                        // Функция точной расстановки труб с хомутами
                         let placePipes = (count, zGutter, zWall) => {
                             for (let i = 0; i < count; i++) {
                                 let px = -L_roof / 2 + 0.3 + i * ((L_roof - 0.6) / Math.max(1, count - 1));
                                 if (count === 1) px = 0;
 
-                                // Воронка
+                                // Воронка (под желобом)
                                 let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.15, 16), drainMat);
                                 funnel.position.set(px, houseHeight - 0.07, zGutter);
                                 objectsGroup.add(funnel);
 
-                                // Наклонное колено
-                                let dy = 0.4;
-                                let dz = zGutter - zWall;
+                                // Наклонное колено (идеальный расчет угла и длины до стены)
+                                let y1 = houseHeight - 0.145; // Низ воронки
+                                let y2 = houseHeight - 0.6;   // Точка входа в вертикальную трубу на стене
+                                let z1 = zGutter;             // Координата карниза
+                                let z2 = zWall;               // Координата стены (с зазором 1мм)
+
+                                let dy = y1 - y2;
+                                let dz = z1 - z2;
                                 let len = Math.sqrt(dy * dy + dz * dz);
+
                                 let slant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 16), drainMat);
-                                slant.position.set(px, houseHeight - 0.07 - dy / 2, zGutter - dz / 2);
-                                slant.rotation.x = Math.atan2(dz, dy);
+                                slant.position.set(px, (y1 + y2) / 2, (z1 + z2) / 2);
+                                slant.rotation.x = Math.atan2(dz, dy); // Математически идеальный наклон
                                 objectsGroup.add(slant);
 
-                                // Основная вертикальная труба
-                                let pipeLen = houseHeight - 0.07 - dy - 0.2;
+                                // Вертикальная труба вплотную к стене
+                                let pipeLen = y2 - 0.2; // 0.2м - расстояние от земли
                                 if (pipeLen > 0) {
                                     let pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, pipeLen, 16), drainMat);
-                                    pipe.position.set(px, 0.2 + pipeLen / 2, zWall);
+                                    pipe.position.set(px, 0.2 + pipeLen / 2, z2);
                                     objectsGroup.add(pipe);
 
-                                    // Сливное колено
-                                    let spout = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 16), drainMat);
-                                    spout.position.set(px, 0.15, zWall + Math.sign(dz) * 0.07);
-                                    spout.rotation.x = Math.sign(dz) * Math.PI / 4;
+                                    // Сливное колено в самом низу (точный расчет позиции 45 градусов)
+                                    let spoutLen = 0.2;
+                                    let spoutAngle = Math.sign(dz) * Math.PI / 4;
+                                    let spout = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, spoutLen, 16), drainMat);
+                                    let sy = 0.2 - (spoutLen / 2) * Math.cos(Math.PI / 4);
+                                    let sz = z2 + Math.sign(dz) * (spoutLen / 2) * Math.sin(Math.PI / 4);
+                                    spout.position.set(px, sy, sz);
+                                    spout.rotation.x = spoutAngle;
                                     objectsGroup.add(spout);
+
+                                    // Добавляем реалистичные ХОМУТЫ, крепящие трубу к стене
+                                    let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
+                                    for (let j = 0; j <= clampCount; j++) {
+                                        let cy = 0.4 + j * ((pipeLen - 0.4) / clampCount); // Высота хомута
+
+                                        // Кольцо хомута
+                                        let clampRing = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.008, 8, 16), drainMat);
+                                        clampRing.rotation.x = Math.PI / 2;
+                                        clampRing.position.set(px, cy, z2);
+                                        objectsGroup.add(clampRing);
+
+                                        // Штырь (дюбель) уходящий в стену фасада
+                                        let pin = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.06, 8), drainMat);
+                                        pin.rotation.x = Math.PI / 2;
+                                        pin.position.set(px, cy, z2 - Math.sign(dz) * 0.03);
+                                        objectsGroup.add(pin);
+                                    }
                                 }
                             }
                         };
 
-                        placePipes(frontOutlets, W_roof / 2, vars.W / 2 + 0.06);
-                        if (backOutlets > 0) placePipes(backOutlets, -W_roof / 2, -vars.W / 2 - 0.06);
+                        // zWall = vars.W/2 + 0.051 (оставляем 1мм зазор от фасада для реализма)
+                        placePipes(frontOutlets, W_roof / 2, vars.W / 2 + 0.051);
+                        if (backOutlets > 0) placePipes(backOutlets, -W_roof / 2, -vars.W / 2 - 0.051);
                     }
                 }
 
