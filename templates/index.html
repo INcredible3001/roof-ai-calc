@@ -612,7 +612,7 @@
             parent.add(label);
         }
 
-        // --- ИДЕАЛЬНЫЙ ЖЕЛОБ (Математически строгая U-форма, смотрит ВВЕРХ) ---
+        // ИДЕАЛЬНЫЙ ЖЕЛОБ (Математически строгая U-форма, смотрит ВВЕРХ)
         function createGutter(length) {
             let shape = new THREE.Shape();
             shape.absarc(0, 0, 0.07, 0, Math.PI, true); 
@@ -625,7 +625,7 @@
             return geo;
         }
 
-        // --- ГЕОМЕТРИЯ ПЛОСКОЙ ЗАГЛУШКИ ДЛЯ ТОРЦА ---
+        // ГЕОМЕТРИЯ ПЛОСКОЙ ЗАГЛУШКИ ДЛЯ ТОРЦА
         function createEndCap() {
             let shape = new THREE.Shape();
             shape.absarc(0, 0, 0.07, 0, Math.PI, true);
@@ -637,17 +637,17 @@
             return geo;
         }
 
-        // --- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ ОТРИСОВКИ ТРУБ И ЖЕЛОБОВ НА ЛЮБОЙ СТОРОНЕ ---
+        // УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ ОТРИСОВКИ ТРУБ И ЖЕЛОБОВ НА ЛЮБОЙ СТОРОНЕ (С МАТЕМАТИЧЕСКИ ТОЧНЫМ КОЛЕНОМ)
         function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat) {
             if (edgeLength <= 0) return;
             
             // 1. Желоб
             let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
             gutter.position.set(0, houseHeight - 0.05, zGutter);
-            gutter.rotation.y = Math.PI / 2; // Вдоль оси X
+            gutter.rotation.y = Math.PI / 2; // Разворачиваем вдоль фасада (оси X)
             objectsGroup.add(gutter);
 
-            // 2. Заглушки на края желоба
+            // 2. Заглушки на края
             let capL = new THREE.Mesh(createEndCap(), drainMat);
             capL.position.set(-edgeLength/2, houseHeight - 0.05, zGutter);
             capL.rotation.y = Math.PI / 2;
@@ -661,9 +661,10 @@
             // 3. Воронки и трубы
             if(nOutlets > 0) {
                 let pipeRadius = 0.045;
-                let zWall = zWallRaw + dirZ * pipeRadius; // Прижимаем трубу к стене с учетом радиуса
+                // Сдвигаем трубу к стене с учетом радиуса
+                let zWall = zWallRaw + dirZ * pipeRadius; 
                 
-                let minX = -(wallLength/2) + 0.2; // Отступ 20см от края СТЕНЫ
+                let minX = -(wallLength/2) + 0.2; // Отступ от краев ФИЗИЧЕСКОЙ СТЕНЫ
                 let maxX = (wallLength/2) - 0.2;
 
                 for(let i=0; i<nOutlets; i++) {
@@ -671,12 +672,12 @@
                     if (nOutlets > 1) {
                         px = minX + i * ((maxX - minX) / (nOutlets - 1));
                     } else {
-                        px = 0; // Одна труба по центру
+                        px = 0; // Строго по центру
                     }
                     
                     // Воронка
                     let funnelHeight = 0.15;
-                    let funnelTop = houseHeight - 0.11; // Низ U-образного желоба
+                    let funnelTop = houseHeight - 0.11; // Низ желоба
                     let funnelCenterY = funnelTop - funnelHeight / 2;
 
                     let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat);
@@ -685,14 +686,14 @@
                     
                     // Наклонное колено
                     let y1 = funnelTop - funnelHeight + 0.02; // Низ воронки
-                    let y2 = houseHeight - 0.6;   // Точка входа в трубу на стене
+                    let y2 = houseHeight - 0.6;               // Точка входа в стену
                     let dz = zGutter - zWall;     
                     let dy = y1 - y2; 
                     let slantLen = Math.sqrt(dy*dy + dz*dz); 
                     
                     let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat);
                     slant.position.set(px, (y1 + y2)/2, (zGutter + zWall)/2);
-                    slant.rotation.x = Math.atan2(dz, dy); 
+                    slant.rotation.x = Math.atan2(dz, dy); // Идеальный угол!
                     objectsGroup.add(slant);
                     
                     // Вертикальная труба
@@ -715,7 +716,7 @@
                         spout.rotation.x = spoutAngle;
                         objectsGroup.add(spout);
 
-                        // Хомуты
+                        // Хомуты (крепеж в стену)
                         let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
                         for(let j=0; j<=clampCount; j++) {
                             let cy = 0.4 + j * ((pipeLen - 0.4)/clampCount);
@@ -734,7 +735,6 @@
                 }
             }
         }
-
 
         function render3D() {
             init3D();
@@ -765,7 +765,7 @@
             
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 }); 
 
-            // 1. КОРОБКА ДОМА (Исключаем для многощипцовой, чтобы не было пересечений креста и куба)
+            // 1. КОРОБКА ДОМА (Исключаем для многощипцовой, чтобы стены рисовались крестом)
             if (vars.rType !== 'multi_gable') {
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
@@ -825,13 +825,18 @@
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
 
-                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof/2 + 0.1);
-                addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, -W_roof/2 - 0.5);
+                // ИСПРАВЛЕНЫ ПОДПИСИ И СТОРОНА ДЛЯ ОДНОСКАТНОЙ
+                // -W_roof/2 - это низ крыши (Карниз)
+                // W_roof/2 - это верх крыши (Конёк)
+                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, -W_roof/2 - 0.1);
+                addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, W_roof/2 + 0.1);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof/2 - 0.1, houseHeight + h/2, 0);
 
                 if (L_roof > 0) {
-                    // Желоб и трубы только на нижней кромке (спереди)
-                    addGutterSystem(L_roof, vars.L, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, nOutlets, drainMat);
+                    // Желоб и трубы только на НИЖНЕЙ кромке (карниз)
+                    let zGutter = -W_roof/2;
+                    let zWall = -vars.W/2;
+                    addGutterSystem(L_roof, vars.L, houseHeight, zGutter, zWall - 0.002, -1, nOutlets, drainMat);
                 }
 
             } else if (vars.rType === 'hip' || vars.rType === 'tent') {
@@ -876,23 +881,31 @@
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
                 
+                // ВЕРНУЛ НАДПИСИ КОНЬКОВ И ХРЕБТОВ
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof/2 + 0.1);
                 addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -L_roof/2 - 0.1, houseHeight, 0);
+                if(vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H + 0.5, 0);
+                if(vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -L_roof/4, houseHeight + H/2 + 0.5, W_roof/4);
 
                 if (L_roof > 0) {
                     // Для вальмы/шатра добавляем желоба по периметру
-                    // Спереди и сзади:
                     addGutterSystem(L_roof, vars.L, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, Math.ceil(nOutlets/2), drainMat);
                     addGutterSystem(L_roof, vars.L, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, Math.floor(nOutlets/2), drainMat);
                     
-                    // По бокам (без труб, просто желоба):
                     let gLeft = new THREE.Mesh(createGutter(W_roof), drainMat);
-                    gLeft.position.set(-L_roof/2, houseHeight - 0.05, 0); // Левый карниз
+                    gLeft.position.set(-L_roof/2, houseHeight - 0.05, 0);
                     objectsGroup.add(gLeft);
                     
                     let gRight = new THREE.Mesh(createGutter(W_roof), drainMat);
-                    gRight.position.set(L_roof/2, houseHeight - 0.05, 0); // Правый карниз
+                    gRight.position.set(L_roof/2, houseHeight - 0.05, 0); 
                     objectsGroup.add(gRight);
+
+                    // АККУРАТНЫЕ УГЛОВЫЕ СОЕДИНИТЕЛИ (Внешние углы водостока)
+                    let cornerBox = new THREE.BoxGeometry(0.15, 0.08, 0.15);
+                    let c1 = new THREE.Mesh(cornerBox, drainMat); c1.position.set(-L_roof/2, houseHeight - 0.05, W_roof/2); objectsGroup.add(c1);
+                    let c2 = new THREE.Mesh(cornerBox, drainMat); c2.position.set(L_roof/2, houseHeight - 0.05, W_roof/2); objectsGroup.add(c2);
+                    let c3 = new THREE.Mesh(cornerBox, drainMat); c3.position.set(-L_roof/2, houseHeight - 0.05, -W_roof/2); objectsGroup.add(c3);
+                    let c4 = new THREE.Mesh(cornerBox, drainMat); c4.position.set(L_roof/2, houseHeight - 0.05, -W_roof/2); objectsGroup.add(c4);
                 }
 
             } else if (vars.rType === 'multi_gable') {
@@ -941,26 +954,91 @@
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof/2 - 0.5, houseHeight + H/2, 0);
                 addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -D_roof/4, houseHeight + H/2 + 0.5, D_roof/4);
 
+                // --- ИСПРАВЛЕННЫЙ ВОДОСТОК ДЛЯ КРЕСТА (Во внутренних углах - Ендовах) ---
                 if (D_roof > 0) {
-                    // Желоба и трубы на 4 концах креста
-                    let outPerEnd = Math.max(1, Math.floor(nOutlets / 4));
+                    let signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
                     
-                    // Передний край
-                    addGutterSystem(D_roof, D, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, outPerEnd, drainMat);
-                    // Задний край
-                    addGutterSystem(D_roof, D, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, outPerEnd, drainMat);
-                    
-                    // Левый край (повернутый)
-                    let gLeft = new THREE.Group();
-                    addGutterSystem(D_roof, D, houseHeight, L_roof/2, vars.L/2 + 0.002, 1, outPerEnd, drainMat);
-                    gLeft.rotation.y = Math.PI / 2;
-                    objectsGroup.add(gLeft);
-                    
-                    // Правый край (повернутый)
-                    let gRight = new THREE.Group();
-                    addGutterSystem(D_roof, D, houseHeight, L_roof/2, vars.L/2 + 0.002, 1, outPerEnd, drainMat);
-                    gRight.rotation.y = -Math.PI / 2;
-                    objectsGroup.add(gRight);
+                    signs.forEach(([sx, sz]) => {
+                        // Желоб по оси X
+                        let lenX = (L_roof - D_roof) / 2;
+                        let cx = sx * (D_roof/2 + lenX/2);
+                        let cz = sz * D_roof/2;
+                        let gX = new THREE.Mesh(createGutter(lenX), drainMat);
+                        gX.position.set(cx, houseHeight - 0.05, cz);
+                        gX.rotation.y = Math.PI / 2;
+                        
+                        let capX = new THREE.Mesh(createEndCap(), drainMat);
+                        capX.position.set(sx * L_roof/2, houseHeight - 0.05, cz);
+                        capX.rotation.y = Math.PI / 2;
+                        objectsGroup.add(gX, capX);
+                        
+                        // Желоб по оси Z
+                        let lenZ = (W_roof - D_roof) / 2;
+                        let px = sx * D_roof/2;
+                        let pz = sz * (D_roof/2 + lenZ/2);
+                        let gZ = new THREE.Mesh(createGutter(lenZ), drainMat);
+                        gZ.position.set(px, houseHeight - 0.05, pz);
+                        gZ.rotation.y = 0;
+                        
+                        let capZ = new THREE.Mesh(createEndCap(), drainMat);
+                        capZ.position.set(px, houseHeight - 0.05, sz * W_roof/2);
+                        capZ.rotation.y = 0;
+                        objectsGroup.add(gZ, capZ);
+                        
+                        // Внутренний угол водостока (квадратная заглушка-соединитель)
+                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.15), drainMat);
+                        corner.position.set(sx * D_roof/2, houseHeight - 0.05, sz * D_roof/2);
+                        objectsGroup.add(corner);
+                        
+                        // Труба и воронка во внутреннем углу
+                        if (nOutlets > 0) {
+                            let pipeRadius = 0.045;
+                            let zGutter = sz * D_roof/2;
+                            let zWall = sz * (D/2 + pipeRadius + 0.002);
+                            
+                            let funnelTop = houseHeight - 0.09;
+                            let funnelHeight = 0.15;
+                            let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat);
+                            funnel.position.set(px, funnelTop - funnelHeight/2, zGutter);
+                            objectsGroup.add(funnel);
+                            
+                            let y1 = funnelTop - funnelHeight + 0.02;
+                            let y2 = houseHeight - 0.6;
+                            let dz2 = zGutter - zWall;
+                            let dy2 = y1 - y2;
+                            let slantLen = Math.sqrt(dy2*dy2 + dz2*dz2);
+                            
+                            let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat);
+                            slant.position.set(px, (y1+y2)/2, (zGutter+zWall)/2);
+                            slant.rotation.x = Math.atan2(dz2, dy2);
+                            objectsGroup.add(slant);
+                            
+                            let pipeLen = y2 - 0.2;
+                            if(pipeLen > 0) {
+                                let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat);
+                                pipe.position.set(px, 0.2 + pipeLen/2, zWall);
+                                objectsGroup.add(pipe);
+                                
+                                let spoutLen = 0.15;
+                                let tiltAngle = Math.PI/4;
+                                let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat);
+                                let sy = 0.2 - (spoutLen/2) * Math.cos(tiltAngle) + 0.02;
+                                let sz_spout = zWall + sz * (spoutLen/2) * Math.sin(tiltAngle);
+                                spout.position.set(px, sy, sz_spout);
+                                spout.rotation.x = -sz * tiltAngle;
+                                objectsGroup.add(spout);
+
+                                let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
+                                for(let j=0; j<=clampCount; j++) {
+                                    let cy = 0.4 + j * ((pipeLen - 0.4)/clampCount);
+                                    let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat);
+                                    clampRing.rotation.x = Math.PI/2;
+                                    clampRing.position.set(px, cy, zWall);
+                                    objectsGroup.add(clampRing);
+                                }
+                            }
+                        }
+                    });
                 }
             }
 
