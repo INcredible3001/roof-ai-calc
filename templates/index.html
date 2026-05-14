@@ -138,17 +138,20 @@
         </div>
 
         <div class="box">
-            <h3>4. Детализация 2D и расчет</h3>
-            <div class="grid-2-col">
-                <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01" value="0" readonly></div>
-                <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01" value="0" readonly></div>
-                <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01" value="0" readonly></div>
-                <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01" value="0"></div>
-            </div>
-            <div class="form-group"><label>Общая площадь в плане (м²):</label><input type="number" id="mArea" step="0.01" value="0" placeholder="Авторасчет" readonly></div>
+            <h3>4. Расчет спецификации</h3>
             
-            <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
-            <div id="schemeResult"></div>
+            <div id="hiddenDetailsBox" style="display: none;">
+                <div class="grid-2-col">
+                    <div class="form-group"><label>Длина коньков (м):</label><input type="number" id="mRidges" step="0.01" value="0" readonly></div>
+                    <div class="form-group"><label>Длина хребтов (м):</label><input type="number" id="mHips" step="0.01" value="0" readonly></div>
+                    <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01" value="0" readonly></div>
+                    <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01" value="0"></div>
+                </div>
+                <div class="form-group"><label>Общая площадь в плане (м²):</label><input type="number" id="mArea" step="0.01" value="0" placeholder="Авторасчет" readonly></div>
+                
+                <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
+                <div id="schemeResult"></div>
+            </div>
 
             <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
         </div>
@@ -323,7 +326,7 @@
                 const data = await response.json();
                 
                 if (data.error) { 
-                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`; 
+                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка сервера: ${data.error}</div><br>`; 
                 } else { 
                     historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`; 
                     conversationHistory.push({ role: "user", text: message }); 
@@ -331,7 +334,8 @@
                 }
                 historyBox.scrollTop = historyBox.scrollHeight;
             } catch (error) { 
-                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; 
+                console.error(error);
+                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи с сервером PythonAnywhere. Проверьте Error Log.</div><br>`; 
             }
         }
 
