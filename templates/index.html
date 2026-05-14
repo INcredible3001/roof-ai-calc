@@ -130,11 +130,29 @@
 
         <div class="box" style="border-left: 4px solid #3498db;">
             <h3>3. Водосток и Софиты</h3>
-            <div class="grid-2-col">
+            <div class="grid-2-col" style="margin-bottom: 12px;">
                 <div class="form-group"><label>Высота стен (м):</label><input type="number" id="mWallHeight" value="3.5" step="0.1" oninput="render3D()"></div>
                 <div class="form-group"><label>Свес (софит, м):</label><input type="number" id="vSoffitWidth" value="0.5" step="0.1" oninput="render3D()"></div>
-                <div class="form-group" style="grid-column: span 2;"><label>Воронки (стояки):</label><input type="number" id="vOutlets" value="4" min="0" oninput="render3D()"></div>
+                
+                <div class="form-group">
+                    <label>Тип софита:</label>
+                    <select id="soffitType" onchange="render3D()">
+                        <option value="solid">Сплошной</option>
+                        <option value="center" selected>С центр. перфорацией</option>
+                        <option value="full">С полной перфорацией</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Цвет софита:</label>
+                    <select id="soffitColor" onchange="render3D()">
+                        <option value="#ffffff">Белый</option>
+                        <option value="#3b2821">Шоколад</option>
+                        <option value="#2b2c2f">Графит</option>
+                        <option value="#5e2028">Бордо</option>
+                    </select>
+                </div>
             </div>
+            <div class="form-group"><label>Воронки (стояки):</label><input type="number" id="vOutlets" value="4" min="0" oninput="render3D()"></div>
         </div>
 
         <div class="box">
@@ -147,8 +165,7 @@
                     <div class="form-group"><label>Длина ендов (м):</label><input type="number" id="mValleys" step="0.01" value="0" readonly></div>
                     <div class="form-group"><label>Примыкания (м):</label><input type="number" id="mAbutments" step="0.01" value="0"></div>
                 </div>
-                <div class="form-group"><label>Общая площадь в плане (м²):</label><input type="number" id="mArea" step="0.01" value="0" placeholder="Авторасчет" readonly></div>
-                
+                <div class="form-group"><label>Общая площадь (м²):</label><input type="number" id="mArea" step="0.01" value="0" readonly></div>
                 <button class="btn-purple" onclick="processAndDraw()">Нарисовать 2D чертеж</button>
                 <div id="schemeResult"></div>
             </div>
@@ -185,7 +202,6 @@
     <script>
         let conversationHistory = [];
 
-        // Глобальные переменные для цвета и материала
         let currentRoofColor = 0x5e2028; 
         let currentRoofRoughness = 0.3;  
         let currentRoofMetalness = 0.2;  
@@ -200,7 +216,6 @@
             }
         });
 
-        // ФУНКЦИИ ИЗМЕНЕНИЯ ЦВЕТА И МАТЕРИАЛА
         function changeColor(colorValue) {
             if (typeof colorValue === 'string') {
                 currentRoofColor = parseInt(colorValue.replace('#', '0x'));
@@ -213,16 +228,13 @@
         function changeMaterial() {
             const matType = document.getElementById('materialType').value;
             if (matType === 'metal') {
-                currentRoofRoughness = 0.3;
-                currentRoofMetalness = 0.2;
+                currentRoofRoughness = 0.3; currentRoofMetalness = 0.2;
             } else {
-                currentRoofRoughness = 0.95; 
-                currentRoofMetalness = 0.0;
+                currentRoofRoughness = 0.95; currentRoofMetalness = 0.0;
             }
             render3D();
         }
 
-        // ПЕРЕКЛЮЧЕНИЕ ПОЛЕЙ В ЗАВИСИМОСТИ ОТ ТИПА КРЫШИ
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
             const groupPitchHip = document.getElementById('groupPitchHip');
@@ -233,300 +245,103 @@
             if (rType === 'hip') {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
-                groupPitchHip.style.display = "block";
-                groupSlopeTrap.style.display = "block";
-                lblSlopeTrap.innerText = "Скат трапеции (м):";
-                groupSlopeHip.style.display = "block";
+                groupPitchHip.style.display = "block"; groupSlopeTrap.style.display = "block";
+                lblSlopeTrap.innerText = "Скат трапеции (м):"; groupSlopeHip.style.display = "block";
             } else if (rType === 'multi_gable') {
                 document.getElementById('lblEaves').innerText = "Длина фасада (м):";
                 document.getElementById('lblRakes').innerText = "Пересечение (м):";
-                groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "block"; 
-                lblSlopeTrap.innerText = "Скат (Торец, м):"; 
-                groupSlopeHip.style.display = "none";
+                groupPitchHip.style.display = "none"; groupSlopeTrap.style.display = "block"; 
+                lblSlopeTrap.innerText = "Скат (Торец, м):"; groupSlopeHip.style.display = "none";
             } else {
                 document.getElementById('lblEaves').innerText = "Длина дома (м):";
                 document.getElementById('lblRakes').innerText = "Ширина дома (м):";
-                groupPitchHip.style.display = "none";
-                groupSlopeTrap.style.display = "none";
-                groupSlopeHip.style.display = "none";
+                groupPitchHip.style.display = "none"; groupSlopeTrap.style.display = "none"; groupSlopeHip.style.display = "none";
             }
         }
         
-        window.onload = function() {
-            toggleRoofFields();
-            init3D();   
-            render3D(); 
-        };
+        window.onload = function() { toggleRoofFields(); init3D(); render3D(); };
 
-        // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ИИ
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
             let match = text.match(regex);
-            if (match) return parseFloat(match[1].replace(',', '.'));
-            return 0;
+            if (match) return parseFloat(match[1].replace(',', '.')); return 0;
         }
 
         async function analyzeImage() {
-            const fileInput = document.getElementById('roofImage');
-            const resultDiv = document.getElementById('aiResult');
-            const loader = document.getElementById('loader');
-            
-            if (fileInput.files.length === 0) { 
-                alert("Выбери файл!"); 
-                return; 
-            }
-            
-            const formData = new FormData(); 
-            formData.append("file", fileInput.files[0]);
-            
-            loader.style.display = "block"; 
-            resultDiv.style.display = "none";
-            
+            const fileInput = document.getElementById('roofImage'); const resultDiv = document.getElementById('aiResult'); const loader = document.getElementById('loader');
+            if (fileInput.files.length === 0) { alert("Выбери файл!"); return; }
+            const formData = new FormData(); formData.append("file", fileInput.files[0]);
+            loader.style.display = "block"; resultDiv.style.display = "none";
             try {
-                const response = await fetch('/analyze', { method: 'POST', body: formData });
-                const data = await response.json();
-                
-                loader.style.display = "none"; 
-                resultDiv.style.display = "block";
-                
-                if (data.error) { 
-                    resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>"; 
-                } else {
+                const response = await fetch('/analyze', { method: 'POST', body: formData }); const data = await response.json();
+                loader.style.display = "none"; resultDiv.style.display = "block";
+                if (data.error) { resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>"; } 
+                else {
                     resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + data.result;
                     document.getElementById('mPitch').value = extractNumber(data.result, 'Угол');
                     document.getElementById('mEaves').value = extractNumber(data.result, 'Карниз');
                     document.getElementById('mRakes').value = extractNumber(data.result, 'Торц');
                     render3D(); 
                 }
-            } catch (error) { 
-                loader.style.display = "none"; 
-                alert("Ошибка сервера."); 
-            }
+            } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
         }
 
         async function sendChatMessage() {
-            const inputField = document.getElementById('chatInput');
-            const historyBox = document.getElementById('chatHistory');
-            const message = inputField.value.trim();
-            
-            if (!message) return;
-            
-            historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
-            inputField.value = ''; 
-            historyBox.scrollTop = historyBox.scrollHeight;
-            
+            const inputField = document.getElementById('chatInput'); const historyBox = document.getElementById('chatHistory');
+            const message = inputField.value.trim(); if (!message) return;
+            historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`; inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
             try {
-                const response = await fetch('/chat', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ message: message, history: conversationHistory }) 
-                });
-                
+                const response = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message, history: conversationHistory }) });
                 const data = await response.json();
-                
-                if (data.error) { 
-                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка сервера: ${data.error}</div><br>`; 
-                } else { 
-                    historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`; 
-                    conversationHistory.push({ role: "user", text: message }); 
-                    conversationHistory.push({ role: "model", text: data.reply }); 
-                }
+                if (data.error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка сервера: ${data.error}</div><br>`; } 
+                else { historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`; conversationHistory.push({ role: "user", text: message }); conversationHistory.push({ role: "model", text: data.reply }); }
                 historyBox.scrollTop = historyBox.scrollHeight;
-            } catch (error) { 
-                console.error(error);
-                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи с сервером PythonAnywhere. Проверьте Error Log.</div><br>`; 
-            }
+            } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
         }
 
-        // --- МАТЕМАТИЧЕСКОЕ ЯДРО ---
         function doMath() {
             const rType = document.getElementById('roofType').value;
-            let L = parseFloat(document.getElementById('mEaves').value) || 0;
-            let W = parseFloat(document.getElementById('mRakes').value) || 0;
-            let P1 = parseFloat(document.getElementById('mPitch').value) || 0;
-            let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
-            
+            let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
+            let P1 = parseFloat(document.getElementById('mPitch').value) || 0; let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
             if (P2 === 0) P2 = P1;
-            
-            let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1;
-            let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
-
+            let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1; let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
             let S1 = 0, S2 = 0, Ridge = 0, Hip = 0, Valleys = 0;
 
-            if (rType === 'shed') {
-                S1 = W / cos1;
-                Ridge = L; 
-            } else if (rType === 'gable') {
-                S1 = (W / 2) / cos1;
-                Ridge = L; 
-            } else if (rType === 'hip') {
-                S1 = (W / 2) / cos1;
-                S2 = (W / 2) / cos2;
-                let planH = (W / 2) * Math.tan(P1 * Math.PI / 180);
-                Ridge = L > W ? L - W : 0;
-                let planHip = Math.sqrt(Math.pow(W/2, 2) + Math.pow(W/2, 2));
-                Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
-            } else if (rType === 'tent') {
-                let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180);
-                S1 = Math.sqrt(Math.pow(L/2, 2) + H*H); 
-                S2 = Math.sqrt(Math.pow(W/2, 2) + H*H);
-                Ridge = 0;
-                let planHip = Math.sqrt(Math.pow(L/2, 2) + Math.pow(W/2, 2));
-                Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(H, 2));
-            } else if (rType === 'multi_gable') {
-                let D = Math.min(L, W) * 0.5;
-                S1 = (D / 2) / cos1;
-                Ridge = L + W - D;
-                let planValley = (D / 2) * Math.sqrt(2);
-                let H = (D / 2) * Math.tan(P1 * Math.PI / 180);
-                Valleys = Math.sqrt(Math.pow(planValley, 2) + Math.pow(H, 2)) * 4;
-            }
+            if (rType === 'shed') { S1 = W / cos1; Ridge = L; 
+            } else if (rType === 'gable') { S1 = (W / 2) / cos1; Ridge = L; 
+            } else if (rType === 'hip') { S1 = (W / 2) / cos1; S2 = (W / 2) / cos2; let planH = (W / 2) * Math.tan(P1 * Math.PI / 180); Ridge = L > W ? L - W : 0; let planHip = Math.sqrt(Math.pow(W/2, 2) + Math.pow(W/2, 2)); Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
+            } else if (rType === 'tent') { let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180); S1 = Math.sqrt(Math.pow(L/2, 2) + H*H); S2 = Math.sqrt(Math.pow(W/2, 2) + H*H); Ridge = 0; let planHip = Math.sqrt(Math.pow(L/2, 2) + Math.pow(W/2, 2)); Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(H, 2));
+            } else if (rType === 'multi_gable') { let D = Math.min(L, W) * 0.5; S1 = (D / 2) / cos1; Ridge = L + W - D; let planValley = (D / 2) * Math.sqrt(2); let H = (D / 2) * Math.tan(P1 * Math.PI / 180); Valleys = Math.sqrt(Math.pow(planValley, 2) + Math.pow(H, 2)) * 4; }
             
-            document.getElementById('mSlopeTrap').value = S1 > 0 ? S1.toFixed(2) : 0;
-            document.getElementById('mSlopeHip').value = S2 > 0 ? S2.toFixed(2) : 0;
-            document.getElementById('mRidges').value = Ridge > 0 ? Ridge.toFixed(2) : 0;
-            document.getElementById('mHips').value = Hip > 0 ? Hip.toFixed(2) : 0;
-            document.getElementById('mValleys').value = Valleys > 0 ? Valleys.toFixed(2) : 0;
-            
+            document.getElementById('mSlopeTrap').value = S1 > 0 ? S1.toFixed(2) : 0; document.getElementById('mSlopeHip').value = S2 > 0 ? S2.toFixed(2) : 0; document.getElementById('mRidges').value = Ridge > 0 ? Ridge.toFixed(2) : 0; document.getElementById('mHips').value = Hip > 0 ? Hip.toFixed(2) : 0; document.getElementById('mValleys').value = Valleys > 0 ? Valleys.toFixed(2) : 0;
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
         async function processAndDraw() {
-            let L = parseFloat(document.getElementById('mEaves').value) || 0;
-            let W = parseFloat(document.getElementById('mRakes').value) || 0;
+            let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
             if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
-            
-            let vars = doMath();
-            const schemeBox = document.getElementById('schemeResult');
-            schemeBox.style.display = "block"; 
-            schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
-            
-            try {
-                const response = await fetch('/generate_scheme', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2, 
-                        slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2)
-                    })
-                });
-                const data = await response.json(); 
-                schemeBox.innerHTML = data.svg;
-            } catch (error) { 
-                schemeBox.innerHTML = "<span style='color:red;'>Ошибка отрисовки 2D.</span>"; 
-            }
+            let vars = doMath(); const schemeBox = document.getElementById('schemeResult'); schemeBox.style.display = "block"; schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
+            try { const response = await fetch('/generate_scheme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2, slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2) }) }); const data = await response.json(); schemeBox.innerHTML = data.svg; } catch (error) { schemeBox.innerHTML = "<span style='color:red;'>Ошибка отрисовки.</span>"; }
         }
 
         function calculateFinal() {
             let vars = doMath();
-            let area = parseFloat(document.getElementById('mArea').value) || 0;
-            let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
-            let H_wall = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
-            let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
-            let soffWidth = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
-
-            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = vars.Valleys, cAbutments = abutments; 
-            let slopedArea = 0;
+            let area = parseFloat(document.getElementById('mArea').value) || 0; let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+            let H_wall = parseFloat(document.getElementById('mWallHeight').value) || 3.5; let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0; let soffWidth = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
+            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = vars.Valleys, cAbutments = abutments; let slopedArea = 0;
             
-            if (vars.rType === 'shed') { 
-                cEaves = vars.L; 
-                cRakes = vars.S1 * 2; 
-                cAbutments = abutments > 0 ? abutments : vars.L; 
-                slopedArea = vars.L * vars.S1; 
-                area = vars.L * vars.W; 
-            } else if (vars.rType === 'gable') { 
-                cEaves = vars.L * 2; 
-                cRakes = vars.S1 * 4; 
-                cRidges = vars.Ridge; 
-                slopedArea = (vars.L * vars.S1) * 2; 
-                area = vars.L * vars.W; 
-            } else if (vars.rType === 'hip') { 
-                cEaves = (vars.L * 2) + (vars.W * 2); 
-                cHips = vars.Hip * 4; 
-                cRidges = vars.Ridge; 
-                slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); 
-                area = vars.L * vars.W; 
-            } else if (vars.rType === 'tent') {
-                cEaves = vars.L * 2 + vars.W * 2; 
-                cHips = vars.Hip * 4; 
-                cRidges = 0; 
-                cRakes = 0; 
-                slopedArea = (vars.L * vars.S2) + (vars.W * vars.S1); 
-                area = vars.L * vars.W;
-            } else if (vars.rType === 'multi_gable') {
-                let D = Math.min(vars.L, vars.W) * 0.5;
-                cEaves = 2*vars.L + 2*vars.W - 4*D; 
-                cRakes = vars.S1 * 8; 
-                cRidges = vars.Ridge;
-                area = vars.L*D + vars.W*D - D*D; 
-                slopedArea = area * (1/vars.cos1); 
-            }
-
+            if (vars.rType === 'shed') { cEaves = vars.L; cRakes = vars.S1 * 2; cAbutments = abutments > 0 ? abutments : vars.L; slopedArea = vars.L * vars.S1; area = vars.L * vars.W; } else if (vars.rType === 'gable') { cEaves = vars.L * 2; cRakes = vars.S1 * 4; cRidges = vars.Ridge; slopedArea = (vars.L * vars.S1) * 2; area = vars.L * vars.W; } else if (vars.rType === 'hip') { cEaves = (vars.L * 2) + (vars.W * 2); cHips = vars.Hip * 4; cRidges = vars.Ridge; slopedArea = ((vars.L + vars.Ridge) * vars.S1) + (vars.W * vars.S2); area = vars.L * vars.W; } else if (vars.rType === 'tent') { cEaves = vars.L * 2 + vars.W * 2; cHips = vars.Hip * 4; cRidges = 0; cRakes = 0; slopedArea = (vars.L * vars.S2) + (vars.W * vars.S1); area = vars.L * vars.W; } else if (vars.rType === 'multi_gable') { let D = Math.min(vars.L, vars.W) * 0.5; cEaves = 2*vars.L + 2*vars.W - 4*D; cRakes = vars.S1 * 8; cRidges = vars.Ridge; area = vars.L*D + vars.W*D - D*D; slopedArea = area * (1/vars.cos1); }
             document.getElementById('mArea').value = area.toFixed(2);
 
-            // --- РАСЧЕТ ВОДОСТОКА ---
-            let gutterMeters = cEaves; 
-            let nGutters = Math.ceil(gutterMeters / 3); 
-            let nBrackets = Math.ceil(gutterMeters / 0.6) + 4;
-            let nConnectors = Math.ceil(gutterMeters / 3) + 2;
-            
-            let nEndCaps = 0;
-            if (vars.rType === 'shed') nEndCaps = 2;
-            if (vars.rType === 'gable') nEndCaps = 4;
-            if (vars.rType === 'multi_gable') nEndCaps = 8;
-            
-            let nCorners = 0;
-            if (vars.rType === 'hip' || vars.rType === 'tent') nCorners = 4;
-            if (vars.rType === 'multi_gable') nCorners = 4; 
+            let nGutters = Math.ceil(cEaves / 3); let nBrackets = Math.ceil(cEaves / 0.6) + 4; let nConnectors = Math.ceil(cEaves / 3) + 2;
+            let nEndCaps = 0; if (vars.rType === 'shed') nEndCaps = 2; if (vars.rType === 'gable') nEndCaps = 4; if (vars.rType === 'multi_gable') nEndCaps = 8;
+            let nCorners = 0; if (vars.rType === 'hip' || vars.rType === 'tent') nCorners = 4; if (vars.rType === 'multi_gable') nCorners = 4; 
+            let nPipes = Math.ceil(Math.max(0, (H_wall - 0.3)) * nOutlets / 3); let nElbows = nOutlets * 3; let nClamps = Math.ceil(Math.max(0, (H_wall - 0.3)) * nOutlets / 1.5) + nOutlets;
+            let soffitArea = cEaves * soffWidth; if(vars.rType === 'gable' || vars.rType === 'shed' || vars.rType === 'multi_gable') { soffitArea += cRakes * soffWidth; }
 
-            let pipeMeters = Math.max(0, (H_wall - 0.3)) * nOutlets;
-            let nPipes = Math.ceil(pipeMeters / 3);
-            let nElbows = nOutlets * 3;
-            let nClamps = Math.ceil(pipeMeters / 1.5) + nOutlets;
-
-            // --- РАСЧЕТ СОФИТОВ ---
-            let soffitArea = cEaves * soffWidth;
-            if(vars.rType === 'gable' || vars.rType === 'shed' || vars.rType === 'multi_gable') {
-                soffitArea += cRakes * soffWidth;
-            }
-
-            // --- ГЕНЕРАЦИЯ HTML ИТОГОВ ---
-            let html = `
-                <div class="spec-section">
-                    <div class="spec-section-head">ОСНОВНАЯ КРОВЛЯ (запас +10%)</div>
-                    <div class="result-item"><span>Покрытие (м²):</span> <span class="result-value">${(slopedArea*1.1).toFixed(2)}</span></div>
-                    <div class="result-item"><span>Коньки / Хребты (м.п.):</span> <span class="result-value">${((cRidges + cHips)*1.05).toFixed(2)}</span></div>
-                    <div class="result-item"><span>Торцевые планки (м.п.):</span> <span class="result-value">${(cRakes*1.05).toFixed(2)}</span></div>
-                    <div class="result-item"><span>Карнизные планки (м.п.):</span> <span class="result-value">${(cEaves*1.05).toFixed(2)}</span></div>
-                    <div class="result-item"><span>Ендовы (м.п.):</span> <span class="result-value">${(cValleys*1.05).toFixed(2)}</span></div>
-                    <div class="result-item"><span>Примыкания (м.п.):</span> <span class="result-value">${(cAbutments*1.05).toFixed(2)}</span></div>
-                </div>
-
-                <div class="spec-section">
-                    <div class="spec-section-head">ВОДОСТОЧНАЯ СИСТЕМА</div>
-                    <div class="result-item"><span>Желоб водосточный (3м):</span> <span class="result-value">${nGutters} шт</span></div>
-                    <div class="result-item"><span>Кронштейн желоба:</span> <span class="result-value">${nBrackets} шт</span></div>
-                    <div class="result-item"><span>Воронка выпускная:</span> <span class="result-value">${nOutlets} шт</span></div>
-                    <div class="result-item"><span>Заглушка желоба:</span> <span class="result-value">${nEndCaps} шт</span></div>
-                    <div class="result-item"><span>Угол желоба 90°:</span> <span class="result-value">${nCorners} шт</span></div>
-                    <div class="result-item"><span>Соединитель желоба:</span> <span class="result-value">${nConnectors} шт</span></div>
-                    <div class="result-item"><span>Труба водосточная (3м):</span> <span class="result-value">${nPipes} шт</span></div>
-                    <div class="result-item"><span>Колено трубы:</span> <span class="result-value">${nElbows} шт</span></div>
-                    <div class="result-item"><span>Хомут трубы:</span> <span class="result-value">${nClamps} шт</span></div>
-                </div>
-
-                <div class="spec-section">
-                    <div class="spec-section-head">ПОДШИВКА СВЕСОВ (СОФИТЫ)</div>
-                    <div class="result-item"><span>Площадь софитов (+5% запас):</span> <span class="result-value">${(soffitArea*1.05).toFixed(2)} м²</span></div>
-                </div>
-            `;
-
-            document.getElementById('specContent').innerHTML = html;
-            document.getElementById('finalBox').style.display = "block"; 
-            document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
+            let html = `<div class="spec-section"><div class="spec-section-head">ОСНОВНАЯ КРОВЛЯ (запас +10%)</div><div class="result-item"><span>Покрытие (м²):</span> <span class="result-value">${(slopedArea*1.1).toFixed(2)}</span></div><div class="result-item"><span>Коньки / Хребты (м.п.):</span> <span class="result-value">${((cRidges + cHips)*1.05).toFixed(2)}</span></div><div class="result-item"><span>Торцевые планки (м.п.):</span> <span class="result-value">${(cRakes*1.05).toFixed(2)}</span></div><div class="result-item"><span>Карнизные планки (м.п.):</span> <span class="result-value">${(cEaves*1.05).toFixed(2)}</span></div><div class="result-item"><span>Ендовы (м.п.):</span> <span class="result-value">${(cValleys*1.05).toFixed(2)}</span></div><div class="result-item"><span>Примыкания (м.п.):</span> <span class="result-value">${(cAbutments*1.05).toFixed(2)}</span></div></div><div class="spec-section"><div class="spec-section-head">ВОДОСТОЧНАЯ СИСТЕМА</div><div class="result-item"><span>Желоб водосточный (3м):</span> <span class="result-value">${nGutters} шт</span></div><div class="result-item"><span>Кронштейн желоба:</span> <span class="result-value">${nBrackets} шт</span></div><div class="result-item"><span>Воронка выпускная:</span> <span class="result-value">${nOutlets} шт</span></div><div class="result-item"><span>Заглушка желоба:</span> <span class="result-value">${nEndCaps} шт</span></div><div class="result-item"><span>Угол желоба 90°:</span> <span class="result-value">${nCorners} шт</span></div><div class="result-item"><span>Соединитель желоба:</span> <span class="result-value">${nConnectors} шт</span></div><div class="result-item"><span>Труба водосточная (3м):</span> <span class="result-value">${nPipes} шт</span></div><div class="result-item"><span>Колено трубы:</span> <span class="result-value">${nElbows} шт</span></div><div class="result-item"><span>Хомут трубы:</span> <span class="result-value">${nClamps} шт</span></div></div><div class="spec-section"><div class="spec-section-head">ПОДШИВКА СВЕСОВ (СОФИТЫ)</div><div class="result-item"><span>Площадь софитов (+5% запас):</span> <span class="result-value">${(soffitArea*1.05).toFixed(2)} м²</span></div></div>`;
+            document.getElementById('specContent').innerHTML = html; document.getElementById('finalBox').style.display = "block"; document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
-
 
         // ==========================================
         // --- 3D ВИЗУАЛИЗАЦИЯ И МАТЕРИАЛЫ ---
@@ -537,207 +352,157 @@
 
         function init3D() {
             const container = document.getElementById('viewport');
-            
             if (!scene) {
-                scene = new THREE.Scene();
-                scene.background = new THREE.Color(0xf4f6f7); 
-
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7); 
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-                
-                renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.shadowMap.enabled = true; 
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                container.appendChild(renderer.domElement);
-
-                if (typeof THREE.CSS2DRenderer !== 'undefined') {
-                    useLabels = true;
-                    labelRenderer = new THREE.CSS2DRenderer();
-                    labelRenderer.setSize(container.clientWidth, container.clientHeight);
-                    labelRenderer.domElement.style.position = 'absolute';
-                    labelRenderer.domElement.style.top = '0px';
-                    labelRenderer.domElement.style.pointerEvents = 'none'; 
-                    container.appendChild(labelRenderer.domElement);
-                }
-
-                controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true;
-
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-                scene.add(ambientLight);
-
-                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                dirLight.position.set(20, 40, 20);
-                dirLight.castShadow = true; 
-                dirLight.shadow.mapSize.width = 2048;
-                dirLight.shadow.mapSize.height = 2048;
-                dirLight.shadow.bias = -0.001; 
-
-                const d = 50; 
-                dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
-                dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200;
-                scene.add(dirLight);
-                
-                const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-                backLight.position.set(-20, 20, -20);
-                scene.add(backLight);
-
-                const planeGeo = new THREE.PlaneGeometry(100, 100);
-                const planeMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 });
-                const planeMesh = new THREE.Mesh(planeGeo, planeMat);
-                planeMesh.rotation.x = -Math.PI / 2;
-                planeMesh.receiveShadow = true;
-                scene.add(planeMesh);
-                
-                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9);
-                scene.add(gridHelper);
-
-                scene.add(objectsGroup);
-                animate();
+                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; container.appendChild(renderer.domElement);
+                if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
+                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(20, 40, 20); dirLight.castShadow = true; dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.001; const d = 50; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200; scene.add(dirLight);
+                const backLight = new THREE.DirectionalLight(0xffffff, 0.3); backLight.position.set(-20, 20, -20); scene.add(backLight);
+                const planeGeo = new THREE.PlaneGeometry(100, 100); const planeMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 }); const planeMesh = new THREE.Mesh(planeGeo, planeMat); planeMesh.rotation.x = -Math.PI / 2; planeMesh.receiveShadow = true; scene.add(planeMesh);
+                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
+                scene.add(objectsGroup); animate();
             }
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (controls) controls.update();
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-                if (useLabels && labelRenderer) labelRenderer.render(scene, camera);
-            }
-        }
+        function animate() { requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) { renderer.render(scene, camera); if (useLabels && labelRenderer) labelRenderer.render(scene, camera); } }
+        function addLabel(parent, text, x, y, z) { if (!useLabels) return; const div = document.createElement('div'); div.className = 'label-3d'; div.textContent = text; const label = new THREE.CSS2DObject(div); label.position.set(x, y, z); parent.add(label); }
 
-        function addLabel(parent, text, x, y, z) {
-            if (!useLabels) return;
-            const div = document.createElement('div');
-            div.className = 'label-3d';
-            div.textContent = text;
-            const label = new THREE.CSS2DObject(div);
-            label.position.set(x, y, z);
-            parent.add(label);
-        }
+        function createGutter(length) { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 16 }); geo.translate(0, 0, -length/2); return geo; }
+        function createEndCap() { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: false }); geo.translate(0, 0, -0.0075); return geo; }
 
-        // ИДЕАЛЬНЫЙ ЖЕЛОБ (Математически строгая U-форма, смотрит ВВЕРХ)
-        function createGutter(length) {
-            let shape = new THREE.Shape();
-            shape.absarc(0, 0, 0.07, 0, Math.PI, true); 
-            shape.lineTo(-0.06, 0); 
-            shape.absarc(0, 0, 0.06, Math.PI, 0, false);
-            shape.lineTo(0.07, 0); 
-            
-            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 16 });
-            geo.translate(0, 0, -length/2); 
-            return geo;
-        }
-
-        // ГЕОМЕТРИЯ ПЛОСКОЙ ЗАГЛУШКИ ДЛЯ ТОРЦА
-        function createEndCap() {
-            let shape = new THREE.Shape();
-            shape.absarc(0, 0, 0.07, 0, Math.PI, true);
-            shape.lineTo(-0.06, 0);
-            shape.absarc(0, 0, 0.06, Math.PI, 0, false);
-            shape.lineTo(0.07, 0);
-            let geo = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: false });
-            geo.translate(0, 0, -0.0075);
-            return geo;
-        }
-
-        // УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ ОТРИСОВКИ ТРУБ И ЖЕЛОБОВ НА ЛЮБОЙ СТОРОНЕ (С МАТЕМАТИЧЕСКИ ТОЧНЫМ КОЛЕНОМ)
         function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat) {
             if (edgeLength <= 0) return;
-            
-            // 1. Желоб
-            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
-            gutter.position.set(0, houseHeight - 0.05, zGutter);
-            gutter.rotation.y = Math.PI / 2; // Разворачиваем вдоль фасада (оси X)
-            objectsGroup.add(gutter);
+            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat); gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; objectsGroup.add(gutter);
+            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength/2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; objectsGroup.add(capL);
+            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength/2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; objectsGroup.add(capR);
 
-            // 2. Заглушки на края
-            let capL = new THREE.Mesh(createEndCap(), drainMat);
-            capL.position.set(-edgeLength/2, houseHeight - 0.05, zGutter);
-            capL.rotation.y = Math.PI / 2;
-            objectsGroup.add(capL);
-            
-            let capR = new THREE.Mesh(createEndCap(), drainMat);
-            capR.position.set(edgeLength/2, houseHeight - 0.05, zGutter);
-            capR.rotation.y = Math.PI / 2;
-            objectsGroup.add(capR);
-
-            // 3. Воронки и трубы
             if(nOutlets > 0) {
-                let pipeRadius = 0.045;
-                // Сдвигаем трубу к стене с учетом радиуса
-                let zWall = zWallRaw + dirZ * pipeRadius; 
-                
-                let minX = -(wallLength/2) + 0.2; // Отступ от краев ФИЗИЧЕСКОЙ СТЕНЫ
-                let maxX = (wallLength/2) - 0.2;
-
+                let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength/2) + 0.2; let maxX = (wallLength/2) - 0.2;
                 for(let i=0; i<nOutlets; i++) {
-                    let px = minX;
-                    if (nOutlets > 1) {
-                        px = minX + i * ((maxX - minX) / (nOutlets - 1));
-                    } else {
-                        px = 0; // Строго по центру
-                    }
-                    
-                    // Воронка
-                    let funnelHeight = 0.15;
-                    let funnelTop = houseHeight - 0.11; // Низ желоба
-                    let funnelCenterY = funnelTop - funnelHeight / 2;
-
-                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat);
-                    funnel.position.set(px, funnelCenterY, zGutter);
-                    objectsGroup.add(funnel);
-                    
-                    // Наклонное колено
-                    let y1 = funnelTop - funnelHeight + 0.02; // Низ воронки
-                    let y2 = houseHeight - 0.6;               // Точка входа в стену
-                    let dz = zGutter - zWall;     
-                    let dy = y1 - y2; 
-                    let slantLen = Math.sqrt(dy*dy + dz*dz); 
-                    
-                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat);
-                    slant.position.set(px, (y1 + y2)/2, (zGutter + zWall)/2);
-                    slant.rotation.x = Math.atan2(dz, dy); // Идеальный угол!
-                    objectsGroup.add(slant);
-                    
-                    // Вертикальная труба
+                    let px = minX; if (nOutlets > 1) { px = minX + i * ((maxX - minX) / (nOutlets - 1)); } else { px = 0; }
+                    let funnelHeight = 0.15; let funnelTop = houseHeight - 0.11; let funnelCenterY = funnelTop - funnelHeight / 2;
+                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelCenterY, zGutter); objectsGroup.add(funnel);
+                    let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz = zGutter - zWall; let dy = y1 - y2; let slantLen = Math.sqrt(dy*dy + dz*dz); 
+                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2)/2, (zGutter + zWall)/2); slant.rotation.x = Math.atan2(dz, dy); objectsGroup.add(slant);
                     let pipeLen = y2 - 0.2; 
                     if(pipeLen > 0) {
-                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat);
-                        pipe.position.set(px, 0.2 + pipeLen/2, zWall);
-                        objectsGroup.add(pipe);
-                        
-                        // Сливное колено
-                        let spoutLen = 0.15;
-                        let tiltAngle = Math.PI / 4; 
-                        let spoutAngle = -dirZ * tiltAngle; // Разворачиваем слив ОТ фасада
-                        
-                        let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat);
-                        let sy = 0.2 - (spoutLen/2) * Math.cos(tiltAngle) + 0.02; 
-                        let sz = zWall + dirZ * (spoutLen/2) * Math.sin(tiltAngle); 
-                        
-                        spout.position.set(px, sy, sz);
-                        spout.rotation.x = spoutAngle;
-                        objectsGroup.add(spout);
-
-                        // Хомуты (крепеж в стену)
+                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen/2, zWall); objectsGroup.add(pipe);
+                        let spoutLen = 0.15; let tiltAngle = Math.PI / 4; let spoutAngle = -dirZ * tiltAngle; 
+                        let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen/2) * Math.cos(tiltAngle) + 0.02; let sz = zWall + dirZ * (spoutLen/2) * Math.sin(tiltAngle); 
+                        spout.position.set(px, sy, sz); spout.rotation.x = spoutAngle; objectsGroup.add(spout);
                         let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
                         for(let j=0; j<=clampCount; j++) {
                             let cy = 0.4 + j * ((pipeLen - 0.4)/clampCount);
-                            
-                            let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat);
-                            clampRing.rotation.x = Math.PI/2;
-                            clampRing.position.set(px, cy, zWall);
-                            objectsGroup.add(clampRing);
-                            
-                            let pin = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, pipeRadius + 0.05, 8), drainMat);
-                            pin.rotation.x = Math.PI/2;
-                            pin.position.set(px, cy, zWall - dirZ * (pipeRadius + 0.025)); 
-                            objectsGroup.add(pin);
+                            let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat); clampRing.rotation.x = Math.PI/2; clampRing.position.set(px, cy, zWall); objectsGroup.add(clampRing);
+                            let pin = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, pipeRadius + 0.05, 8), drainMat); pin.rotation.x = Math.PI/2; pin.position.set(px, cy, zWall - dirZ * (pipeRadius + 0.025)); objectsGroup.add(pin);
                         }
                     }
                 }
             }
+        }
+
+        // --- ГЕНЕРАТОР ПРОЦЕДУРНОЙ ТЕКСТУРЫ СОФИТА ---
+        function createSoffitTexture(type, colorHex, isHorizontal) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Базовый цвет панели
+            ctx.fillStyle = colorHex;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Рисуем фаски (границы панелей)
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 6;
+            let pSize = 512 / 3; // 3 панели
+            
+            // Рисуем точки перфорации
+            const drawPerf = (startX, startY, width, height) => {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                for(let x = startX + 12; x < startX + width - 12; x += 12) {
+                    for(let y = startY + 12; y < startY + height - 12; y += 12) {
+                        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+                    }
+                }
+            };
+
+            if (!isHorizontal) {
+                // Линии идут по вертикали
+                for(let i=1; i<3; i++) {
+                    ctx.beginPath(); ctx.moveTo(i*pSize, 0); ctx.lineTo(i*pSize, 512); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.moveTo(i*pSize+3, 0); ctx.lineTo(i*pSize+3, 512); ctx.stroke(); ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                }
+                if (type === 'center' || type === 'full') drawPerf(pSize, 0, pSize, 512);
+                if (type === 'full') { drawPerf(0, 0, pSize, 512); drawPerf(pSize*2, 0, pSize, 512); }
+            } else {
+                // Линии идут по горизонтали
+                for(let i=1; i<3; i++) {
+                    ctx.beginPath(); ctx.moveTo(0, i*pSize); ctx.lineTo(512, i*pSize); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.moveTo(0, i*pSize+3); ctx.lineTo(512, i*pSize+3); ctx.stroke(); ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                }
+                if (type === 'center' || type === 'full') drawPerf(0, pSize, 512, pSize);
+                if (type === 'full') { drawPerf(0, 0, 512, pSize); drawPerf(0, pSize*2, 512, pSize); }
+            }
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        // --- ОТРИСОВКА ПЛОСКОСТЕЙ СОФИТА (СНИЗУ КРЫШИ) ---
+        function addSoffitPlanes(vars, houseHeight, soffit) {
+            if(soffit <= 0) return;
+            
+            let type = document.getElementById('soffitType').value;
+            let color = document.getElementById('soffitColor').value;
+            
+            let texVert = createSoffitTexture(type, color, false);
+            let texHoriz = createSoffitTexture(type, color, true);
+            
+            let L_roof = vars.L + soffit * 2;
+            let W_roof = vars.W + soffit * 2;
+            
+            // Если крыша многощипцовая (Крест) - делаем единый крестообразный вырез
+            if (vars.rType === 'multi_gable') {
+                let D = Math.min(vars.L, vars.W) * 0.5;
+                let oL = vars.L + soffit*2, oW = vars.W + soffit*2, oD = D + soffit*2;
+                
+                let shape = new THREE.Shape();
+                shape.moveTo(-oD/2, oW/2); shape.lineTo(oD/2, oW/2); shape.lineTo(oD/2, oD/2); shape.lineTo(oL/2, oD/2); shape.lineTo(oL/2, -oD/2); shape.lineTo(oD/2, -oD/2); shape.lineTo(oD/2, -oW/2); shape.lineTo(-oD/2, -oW/2); shape.lineTo(-oD/2, -oD/2); shape.lineTo(-oL/2, -oD/2); shape.lineTo(-oL/2, oD/2); shape.lineTo(-oD/2, oD/2); shape.lineTo(-oD/2, oW/2);
+                
+                let hole = new THREE.Path();
+                hole.moveTo(-D/2, vars.W/2); hole.lineTo(D/2, vars.W/2); hole.lineTo(D/2, D/2); hole.lineTo(vars.L/2, D/2); hole.lineTo(vars.L/2, -D/2); hole.lineTo(D/2, -D/2); hole.lineTo(D/2, -vars.W/2); hole.lineTo(-D/2, -vars.W/2); hole.lineTo(-D/2, -D/2); hole.lineTo(-vars.L/2, -D/2); hole.lineTo(-vars.L/2, D/2); hole.lineTo(-D/2, D/2); hole.lineTo(-D/2, vars.W/2);
+                shape.holes.push(hole);
+                
+                let geo = new THREE.ShapeGeometry(shape);
+                texVert.repeat.set(oL/0.3, oW/0.3); // масштабируем панели под 30см
+                let mat = new THREE.MeshStandardMaterial({ map: texVert, roughness: 0.9, side: THREE.DoubleSide });
+                let mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = Math.PI/2; mesh.position.set(0, houseHeight - 0.01, 0);
+                objectsGroup.add(mesh);
+                return;
+            }
+
+            // Для остальных крыш делаем 4 панели (Спереди, Сзади, Слева, Справа)
+            let geoFB = new THREE.PlaneGeometry(L_roof, soffit);
+            let tVert_FB = texVert.clone(); tVert_FB.repeat.set(L_roof / 0.3, soffit / 0.3); tVert_FB.needsUpdate = true;
+            let mFB = new THREE.MeshStandardMaterial({ map: tVert_FB, roughness: 0.9, side: THREE.DoubleSide });
+            
+            let geoLR = new THREE.PlaneGeometry(soffit, vars.W);
+            let tHoriz_LR = texHoriz.clone(); tHoriz_LR.repeat.set(soffit / 0.3, vars.W / 0.3); tHoriz_LR.needsUpdate = true;
+            let mLR = new THREE.MeshStandardMaterial({ map: tHoriz_LR, roughness: 0.9, side: THREE.DoubleSide });
+
+            // Спереди и Сзади
+            if (vars.rType !== 'shed') {
+                let mFront = new THREE.Mesh(geoFB, mFB); mFront.rotation.x = Math.PI/2; mFront.position.set(0, houseHeight - 0.01, vars.W/2 + soffit/2); objectsGroup.add(mFront);
+            }
+            let mBack = new THREE.Mesh(geoFB, mFB); mBack.rotation.x = Math.PI/2; mBack.position.set(0, houseHeight - 0.01, -vars.W/2 - soffit/2); objectsGroup.add(mBack);
+            
+            // Слева и Справа
+            let mLeft = new THREE.Mesh(geoLR, mLR); mLeft.rotation.x = Math.PI/2; mLeft.position.set(-vars.L/2 - soffit/2, houseHeight - 0.011, 0); objectsGroup.add(mLeft);
+            let mRight = new THREE.Mesh(geoLR, mLR); mRight.rotation.x = Math.PI/2; mRight.position.set(vars.L/2 + soffit/2, houseHeight - 0.011, 0); objectsGroup.add(mRight);
         }
 
         function render3D() {
@@ -753,158 +518,80 @@
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); 
-            const roofMat = new THREE.MeshStandardMaterial({ 
-                color: currentRoofColor, 
-                roughness: currentRoofRoughness,
-                metalness: currentRoofMetalness,
-                side: THREE.DoubleSide 
-            }); 
-            
-            const drainMat = new THREE.MeshStandardMaterial({ 
-                color: 0x444444, 
-                roughness: 0.3, 
-                metalness: 0.2, 
-                side: THREE.DoubleSide 
-            });
-            
+            const roofMat = new THREE.MeshStandardMaterial({ color: currentRoofColor, roughness: currentRoofRoughness, metalness: currentRoofMetalness, side: THREE.DoubleSide }); 
+            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 }); 
 
-            // 1. КОРОБКА ДОМА (Исключаем для многощипцовой, чтобы стены рисовались крестом)
+            // 1. КОРОБКА ДОМА
             if (vars.rType !== 'multi_gable') {
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
-                houseMesh.position.y = houseHeight / 2; 
-                houseMesh.castShadow = true; 
-                houseMesh.receiveShadow = true;
+                houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true;
                 houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat));
                 objectsGroup.add(houseMesh); 
             }
 
+            // ВЫЗОВ ОТРИСОВКИ ФИЗИЧЕСКИХ СОФИТОВ ПОД КРЫШЕЙ
+            addSoffitPlanes(vars, houseHeight, soffit);
+
             // 2. ОТРИСОВКА КРЫШ И ВОДОСТОКА
             if (vars.rType === 'gable') {
-                let L_roof = vars.L + soffit * 2; 
-                let W_roof = vars.W + soffit * 2;
+                let L_roof = vars.L + soffit * 2; let W_roof = vars.W + soffit * 2;
                 const h = (W_roof / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                
-                const shape = new THREE.Shape(); 
-                shape.moveTo(-W_roof/2, 0); shape.lineTo(0, h); shape.lineTo(W_roof/2, 0); shape.lineTo(-W_roof/2, 0);
-                
-                const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false });
-                rGeo.translate(0, 0, -L_roof/2);
-                let roofMesh = new THREE.Mesh(rGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2;
-                roofMesh.castShadow = true; roofMesh.receiveShadow = false; 
-                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
-                objectsGroup.add(roofMesh);
+                const shape = new THREE.Shape(); shape.moveTo(-W_roof/2, 0); shape.lineTo(0, h); shape.lineTo(W_roof/2, 0); shape.lineTo(-W_roof/2, 0);
+                const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false }); rGeo.translate(0, 0, -L_roof/2);
+                let roofMesh = new THREE.Mesh(rGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true;
+                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat)); objectsGroup.add(roofMesh);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof/2 + 0.1);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof/2 - 0.1, houseHeight + h/2, vars.W/4);
                 if(vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
 
                 if (L_roof > 0) {
-                    let frontOutlets = Math.ceil(nOutlets / 2);
-                    let backOutlets = nOutlets - frontOutlets;
-                    // Отрисовка водостока (передняя часть)
-                    let gGroupF = new THREE.Group();
-                    addGutterSystem(L_roof, vars.L, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, frontOutlets, drainMat);
-                    
-                    // Отрисовка водостока (задняя часть, разворачиваем на 180 градусов)
-                    let gGroupB = new THREE.Group();
-                    addGutterSystem(L_roof, vars.L, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, backOutlets, drainMat);
+                    addGutterSystem(L_roof, vars.L, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat);
+                    addGutterSystem(L_roof, vars.L, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, nOutlets - Math.ceil(nOutlets / 2), drainMat);
                 }
 
             } else if (vars.rType === 'shed') {
-                let L_roof = vars.L + soffit * 2; 
-                let W_roof = vars.W + soffit * 2;
+                let L_roof = vars.L + soffit * 2; let W_roof = vars.W + soffit * 2;
                 let h = W_roof * Math.tan(vars.P1 * Math.PI / 180);
+                const shape = new THREE.Shape(); shape.moveTo(-W_roof/2, 0); shape.lineTo(-W_roof/2, h); shape.lineTo(W_roof/2, 0); shape.lineTo(-W_roof/2, 0);
+                const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false }); rGeo.translate(0, 0, -L_roof/2); 
+                let roofMesh = new THREE.Mesh(rGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true;
+                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat)); objectsGroup.add(roofMesh);
 
-                const shape = new THREE.Shape(); 
-                shape.moveTo(-W_roof/2, 0); shape.lineTo(-W_roof/2, h); shape.lineTo(W_roof/2, 0); shape.lineTo(-W_roof/2, 0);
-                
-                const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false });
-                rGeo.translate(0, 0, -L_roof/2); 
-                let roofMesh = new THREE.Mesh(rGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; 
-                roofMesh.castShadow = true;
-                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
-                objectsGroup.add(roofMesh);
-
-                // ИСПРАВЛЕНЫ ПОДПИСИ И СТОРОНА ДЛЯ ОДНОСКАТНОЙ
-                // -W_roof/2 - это низ крыши (Карниз)
-                // W_roof/2 - это верх крыши (Конёк)
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, -W_roof/2 - 0.1);
                 addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, W_roof/2 + 0.1);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof/2 - 0.1, houseHeight + h/2, 0);
 
-                if (L_roof > 0) {
-                    // Желоб и трубы только на НИЖНЕЙ кромке (карниз)
-                    let zGutter = -W_roof/2;
-                    let zWall = -vars.W/2;
-                    addGutterSystem(L_roof, vars.L, houseHeight, zGutter, zWall - 0.002, -1, nOutlets, drainMat);
-                }
+                if (L_roof > 0) addGutterSystem(L_roof, vars.L, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, nOutlets, drainMat);
 
             } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                let L_roof = vars.L + soffit * 2; 
-                let W_roof = vars.W + soffit * 2;
-                
-                let H = 0;
-                let vertices;
+                let L_roof = vars.L + soffit * 2; let W_roof = vars.W + soffit * 2;
+                let H = 0; let vertices;
 
                 if (vars.rType === 'hip') {
-                    H = (W_roof / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                    let indent = H / Math.tan(vars.P2 * Math.PI / 180);
-                    if (indent > L_roof / 2) { indent = L_roof / 2; H = (L_roof / 2) * Math.tan(vars.P2 * Math.PI / 180); }
-                    vertices = new Float32Array([
-                        -L_roof/2, 0, W_roof/2,   L_roof/2, 0, W_roof/2,    L_roof/2 - indent, H, 0, 
-                        -L_roof/2, 0, W_roof/2,   L_roof/2 - indent, H, 0,  -L_roof/2 + indent, H, 0,
-                        L_roof/2, 0, W_roof/2,    L_roof/2, 0, -W_roof/2,   L_roof/2 - indent, H, 0, 
-                        L_roof/2, 0, -W_roof/2,   -L_roof/2, 0, -W_roof/2,  -L_roof/2 + indent, H, 0, 
-                        L_roof/2, 0, -W_roof/2,   -L_roof/2 + indent, H, 0, L_roof/2 - indent, H, 0,
-                        -L_roof/2, 0, -W_roof/2,  -L_roof/2, 0, W_roof/2,   -L_roof/2 + indent, H, 0, 
-                        -L_roof/2, 0, -W_roof/2,  L_roof/2, 0, -W_roof/2,   L_roof/2, 0, W_roof/2, 
-                        -L_roof/2, 0, -W_roof/2,  L_roof/2, 0, W_roof/2,    -L_roof/2, 0, W_roof/2
-                    ]);
+                    H = (W_roof / 2) * Math.tan(vars.P1 * Math.PI / 180); let indent = H / Math.tan(vars.P2 * Math.PI / 180); if (indent > L_roof / 2) { indent = L_roof / 2; H = (L_roof / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                    vertices = new Float32Array([-L_roof/2, 0, W_roof/2, L_roof/2, 0, W_roof/2, L_roof/2 - indent, H, 0, -L_roof/2, 0, W_roof/2, L_roof/2 - indent, H, 0, -L_roof/2 + indent, H, 0, L_roof/2, 0, W_roof/2, L_roof/2, 0, -W_roof/2, L_roof/2 - indent, H, 0, L_roof/2, 0, -W_roof/2, -L_roof/2, 0, -W_roof/2, -L_roof/2 + indent, H, 0, L_roof/2, 0, -W_roof/2, -L_roof/2 + indent, H, 0, L_roof/2 - indent, H, 0, -L_roof/2, 0, -W_roof/2, -L_roof/2, 0, W_roof/2, -L_roof/2 + indent, H, 0, -L_roof/2, 0, -W_roof/2, L_roof/2, 0, -W_roof/2, L_roof/2, 0, W_roof/2, -L_roof/2, 0, -W_roof/2, L_roof/2, 0, W_roof/2, -L_roof/2, 0, W_roof/2]);
                 } else {
                     H = (Math.min(L_roof, W_roof) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                    vertices = new Float32Array([
-                        -L_roof/2, 0, W_roof/2,   L_roof/2, 0, W_roof/2,    0, H, 0,
-                        L_roof/2, 0, W_roof/2,    L_roof/2, 0, -W_roof/2,   0, H, 0,
-                        L_roof/2, 0, -W_roof/2,   -L_roof/2, 0, -W_roof/2,  0, H, 0,
-                        -L_roof/2, 0, -W_roof/2,  -L_roof/2, 0, W_roof/2,   0, H, 0,
-                        -L_roof/2, 0, -W_roof/2,  L_roof/2, 0, -W_roof/2,   L_roof/2, 0, W_roof/2,
-                        -L_roof/2, 0, -W_roof/2,  L_roof/2, 0, W_roof/2,    -L_roof/2, 0, W_roof/2
-                    ]);
+                    vertices = new Float32Array([-L_roof/2, 0, W_roof/2, L_roof/2, 0, W_roof/2, 0, H, 0, L_roof/2, 0, W_roof/2, L_roof/2, 0, -W_roof/2, 0, H, 0, L_roof/2, 0, -W_roof/2, -L_roof/2, 0, -W_roof/2, 0, H, 0, -L_roof/2, 0, -W_roof/2, -L_roof/2, 0, W_roof/2, 0, H, 0, -L_roof/2, 0, -W_roof/2, L_roof/2, 0, -W_roof/2, L_roof/2, 0, W_roof/2, -L_roof/2, 0, -W_roof/2, L_roof/2, 0, W_roof/2, -L_roof/2, 0, W_roof/2]);
                 }
                 
-                const roofGeo = new THREE.BufferGeometry();
-                roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                roofGeo.computeVertexNormals();
-                let roofMesh = new THREE.Mesh(roofGeo, roofMat);
-                roofMesh.position.set(0, houseHeight, 0);
-                roofMesh.castShadow = true;
-                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
-                objectsGroup.add(roofMesh);
+                const roofGeo = new THREE.BufferGeometry(); roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); roofGeo.computeVertexNormals();
+                let roofMesh = new THREE.Mesh(roofGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.castShadow = true;
+                roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat)); objectsGroup.add(roofMesh);
                 
-                // ВЕРНУЛ НАДПИСИ КОНЬКОВ И ХРЕБТОВ
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof/2 + 0.1);
                 addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -L_roof/2 - 0.1, houseHeight, 0);
                 if(vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H + 0.5, 0);
                 if(vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -L_roof/4, houseHeight + H/2 + 0.5, W_roof/4);
 
                 if (L_roof > 0) {
-                    // Для вальмы/шатра добавляем желоба по периметру
                     addGutterSystem(L_roof, vars.L, houseHeight, W_roof/2, vars.W/2 + 0.002, 1, Math.ceil(nOutlets/2), drainMat);
                     addGutterSystem(L_roof, vars.L, houseHeight, -W_roof/2, -vars.W/2 - 0.002, -1, Math.floor(nOutlets/2), drainMat);
-                    
-                    let gLeft = new THREE.Mesh(createGutter(W_roof), drainMat);
-                    gLeft.position.set(-L_roof/2, houseHeight - 0.05, 0);
-                    objectsGroup.add(gLeft);
-                    
-                    let gRight = new THREE.Mesh(createGutter(W_roof), drainMat);
-                    gRight.position.set(L_roof/2, houseHeight - 0.05, 0); 
-                    objectsGroup.add(gRight);
-
-                    // АККУРАТНЫЕ УГЛОВЫЕ СОЕДИНИТЕЛИ (Внешние углы водостока)
+                    let gLeft = new THREE.Mesh(createGutter(W_roof), drainMat); gLeft.position.set(-L_roof/2, houseHeight - 0.05, 0); objectsGroup.add(gLeft);
+                    let gRight = new THREE.Mesh(createGutter(W_roof), drainMat); gRight.position.set(L_roof/2, houseHeight - 0.05, 0); objectsGroup.add(gRight);
                     let cornerBox = new THREE.BoxGeometry(0.15, 0.08, 0.15);
                     let c1 = new THREE.Mesh(cornerBox, drainMat); c1.position.set(-L_roof/2, houseHeight - 0.05, W_roof/2); objectsGroup.add(c1);
                     let c2 = new THREE.Mesh(cornerBox, drainMat); c2.position.set(L_roof/2, houseHeight - 0.05, W_roof/2); objectsGroup.add(c2);
@@ -913,132 +600,54 @@
                 }
 
             } else if (vars.rType === 'multi_gable') {
-                // ИСПРАВЛЕНО: Стены для многощипцовой в виде креста
                 let D = Math.min(vars.L, vars.W) * 0.5;
+                const box1 = new THREE.Mesh(new THREE.BoxGeometry(vars.L, houseHeight, D), wallMat); box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true; box1.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1.geometry), edgeMat)); objectsGroup.add(box1); 
+                const box2 = new THREE.Mesh(new THREE.BoxGeometry(D, houseHeight, vars.W), wallMat); box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true; box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2.geometry), edgeMat)); objectsGroup.add(box2); 
                 
-                const box1Geo = new THREE.BoxGeometry(vars.L, houseHeight, D);
-                const box1 = new THREE.Mesh(box1Geo, wallMat);
-                box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true;
-                box1.add(new THREE.LineSegments(new THREE.EdgesGeometry(box1Geo), edgeMat));
-                objectsGroup.add(box1); 
-
-                const box2Geo = new THREE.BoxGeometry(D, houseHeight, vars.W);
-                const box2 = new THREE.Mesh(box2Geo, wallMat);
-                box2.position.y = houseHeight / 2; box2.castShadow = true; box2.receiveShadow = true;
-                box2.add(new THREE.LineSegments(new THREE.EdgesGeometry(box2Geo), edgeMat));
-                objectsGroup.add(box2); 
-                
-                let L_roof = vars.L + soffit * 2; 
-                let W_roof = vars.W + soffit * 2;
-                let D_roof = D + soffit * 2;
+                let L_roof = vars.L + soffit * 2; let W_roof = vars.W + soffit * 2; let D_roof = D + soffit * 2;
                 let H = (D_roof / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 
-                const shape1 = new THREE.Shape(); 
-                shape1.moveTo(-D_roof/2, 0); shape1.lineTo(0, H); shape1.lineTo(D_roof/2, 0);
-                const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: L_roof, bevelEnabled: false });
-                rGeo1.translate(0, 0, -L_roof/2);
-                const roof1 = new THREE.Mesh(rGeo1, roofMat);
-                roof1.position.set(0, houseHeight, 0); 
-                roof1.rotation.y = Math.PI / 2; 
-                roof1.castShadow = true;
-                roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat));
-                objectsGroup.add(roof1); 
+                const shape1 = new THREE.Shape(); shape1.moveTo(-D_roof/2, 0); shape1.lineTo(0, H); shape1.lineTo(D_roof/2, 0);
+                const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: L_roof, bevelEnabled: false }); rGeo1.translate(0, 0, -L_roof/2);
+                const roof1 = new THREE.Mesh(rGeo1, roofMat); roof1.position.set(0, houseHeight, 0); roof1.rotation.y = Math.PI / 2; roof1.castShadow = true; roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat)); objectsGroup.add(roof1); 
 
-                const shape2 = new THREE.Shape(); 
-                shape2.moveTo(-D_roof/2, 0); shape2.lineTo(0, H); shape2.lineTo(D_roof/2, 0);
-                const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: W_roof, bevelEnabled: false });
-                rGeo2.translate(0, 0, -W_roof/2);
-                const roof2 = new THREE.Mesh(rGeo2, roofMat);
-                roof2.position.set(0, houseHeight + 0.01, 0); 
-                roof2.castShadow = true;
-                roof2.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat));
-                objectsGroup.add(roof2); 
+                const shape2 = new THREE.Shape(); shape2.moveTo(-D_roof/2, 0); shape2.lineTo(0, H); shape2.lineTo(D_roof/2, 0);
+                const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: W_roof, bevelEnabled: false }); rGeo2.translate(0, 0, -W_roof/2);
+                const roof2 = new THREE.Mesh(rGeo2, roofMat); roof2.position.set(0, houseHeight + 0.01, 0); roof2.castShadow = true; roof2.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat)); objectsGroup.add(roof2); 
 
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H + 0.5, 0);
                 addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof/2 - 0.5, houseHeight + H/2, 0);
                 addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -D_roof/4, houseHeight + H/2 + 0.5, D_roof/4);
 
-                // --- ИСПРАВЛЕННЫЙ ВОДОСТОК ДЛЯ КРЕСТА (Во внутренних углах - Ендовах) ---
                 if (D_roof > 0) {
                     let signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
-                    
                     signs.forEach(([sx, sz]) => {
-                        // Желоб по оси X
-                        let lenX = (L_roof - D_roof) / 2;
-                        let cx = sx * (D_roof/2 + lenX/2);
-                        let cz = sz * D_roof/2;
-                        let gX = new THREE.Mesh(createGutter(lenX), drainMat);
-                        gX.position.set(cx, houseHeight - 0.05, cz);
-                        gX.rotation.y = Math.PI / 2;
+                        let lenX = (L_roof - D_roof) / 2; let cx = sx * (D_roof/2 + lenX/2); let cz = sz * D_roof/2;
+                        let gX = new THREE.Mesh(createGutter(lenX), drainMat); gX.position.set(cx, houseHeight - 0.05, cz); gX.rotation.y = Math.PI / 2;
+                        let capX = new THREE.Mesh(createEndCap(), drainMat); capX.position.set(sx * L_roof/2, houseHeight - 0.05, cz); capX.rotation.y = Math.PI / 2; objectsGroup.add(gX, capX);
                         
-                        let capX = new THREE.Mesh(createEndCap(), drainMat);
-                        capX.position.set(sx * L_roof/2, houseHeight - 0.05, cz);
-                        capX.rotation.y = Math.PI / 2;
-                        objectsGroup.add(gX, capX);
+                        let lenZ = (W_roof - D_roof) / 2; let px = sx * D_roof/2; let pz = sz * (D_roof/2 + lenZ/2);
+                        let gZ = new THREE.Mesh(createGutter(lenZ), drainMat); gZ.position.set(px, houseHeight - 0.05, pz); gZ.rotation.y = 0;
+                        let capZ = new THREE.Mesh(createEndCap(), drainMat); capZ.position.set(px, houseHeight - 0.05, sz * W_roof/2); capZ.rotation.y = 0; objectsGroup.add(gZ, capZ);
                         
-                        // Желоб по оси Z
-                        let lenZ = (W_roof - D_roof) / 2;
-                        let px = sx * D_roof/2;
-                        let pz = sz * (D_roof/2 + lenZ/2);
-                        let gZ = new THREE.Mesh(createGutter(lenZ), drainMat);
-                        gZ.position.set(px, houseHeight - 0.05, pz);
-                        gZ.rotation.y = 0;
+                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.15), drainMat); corner.position.set(sx * D_roof/2, houseHeight - 0.05, sz * D_roof/2); objectsGroup.add(corner);
                         
-                        let capZ = new THREE.Mesh(createEndCap(), drainMat);
-                        capZ.position.set(px, houseHeight - 0.05, sz * W_roof/2);
-                        capZ.rotation.y = 0;
-                        objectsGroup.add(gZ, capZ);
-                        
-                        // Внутренний угол водостока (квадратная заглушка-соединитель)
-                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.15), drainMat);
-                        corner.position.set(sx * D_roof/2, houseHeight - 0.05, sz * D_roof/2);
-                        objectsGroup.add(corner);
-                        
-                        // Труба и воронка во внутреннем углу
                         if (nOutlets > 0) {
-                            let pipeRadius = 0.045;
-                            let zGutter = sz * D_roof/2;
-                            let zWall = sz * (D/2 + pipeRadius + 0.002);
-                            
-                            let funnelTop = houseHeight - 0.09;
-                            let funnelHeight = 0.15;
-                            let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat);
-                            funnel.position.set(px, funnelTop - funnelHeight/2, zGutter);
-                            objectsGroup.add(funnel);
-                            
-                            let y1 = funnelTop - funnelHeight + 0.02;
-                            let y2 = houseHeight - 0.6;
-                            let dz2 = zGutter - zWall;
-                            let dy2 = y1 - y2;
-                            let slantLen = Math.sqrt(dy2*dy2 + dz2*dz2);
-                            
-                            let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat);
-                            slant.position.set(px, (y1+y2)/2, (zGutter+zWall)/2);
-                            slant.rotation.x = Math.atan2(dz2, dy2);
-                            objectsGroup.add(slant);
+                            let pipeRadius = 0.045; let zGutter = sz * D_roof/2; let zWall = sz * (D/2 + pipeRadius + 0.002);
+                            let funnelTop = houseHeight - 0.09; let funnelHeight = 0.15;
+                            let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelTop - funnelHeight/2, zGutter); objectsGroup.add(funnel);
+                            let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz2 = zGutter - zWall; let dy2 = y1 - y2; let slantLen = Math.sqrt(dy2*dy2 + dz2*dz2);
+                            let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1+y2)/2, (zGutter+zWall)/2); slant.rotation.x = Math.atan2(dz2, dy2); objectsGroup.add(slant);
                             
                             let pipeLen = y2 - 0.2;
                             if(pipeLen > 0) {
-                                let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat);
-                                pipe.position.set(px, 0.2 + pipeLen/2, zWall);
-                                objectsGroup.add(pipe);
-                                
-                                let spoutLen = 0.15;
-                                let tiltAngle = Math.PI/4;
-                                let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat);
-                                let sy = 0.2 - (spoutLen/2) * Math.cos(tiltAngle) + 0.02;
-                                let sz_spout = zWall + sz * (spoutLen/2) * Math.sin(tiltAngle);
-                                spout.position.set(px, sy, sz_spout);
-                                spout.rotation.x = -sz * tiltAngle;
-                                objectsGroup.add(spout);
-
+                                let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen/2, zWall); objectsGroup.add(pipe);
+                                let spoutLen = 0.15; let tiltAngle = Math.PI/4;
+                                let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen/2) * Math.cos(tiltAngle) + 0.02; let sz_spout = zWall + sz * (spoutLen/2) * Math.sin(tiltAngle); spout.position.set(px, sy, sz_spout); spout.rotation.x = -sz * tiltAngle; objectsGroup.add(spout);
                                 let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5));
                                 for(let j=0; j<=clampCount; j++) {
                                     let cy = 0.4 + j * ((pipeLen - 0.4)/clampCount);
-                                    let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat);
-                                    clampRing.rotation.x = Math.PI/2;
-                                    clampRing.position.set(px, cy, zWall);
-                                    objectsGroup.add(clampRing);
+                                    let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat); clampRing.rotation.x = Math.PI/2; clampRing.position.set(px, cy, zWall); objectsGroup.add(clampRing);
                                 }
                             }
                         }
@@ -1046,12 +655,7 @@
                 }
             }
 
-            if (!camera.userData.hasBeenSet) {
-                controls.target.set(0, houseHeight, 0);
-                let maxDim = Math.max(vars.L, vars.W);
-                camera.position.set(maxDim * 1.5, houseHeight + maxDim, maxDim * 1.5);
-                camera.userData.hasBeenSet = true;
-            }
+            if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); let maxDim = Math.max(vars.L, vars.W); camera.position.set(maxDim * 1.5, houseHeight + maxDim, maxDim * 1.5); camera.userData.hasBeenSet = true; }
         }
     </script>
 </body>
