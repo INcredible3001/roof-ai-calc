@@ -12,8 +12,7 @@ except Exception:
 
 from flask import Flask, render_template, request, jsonify
 from google import genai
-import PIL.Image
-import io
+from google.genai import types # Импортируем типы для работы с PDF и файлами
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
@@ -31,20 +30,49 @@ def home():
 def analyze_image():
     if "file" not in request.files:
         return jsonify({"error": "Файл не найден"})
+    
     file = request.files["file"]
-    img = PIL.Image.open(io.BytesIO(file.read()))
+    file_bytes = file.read()
+    mime_type = file.mimetype # Автоматически определяет: image/jpeg, image/png или application/pdf
+    
     prompt = """
     Ты профессиональный расчетчик кровельных материалов.
     Найди УГОЛ НАКЛОНА, общую площадь и все размеры в плане.
     Выведи ответ списком и определи тип кровли.
     """
     try:
+        # Передаем файл напрямую в Gemini без использования PIL (теперь PDF тоже работает!)
+        document_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+        
         response = client.models.generate_content(
-            model="gemini-2.5-flash", contents=[prompt, img]
+            model="gemini-2.5-flash", 
+            contents=[prompt, document_part]
         )
         return jsonify({"result": response.text})
     except Exception as e:
         return jsonify({"error": str(e)})
+
+
+# НОВЫЙ МАРШРУТ: Работа ИИ-ассистента в чате
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        data = request.json
+        message = data.get("message", "")
+        
+        # Системная настройка для бота (чтобы он понимал свою роль)
+        system_prompt = "Ты профессиональный ИИ-ассистент в кровельном калькуляторе. Отвечай дружелюбно, кратко и по делу.\nВопрос пользователя: "
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=system_prompt + message
+        )
+        # Обязательно возвращаем text, а не весь объект
+        return jsonify({"reply": response.text})
+        
+    except Exception as e:
+        # Если будет сбой (например, кончились лимиты API), сервер не упадет
+        return jsonify({"error": f"Ошибка ИИ: {str(e)}"}), 500
 
 
 @app.route("/generate_scheme", methods=["POST"])
@@ -181,7 +209,7 @@ def generate_scheme():
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
 
-        # 4. Стрелки ската воды (по всем 8 направлениям)
+        # 4. Стрелки ската воды
         svg += f'<line x1="{cx+w/4}" y1="{cy+h/2-5}" x2="{cx+w/4}" y2="{cy+h/2-D/2+15}" class="water"/>'
         svg += f'<line x1="{cx+w/4}" y1="{cy+h/2+5}" x2="{cx+w/4}" y2="{cy+h/2+D/2-15}" class="water"/>'
         svg += f'<line x1="{cx+w*0.75}" y1="{cy+h/2-5}" x2="{cx+w*0.75}" y2="{cy+h/2-D/2+15}" class="water"/>'
@@ -191,12 +219,9 @@ def generate_scheme():
         svg += f'<line x1="{cx+w/2-5}" y1="{cy+h*0.75}" x2="{cx+w/2-D/2+15}" y2="{cy+h*0.75}" class="water"/>'
         svg += f'<line x1="{cx+w/2+5}" y1="{cy+h*0.75}" x2="{cx+w/2+D/2-15}" y2="{cy+h*0.75}" class="water"/>'
 
-        # 5. Подписи текстом (как на твоем рисунке)
+        # 5. Подписи текстом
         svg += f'<text x="{cx-10}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90,{cx-10},{cy+h/2})" class="txt">Торец</text>'
-
-        # <--- ВОТ ИСПРАВЛЕННАЯ СТРОКА: ТЕКСТ СМЕЩЕН В УГОЛ И В СТОРОНУ (на 25 влево и на 15 вниз) --->
         svg += f'<text x="{cx+w/2-D/2-25}" y="{cy+h/2-D/2+15}" text-anchor="middle" class="txt">Карниз</text>'
-
         svg += f'<text x="{cx+w*0.75}" y="{cy+h/2-5}" text-anchor="middle" class="txt-r">Конек</text>'
         svg += f'<text x="{cx+w/2-D/4-10}" y="{cy+h/2+D/4+15}" text-anchor="middle" class="txt" style="fill:#e67e22;">Ендова</text>'
         svg += f'<text x="{cx+w/2}" y="{cy+h+25}" text-anchor="middle" class="txt">Длина: {w_in}м | Ширина: {h_in}м | Скат: {s_trap}м</text>'
