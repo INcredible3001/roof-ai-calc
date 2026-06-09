@@ -386,6 +386,8 @@
             <div class="color-palette">
                 <div class="color-swatch" style="background-color: #3b2821;" onclick="changeColor(0x3b2821)"
                     title="RAL 8017 Шоколад"></div>
+                <div class="color-swatch" style="background-color: #8c8c8e;" onclick="changeColor(0x8c8c8e)"
+                    title="RAL 7004 Сигнальный серый"></div>
                 <div class="color-swatch" style="background-color: #2b2c2f;" onclick="changeColor(0x2b2c2f)"
                     title="RAL 7024 Графит"></div>
                 <div class="color-swatch" style="background-color: #5e2028;" onclick="changeColor(0x5e2028)"
@@ -450,14 +452,6 @@
         <hr style="border: 0; border-top: 1px solid #ecf0f1; margin: 30px 0;">
 
         <div class="box">
-            <h3>Загрузить чертеж (ИИ)</h3>
-            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf" style="margin-bottom: 10px;">
-            <button class="btn-dark" onclick="analyzeImage()" style="width: 100%;">Распознать чертеж</button>
-            <div class="loader" id="loader">Изучаю... ⏳</div>
-            <div id="aiResult"></div>
-        </div>
-
-        <div class="box">
             <h3>ИИ-Ассистент</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
@@ -519,44 +513,7 @@
 
         window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); render3D(); };
 
-        function extractNumber(text, keyword) {
-            let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
-            let match = text.match(regex);
-            if (match) return parseFloat(match[1].replace(',', '.')); return 0;
-        }
-
-        async function analyzeImage() {
-            const fileInput = document.getElementById('roofImage'); const resultDiv = document.getElementById('aiResult'); const loader = document.getElementById('loader');
-            if (fileInput.files.length === 0) { alert("Выбери файл!"); return; }
-            const formData = new FormData(); formData.append("file", fileInput.files[0]);
-            loader.style.display = "block"; resultDiv.style.display = "none";
-            try {
-                const response = await fetch('/analyze', { method: 'POST', body: formData }); const data = await response.json();
-                loader.style.display = "none"; resultDiv.style.display = "block";
-                if (data.error) { resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>"; }
-                else {
-                    resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + data.result;
-                    document.getElementById('mPitch').value = extractNumber(data.result, 'Угол');
-                    document.getElementById('mEaves').value = extractNumber(data.result, 'Карниз');
-                    document.getElementById('mRakes').value = extractNumber(data.result, 'Торц');
-                    render3D();
-                }
-            } catch (error) { loader.style.display = "none"; alert("Ошибка сервера."); }
-        }
-
-        async function sendChatMessage() {
-            const inputField = document.getElementById('chatInput'); const historyBox = document.getElementById('chatHistory');
-            const message = inputField.value.trim(); if (!message) return;
-            historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`; inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
-            try {
-                const response = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message, history: conversationHistory }) });
-                const data = await response.json();
-                if (data.error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка сервера: ${data.error}</div><br>`; }
-                else { historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`; conversationHistory.push({ role: "user", text: message }); conversationHistory.push({ role: "model", text: data.reply }); }
-                historyBox.scrollTop = historyBox.scrollHeight;
-            } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
-        }
-
+        // --- МАТЕМАТИКА РАСЧЕТА (Скрытая) ---
         function doMath() {
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
@@ -577,13 +534,6 @@
 
             document.getElementById('mSlopeTrap').value = S1 > 0 ? S1.toFixed(2) : 0; document.getElementById('mSlopeHip').value = S2 > 0 ? S2.toFixed(2) : 0; document.getElementById('mRidges').value = Ridge > 0 ? Ridge.toFixed(2) : 0; document.getElementById('mHips').value = Hip > 0 ? Hip.toFixed(2) : 0; document.getElementById('mValleys').value = Valleys > 0 ? Valleys.toFixed(2) : 0;
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
-        }
-
-        async function processAndDraw() {
-            let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
-            if (L === 0 || W === 0) { alert("Введите Длину и Ширину!"); return; }
-            let vars = doMath(); const schemeBox = document.getElementById('schemeResult'); schemeBox.style.display = "block"; schemeBox.innerHTML = "<div class='loader' style='display:block;'>Чертим... 📐</div>";
-            try { const response = await fetch('/generate_scheme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roof_type: vars.rType, width: vars.L, height: vars.W, pitch: vars.P1, pitch_hip: vars.P2, slope_trap: vars.S1.toFixed(2), slope_hip: vars.S2.toFixed(2), ridge: vars.Ridge.toFixed(2), hip: vars.Hip.toFixed(2) }) }); const data = await response.json(); schemeBox.innerHTML = data.svg; } catch (error) { schemeBox.innerHTML = "<span style='color:red;'>Ошибка отрисовки.</span>"; }
         }
 
         function calculateFinal() {
@@ -639,65 +589,89 @@
         function animate() { requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) { renderer.render(scene, camera); if (useLabels && labelRenderer) labelRenderer.render(scene, camera); } }
         function addLabel(parent, text, x, y, z) { if (!useLabels) return; const div = document.createElement('div'); div.className = 'label-3d'; div.textContent = text; const label = new THREE.CSS2DObject(div); label.position.set(x, y, z); parent.add(label); }
 
-        // --- ГЕНЕРАТОР ТЕКСТУР КРЫШИ (ФИЗИЧЕСКИЙ МАСШТАБ) ---
+        // --- ГЕНЕРАТОР ТЕКСТУР КРЫШИ (БРЕНДЫ + NORMAL MAP ДЛЯ КЛАССИК) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-
+            // Используем MeshStandardMaterial для поддержки Normal Map
             let matParams = {
                 color: currentRoofColor,
                 side: THREE.DoubleSide
             };
 
             if (matType === 'metal') {
-                matParams.roughness = 0.3;
-                matParams.metalness = 0.2;
+                matParams.roughness = 0.3; // Полуглянец
+                matParams.metalness = 0.6; // Металлический блик
 
-                // Карта рельефа (Bump Map)
-                ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 512, 512);
+                // --- ГЕНЕРАЦИЯ КАРТЫ НОРМАЛЕЙ ДЛЯ "КЛАССИК" ---
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024; canvas.height = 1024; // Высокое разрешение для четкости
+                const ctx = canvas.getContext('2d');
 
-                for (let x = 0; x < 512; x++) {
-                    let wave = Math.sin((x / 512) * Math.PI * 2 * 4) * 60 + 128; // 4 волны на текстуру
-                    ctx.fillStyle = `rgb(${wave},${wave},${wave})`;
-                    ctx.fillRect(x, 0, 1, 512);
-                }
+                // Заполняем "нейтральным" цветом нормали (0x8080ff)
+                ctx.fillStyle = 'rgb(128,128,255)';
+                ctx.fillRect(0, 0, 1024, 1024);
 
-                for (let y = 0; y < 512; y++) {
-                    let stepSize = (brand === 'megasteel') ? 128 : 85;
-                    let step = y % stepSize;
-                    let drop = (step / stepSize) * 50;
-                    ctx.fillStyle = `rgba(0,0,0,${drop / 255})`;
-                    ctx.fillRect(0, y, 512, 1);
+                if (brand === 'classic' || brand === 'megasteel') {
+                    // Коэффициенты масштаба (Classic мельче, Megasteel крупнее)
+                    let scaleX = (brand === 'classic') ? 4 : 2;
+                    let scaleY = (brand === 'classic') ? 4 : 3;
 
-                    if (step === stepSize - 1) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                        ctx.fillRect(0, y, 512, 2);
+                    // 1. Продольные S-образные волны (по оси X)
+                    for (let x = 0; x < 1024; x++) {
+                        // Математическая имитация S-изгиба (через синус)
+                        let rawVal = Math.sin((x / 1024) * Math.PI * 2 * scaleX);
+                        // Вычисляем наклон (нормаль) по оси X (Красный канал)
+                        let nx = (rawVal * 0.5 + 0.5) * 255;
+
+                        // Полупрозрачная заливка, чтобы смешать с нейтральным фоном
+                        ctx.fillStyle = `rgba(${nx}, 128, 255, 0.4)`;
+                        ctx.fillRect(x, 0, 1, 1024);
+                    }
+
+                    // 2. Поперечные ступеньки (по оси Y)
+                    for (let y = 0; y < 1024; y++) {
+                        let stepSize = 1024 / scaleY;
+                        let step = y % stepSize;
+                        // Нормаль по оси Y (Зеленый канал). Ступенька - резкое изменение наклона.
+                        let ny = 128;
+                        if (step < 10) { ny = 255; } // Резкий подъем ступеньки
+                        else if (step < stepSize - 10) { ny = 110; } // Плавный скат волны
+                        else { ny = 0; } // Резкий спад в конце
+
+                        // Смешиваем (Multiply-ish) с существующим Красным каналом волн
+                        ctx.fillStyle = `rgba(128, ${ny}, 255, 0.4)`;
+                        ctx.fillRect(0, y, 1024, 1);
                     }
                 }
 
-                const bumpTex = new THREE.CanvasTexture(canvas);
-                bumpTex.wrapS = THREE.RepeatWrapping; bumpTex.wrapT = THREE.RepeatWrapping;
-                matParams.bumpMap = bumpTex;
-                matParams.bumpScale = (brand === 'megasteel') ? 0.1 : 0.05;
+                const normTex = new THREE.CanvasTexture(canvas);
+                normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
+                matParams.normalMap = normTex;
+                matParams.normalScale = new THREE.Vector2(0.5, 0.5); // Сила рельефа
 
             } else {
-                matParams.roughness = 0.95;
+                // Мягкая кровля (Faracs/Шестигранник) - текстура, не Normal Map
+                matParams.roughness = 0.95; // Матовая
                 matParams.metalness = 0.0;
 
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                // Базовый цвет с легким шумом крошки
                 ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0');
                 ctx.fillRect(0, 0, 512, 512);
 
-                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                // Тень сот
+                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
                 ctx.lineWidth = 4;
                 let w = 128, h = 64;
                 for (let y = 0; y <= 512; y += h) {
                     let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
                     for (let x = -w; x <= 512; x += w) {
-                        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.15})`;
+                        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.1})`;
                         ctx.beginPath();
                         ctx.moveTo(x + offset, y);
                         ctx.lineTo(x + offset + w / 2, y + h / 2);
@@ -776,7 +750,6 @@
             const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; return tex;
         }
 
-        // --- ИСПРАВЛЕННАЯ СБОРКА ПАНЕЛЕЙ СОФИТА (БОЛЬШЕ НЕТ ТОРЧАЩИХ ПАЛОК!) ---
         function addSoffitPlanes(vars, houseHeight, soffit) {
             if (soffit <= 0) return;
             let type = document.getElementById('soffitType').value;
@@ -784,18 +757,14 @@
             let texBase = createSoffitTexture(type, color);
 
             const createPanel = (width, height, posX, posZ, rotZ) => {
-                let panelTex = texBase.clone(); panelTex.needsUpdate = true;
-                panelTex.repeat.set(width / 0.3, height / 0.3);
+                let panelTex = texBase.clone(); panelTex.needsUpdate = true; panelTex.repeat.set(width / 0.3, height / 0.3);
                 let mat = new THREE.MeshStandardMaterial({ map: panelTex, side: THREE.DoubleSide, roughness: 0.8 });
                 let mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
-                mesh.rotation.x = Math.PI / 2;
-                mesh.rotation.z = rotZ;
-                mesh.position.set(posX, houseHeight - 0.02, posZ);
+                mesh.rotation.x = Math.PI / 2; mesh.rotation.z = rotZ; mesh.position.set(posX, houseHeight - 0.02, posZ);
                 objectsGroup.add(mesh);
             };
 
-            let Lr = vars.L + soffit * 2;
-            let Wr = vars.W + soffit * 2;
+            let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2;
 
             if (vars.rType === 'multi_gable') {
                 let D = Math.min(vars.L, vars.W) * 0.5; let Dr = D + soffit * 2;
@@ -808,13 +777,8 @@
                 let mat = new THREE.MeshStandardMaterial({ map: texBase, side: THREE.DoubleSide }); texBase.repeat.set(Lr / 0.3, Wr / 0.3);
                 let mesh = new THREE.Mesh(geo, mat); mesh.rotation.x = Math.PI / 2; mesh.position.set(0, houseHeight - 0.02, 0); objectsGroup.add(mesh);
             } else {
-                // Спереди
                 createPanel(Lr, soffit, 0, vars.W / 2 + soffit / 2, 0);
-                // Сзади
-                if (vars.rType !== 'shed') {
-                    createPanel(Lr, soffit, 0, -vars.W / 2 - soffit / 2, 0);
-                }
-                // ИСПРАВЛЕНИЕ: Лево и Право теперь используют vars.W как ширину плоскости
+                if (vars.rType !== 'shed') { createPanel(Lr, soffit, 0, -vars.W / 2 - soffit / 2, 0); }
                 createPanel(vars.W, soffit, -vars.L / 2 - soffit / 2, 0, Math.PI / 2);
                 createPanel(vars.W, soffit, vars.L / 2 + soffit / 2, 0, Math.PI / 2);
             }
@@ -843,13 +807,19 @@
 
             addSoffitPlanes(vars, houseHeight, soffit);
 
-            // МАСШТАБИРОВАНИЕ ТЕКСТУРЫ ДО РЕАЛЬНЫХ РАЗМЕРОВ ВОЛНЫ
-            const applyRoofMaterial = (mesh, len, wid) => {
-                let repeatX = len / 0.8; // 4 волны = 80 см (0.8м)
-                let repeatY = wid / 2.1; // 6 ступенек = 2.1 м
-                if (roofMat.map) { roofMat.map.repeat.set(repeatX, repeatY); }
-                if (roofMat.bumpMap) { roofMat.bumpMap.repeat.set(repeatX, repeatY); }
-                mesh.material = roofMat;
+            // МАСШТАБИРОВАНИЕ ДЛЯ КЛАССИК
+            const applyRoofUVs = (geometry, len, wid, brand) => {
+                // Масштаб текстуры/нормали (м²)
+                let uRepeat = len * 1.5;
+                let vRepeat = wid * 1.5;
+                if (brand === 'megasteel') { uRepeat = len; vRepeat = wid; } // Крупнее
+
+                let uvs = geometry.attributes.uv.array;
+                for (let i = 0; i < uvs.length; i += 2) {
+                    uvs[i] *= uRepeat;
+                    uvs[i + 1] *= vRepeat;
+                }
+                geometry.attributes.uv.needsUpdate = true;
             };
 
             if (vars.rType === 'gable') {
@@ -860,8 +830,10 @@
                 shape.closePath();
 
                 const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false }); rGeo.translate(0, 0, -L_roof / 2);
+
+                applyRoofUVs(rGeo, L_roof, vars.S1 * 2, vars.roofBrand); // vars.roofBrand еще нет в vars
+
                 let roofMesh = new THREE.Mesh(rGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true; roofMesh.receiveShadow = false;
-                applyRoofMaterial(roofMesh, L_roof, W_roof);
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
 
@@ -872,8 +844,10 @@
                 let h = W_roof * Math.tan(vars.P1 * Math.PI / 180);
                 const shape = new THREE.Shape(); shape.moveTo(-W_roof / 2, 0); shape.lineTo(-W_roof / 2, h); shape.lineTo(W_roof / 2, 0); shape.closePath();
                 const rGeo = new THREE.ExtrudeGeometry(shape, { depth: L_roof, bevelEnabled: false }); rGeo.translate(0, 0, -L_roof / 2);
+
+                applyRoofUVs(rGeo, L_roof, vars.S1, vars.roofBrand);
+
                 let roofMesh = new THREE.Mesh(rGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true;
-                applyRoofMaterial(roofMesh, L_roof, W_roof);
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, -W_roof / 2 - 0.1); addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, W_roof / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof / 2 - 0.1, houseHeight + h / 2, 0);
@@ -884,7 +858,6 @@
                 if (vars.rType === 'hip') { H = (W_roof / 2) * Math.tan(vars.P1 * Math.PI / 180); let indent = H / Math.tan(vars.P2 * Math.PI / 180); if (indent > L_roof / 2) { indent = L_roof / 2; H = (L_roof / 2) * Math.tan(vars.P2 * Math.PI / 180); } vertices = new Float32Array([-L_roof / 2, 0, W_roof / 2, L_roof / 2, 0, W_roof / 2, L_roof / 2 - indent, H, 0, -L_roof / 2, 0, W_roof / 2, L_roof / 2 - indent, H, 0, -L_roof / 2 + indent, H, 0, L_roof / 2, 0, W_roof / 2, L_roof / 2, 0, -W_roof / 2, L_roof / 2 - indent, H, 0, L_roof / 2, 0, -W_roof / 2, -L_roof / 2, 0, -W_roof / 2, -L_roof / 2 + indent, H, 0, L_roof / 2, 0, -W_roof / 2, -L_roof / 2 + indent, H, 0, L_roof / 2 - indent, H, 0, -L_roof / 2, 0, -W_roof / 2, -L_roof / 2, 0, W_roof / 2, -L_roof / 2 + indent, H, 0, -L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, W_roof / 2, -L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, W_roof / 2, -L_roof / 2, 0, W_roof / 2]); } else { H = (Math.min(L_roof, W_roof) / 2) * Math.tan(vars.P1 * Math.PI / 180); vertices = new Float32Array([-L_roof / 2, 0, W_roof / 2, L_roof / 2, 0, W_roof / 2, 0, H, 0, L_roof / 2, 0, W_roof / 2, L_roof / 2, 0, -W_roof / 2, 0, H, 0, L_roof / 2, 0, -W_roof / 2, -L_roof / 2, 0, -W_roof / 2, 0, H, 0, -L_roof / 2, 0, -W_roof / 2, -L_roof / 2, 0, W_roof / 2, 0, H, 0, -L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, W_roof / 2, -L_roof / 2, 0, -W_roof / 2, L_roof / 2, 0, W_roof / 2, -L_roof / 2, 0, W_roof / 2]); }
                 const roofGeo = new THREE.BufferGeometry(); roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); roofGeo.computeVertexNormals();
                 let roofMesh = new THREE.Mesh(roofGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.castShadow = true;
-                applyRoofMaterial(roofMesh, L_roof, W_roof);
                 roofMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(roofMesh.geometry), edgeMat));
                 objectsGroup.add(roofMesh);
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof / 2 + 0.1); addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -L_roof / 2 - 0.1, houseHeight, 0); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H + 0.5, 0); if (vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -L_roof / 4, houseHeight + H / 2 + 0.5, W_roof / 4);
@@ -896,10 +869,8 @@
                 let L_roof = vars.L + soffit * 2, W_roof = vars.W + soffit * 2, D_roof = D + soffit * 2;
                 let H = (D_roof / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 const shape1 = new THREE.Shape(); shape1.moveTo(-D_roof / 2, 0); shape1.lineTo(0, H); shape1.lineTo(D_roof / 2, 0); shape1.closePath(); const rGeo1 = new THREE.ExtrudeGeometry(shape1, { depth: L_roof, bevelEnabled: false }); rGeo1.translate(0, 0, -L_roof / 2); const roof1 = new THREE.Mesh(rGeo1, roofMat); roof1.position.set(0, houseHeight, 0); roof1.rotation.y = Math.PI / 2; roof1.castShadow = true;
-                applyRoofMaterial(roof1, L_roof, D_roof);
                 roof1.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo1), edgeMat)); objectsGroup.add(roof1);
                 const shape2 = new THREE.Shape(); shape2.moveTo(-D_roof / 2, 0); shape2.lineTo(0, H); shape2.lineTo(D_roof / 2, 0); shape2.closePath(); const rGeo2 = new THREE.ExtrudeGeometry(shape2, { depth: W_roof, bevelEnabled: false }); rGeo2.translate(0, 0, -W_roof / 2); const roof2 = new THREE.Mesh(rGeo2, roofMat); roof2.position.set(0, houseHeight + 0.01, 0); roof2.castShadow = true;
-                applyRoofMaterial(roof2, W_roof, D_roof);
                 roof2.add(new THREE.LineSegments(new THREE.EdgesGeometry(rGeo2), edgeMat)); objectsGroup.add(roof2);
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H + 0.5, 0); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof / 2 - 0.5, houseHeight + H / 2, 0); addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -D_roof / 4, houseHeight + H / 2 + 0.5, D_roof / 4);
                 if (D_roof > 0) { let signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]]; signs.forEach(([sx, sz]) => { let lenX = (L_roof - D_roof) / 2; let cx = sx * (D_roof / 2 + lenX / 2); let cz = sz * D_roof / 2; let gX = new THREE.Mesh(createGutter(lenX), drainMat); gX.position.set(cx, houseHeight - 0.05, cz); gX.rotation.y = Math.PI / 2; let capX = new THREE.Mesh(createEndCap(), drainMat); capX.position.set(sx * L_roof / 2, houseHeight - 0.05, cz); capX.rotation.y = Math.PI / 2; objectsGroup.add(gX, capX); let lenZ = (W_roof - D_roof) / 2; let px = sx * D_roof / 2; let pz = sz * (D_roof / 2 + lenZ / 2); let gZ = new THREE.Mesh(createGutter(lenZ), drainMat); gZ.position.set(px, houseHeight - 0.05, pz); gZ.rotation.y = 0; let capZ = new THREE.Mesh(createEndCap(), drainMat); capZ.position.set(px, houseHeight - 0.05, sz * W_roof / 2); capZ.rotation.y = 0; objectsGroup.add(gZ, capZ); let corner = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.15), drainMat); corner.position.set(sx * D_roof / 2, houseHeight - 0.05, sz * D_roof / 2); objectsGroup.add(corner); if (nOutlets > 0) { let pipeRadius = 0.045; let zGutter = sz * D_roof / 2; let zWall = sz * (D / 2 + pipeRadius + 0.002); let funnelTop = houseHeight - 0.09; let funnelHeight = 0.15; let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelTop - funnelHeight / 2, zGutter); objectsGroup.add(funnel); let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz2 = zGutter - zWall; let dy2 = y1 - y2; let slantLen = Math.sqrt(dy2 * dy2 + dz2 * dz2); let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2) / 2, (zGutter + zWall) / 2); slant.rotation.x = Math.atan2(dz2, dy2); objectsGroup.add(slant); let pipeLen = y2 - 0.2; if (pipeLen > 0) { let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen / 2, zWall); objectsGroup.add(pipe); let spoutLen = 0.15; let tiltAngle = Math.PI / 4; let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen / 2) * Math.cos(tiltAngle) + 0.02; let sz_spout = zWall + sz * (spoutLen / 2) * Math.sin(tiltAngle); spout.position.set(px, sy, sz_spout); spout.rotation.x = -sz * tiltAngle; objectsGroup.add(spout); let clampCount = Math.max(2, Math.ceil(pipeLen / 1.5)); for (let j = 0; j <= clampCount; j++) { let cy = 0.4 + j * ((pipeLen - 0.4) / clampCount); let clampRing = new THREE.Mesh(new THREE.TorusGeometry(pipeRadius + 0.005, 0.006, 8, 16), drainMat); clampRing.rotation.x = Math.PI / 2; clampRing.position.set(px, cy, zWall); objectsGroup.add(clampRing); } } } }); }
