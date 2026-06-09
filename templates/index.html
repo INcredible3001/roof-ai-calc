@@ -541,11 +541,12 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР ГРАНД ЛАЙН И FARACS) ---
+        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР ГРАНД ЛАЙН КЛАССИК И FARACS) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
 
+            // Физические размеры одной плитки в метрах
             let tileW = (matType === 'soft') ? 1.0 : 0.183; // 1 волна GrandLine = 183 мм
             let tileH = (matType === 'soft') ? 0.32 : 0.35; // 1 ступенька = 350 мм
 
@@ -575,25 +576,25 @@
                 hGrad.addColorStop(1, 'rgba(255,255,255,0)');
                 dCtx.fillStyle = hGrad; dCtx.fillRect(0, 0, 128, 256);
 
-                // Бамп мапа (карта высот) для 3D рельефа
+                // Бамп мапа (карта высот) для 3D рельефа (Coarser)
                 const bCanvas = document.createElement('canvas'); bCanvas.width = 128; bCanvas.height = 256;
                 const bCtx = bCanvas.getContext('2d');
-                for (let y = 0; y < 256; y++) {
-                    // Плавный подъем, затем резкий спад (профиль ступеньки)
-                    let step = (y < 230) ? (y / 230) * 0.6 : 1.0 - ((y - 230) / 26);
-                    for (let x = 0; x < 128; x++) {
-                        // S-образная волна
-                        let wave = (Math.sin((x / 128) * Math.PI * 2 - Math.PI / 2) + 1) / 2 * 0.4;
-                        let h = Math.floor((step + wave) * 255 * 0.6);
+                for (let x = 0; x < 128; x++) {
+                    // broader wave profile (coarser)
+                    let wave = (Math.sin((x / 128) * Math.PI * 1.0 - Math.PI / 2) + 1) / 2 * 0.4; // simpler broader wave
+                    for (let y = 0; y < 256; y++) {
+                        // broader step profile
+                        let step = (y < 230) ? (y / 230) * 0.5 : 1.0 - ((y - 230) / 26);
+                        let h = Math.floor((step + wave) * 255 * 0.5); // softer and deeper
                         bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
                     }
                 }
                 const bTex = new THREE.CanvasTexture(bCanvas);
                 bTex.wrapS = bTex.wrapT = THREE.RepeatWrapping;
                 matParams.bumpMap = bTex;
-                matParams.bumpScale = (brand === 'megasteel') ? 0.04 : 0.02; // Мегастил чуть выше
+                matParams.bumpScale = (brand === 'megasteel') ? 0.04 : 0.01; // Softer and deeper for broad features
             } else {
-                // Мягкая кровля (Faracs)
+                // Мягкая кровля (Faracs/Шестигранник)
                 matParams.roughness = 0.9; matParams.metalness = 0.0;
                 dCtx.strokeStyle = 'rgba(0,0,0,0.8)'; dCtx.lineWidth = 4;
                 let w = 64, h = 32;
@@ -615,7 +616,7 @@
             return material;
         }
 
-        // --- СОЗДАНИЕ ИДЕАЛЬНОЙ ПЛОСКОСТИ ДЛЯ КРЫШИ (БЕЗ ИСКАЖЕНИЙ) ---
+        // --- СОЗДАНИЕ ИДЕАЛЬНОЙ ПЛОСКОСТИ ДЛЯ КРЫШИ (БЕЗ ИСКАЖЕНИЙ И МУАРА) ---
         function createRoofPlane(p1, p2, p3, p4, material) {
             // p1: низ-лево, p2: низ-право, p3: верх-лево, p4: верх-право (координаты X, Y, Z)
             const geo = new THREE.BufferGeometry();
@@ -679,30 +680,30 @@
             }
         }
 
-        // --- ВОДОСТОК ---
+        // --- ВОДОСТОК (МЯГКИЕ ТЕНИ) ---
         function createGutter(length) { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 }); geo.translate(0, 0, -length / 2); return geo; }
         function createEndCap() { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: false }); geo.translate(0, 0, -0.0075); return geo; }
 
         function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat) {
             if (edgeLength <= 0) return;
-            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat); gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; objectsGroup.add(gutter);
-            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; objectsGroup.add(capL);
-            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; objectsGroup.add(capR);
+            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat); gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(gutter);
+            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(capL);
+            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(capR);
 
             if (nOutlets > 0) {
                 let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
                 for (let i = 0; i < nOutlets; i++) {
                     let px = minX; if (nOutlets > 1) { px = minX + i * ((maxX - minX) / (nOutlets - 1)); } else { px = 0; }
                     let funnelHeight = 0.15; let funnelTop = houseHeight - 0.11; let funnelCenterY = funnelTop - funnelHeight / 2;
-                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelCenterY, zGutter); objectsGroup.add(funnel);
+                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelCenterY, zGutter); funnel.castShadow = true; objectsGroup.add(funnel);
                     let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz = zGutter - zWall; let dy = y1 - y2; let slantLen = Math.sqrt(dy * dy + dz * dz);
-                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2) / 2, (zGutter + zWall) / 2); slant.rotation.x = Math.atan2(dz, dy); objectsGroup.add(slant);
+                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2) / 2, (zGutter + zWall) / 2); slant.rotation.x = Math.atan2(dz, dy); slant.castShadow = true; objectsGroup.add(slant);
                     let pipeLen = y2 - 0.2;
                     if (pipeLen > 0) {
-                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen / 2, zWall); objectsGroup.add(pipe);
+                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen / 2, zWall); pipe.castShadow = true; objectsGroup.add(pipe);
                         let spoutLen = 0.15; let tiltAngle = Math.PI / 4; let spoutAngle = -dirZ * tiltAngle;
                         let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen / 2) * Math.cos(tiltAngle) + 0.02; let sz = zWall + dirZ * (spoutLen / 2) * Math.sin(tiltAngle);
-                        spout.position.set(px, sy, sz); spout.rotation.x = spoutAngle; objectsGroup.add(spout);
+                        spout.position.set(px, sy, sz); spout.rotation.x = spoutAngle; spout.castShadow = true; objectsGroup.add(spout);
                     }
                 }
             }
@@ -717,13 +718,16 @@
             if (!scene) {
                 scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight); renderer.shadowMap.enabled = true; container.appendChild(renderer.domElement);
+                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; container.appendChild(renderer.domElement);
                 if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
                 controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
                 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.9); dirLight.position.set(20, 50, 20); dirLight.castShadow = true; scene.add(dirLight);
                 const bottomLight = new THREE.DirectionalLight(0xffffff, 1.0); bottomLight.position.set(0, -50, 0); scene.add(bottomLight); // Мощный свет снизу для софитов
+
+                dirLight.shadow.bias = -0.001; // subtle shadow bias to prevent acne/sharp edges
+                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; // keep resolution high for detail while soft map softens edges.
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
                 scene.add(objectsGroup); animate();
@@ -773,8 +777,8 @@
                 // Зашиваем фронтоны (треугольники)
                 const frontShape = new THREE.Shape(); frontShape.moveTo(-Wr / 2, 0); frontShape.lineTo(Wr / 2, 0); frontShape.lineTo(0, h);
                 let gMat = new THREE.MeshLambertMaterial({ color: currentRoofColor });
-                let front = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); front.position.set(Lr / 2, houseHeight, 0); front.rotation.y = Math.PI / 2; objectsGroup.add(front);
-                let back = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); back.position.set(-Lr / 2, houseHeight, 0); back.rotation.y = -Math.PI / 2; objectsGroup.add(back);
+                let front = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); front.position.set(Lr / 2, houseHeight, 0); front.rotation.y = Math.PI / 2; front.castShadow = true; objectsGroup.add(front);
+                let back = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); back.position.set(-Lr / 2, houseHeight, 0); back.rotation.y = -Math.PI / 2; back.castShadow = true; objectsGroup.add(back);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, vars.W / 4); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
                 if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat); addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat); }
@@ -787,8 +791,8 @@
                 // Зашиваем бока
                 const sideShape = new THREE.Shape(); sideShape.moveTo(-Wr / 2, 0); sideShape.lineTo(-Wr / 2, h); sideShape.lineTo(Wr / 2, 0);
                 let gMat = new THREE.MeshLambertMaterial({ color: currentRoofColor });
-                let left = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); left.position.set(-Lr / 2, houseHeight, 0); left.rotation.y = -Math.PI / 2; objectsGroup.add(left);
-                let right = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); right.position.set(Lr / 2, houseHeight, 0); right.rotation.y = Math.PI / 2; objectsGroup.add(right);
+                let left = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); left.position.set(-Lr / 2, houseHeight, 0); left.rotation.y = -Math.PI / 2; left.castShadow = true; objectsGroup.add(left);
+                let right = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); right.position.set(Lr / 2, houseHeight, 0); right.rotation.y = Math.PI / 2; right.castShadow = true; objectsGroup.add(right);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + h + 0.5, -Wr / 2 - 0.1); addLabel(objectsGroup, 'Скат: ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, 0);
                 if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, nOutlets, drainMat); }
@@ -797,7 +801,7 @@
                 let H = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 let shape = new THREE.Shape(); shape.moveTo(-Wr / 2, 0); shape.lineTo(0, H); shape.lineTo(Wr / 2, 0);
                 let rGeo = new THREE.ExtrudeGeometry(shape, { depth: Lr, bevelEnabled: false }); rGeo.translate(0, 0, -Lr / 2);
-                let roofMesh = new THREE.Mesh(rGeo, new THREE.MeshStandardMaterial({ color: currentRoofColor })); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; objectsGroup.add(roofMesh);
+                let roofMesh = new THREE.Mesh(rGeo, new THREE.MeshStandardMaterial({ color: currentRoofColor })); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true; objectsGroup.add(roofMesh);
             }
 
             if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
