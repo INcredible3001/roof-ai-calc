@@ -11,25 +11,9 @@
 
     <style>
         body { margin: 0; padding: 0; height: 100vh; display: flex; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; overflow: hidden; }
-        
         #viewport { flex: 1; position: relative; background: #ecf0f1; }
-        
         .instruction-3d { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; color: #2c3e50; pointer-events: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; }
-
-        .label-3d {
-            color: #ffffff;
-            font-family: sans-serif;
-            padding: 4px 8px;
-            background: rgba(0, 0, 0, 0.85);
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            pointer-events: none; 
-            border: 1px solid #555;
-            white-space: nowrap;
-            transition: opacity 0.2s;
-        }
-
+        .label-3d { color: #ffffff; font-family: sans-serif; padding: 4px 8px; background: rgba(0, 0, 0, 0.85); border-radius: 4px; font-size: 11px; font-weight: bold; pointer-events: none; border: 1px solid #555; white-space: nowrap; transition: opacity 0.2s; }
         #sidebar { width: 450px; min-width: 450px; background: #ffffff; height: 100vh; overflow-y: auto; box-shadow: -5px 0 15px rgba(0,0,0,0.05); padding: 30px; box-sizing: border-box; z-index: 10; }
         h2 { color: #2c3e50; font-size: 22px; margin-top: 0; margin-bottom: 25px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;}
         .box { margin-bottom: 30px; }
@@ -40,31 +24,24 @@
         .form-group input:focus, .form-group select:focus { border-color: #3498db; outline: none; box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);}
         .highlight-input { border: 2px solid #3498db !important; background-color: #eaf2f8; }
         input[readonly] { background-color: #f8f9fa; color: #7f8c8d; cursor: not-allowed; border: 1px dashed #bdc3c7;}
-
         .grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        
         button { width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s;}
         .btn-blue { background-color: #3498db; } .btn-blue:hover { background-color: #2980b9; }
         .btn-yellow { background-color: #f39c12; } .btn-yellow:hover { background-color: #e67e22; }
         .btn-purple { background-color: #9b59b6; } .btn-purple:hover { background-color: #8e44ad; }
         .btn-dark { background-color: #34495e; padding: 10px; }
-        
         .result-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; border-bottom: 1px dashed #bdc3c7; padding-bottom: 3px; }
         .result-value { font-weight: bold; color: #c0392b; }
-        
         .final-box { background-color: #fdfefe; border: 2px solid #1abc9c; padding: 20px; border-radius: 8px; display: none; }
         .spec-title { font-weight: bold; color: #16a085; border-bottom: 2px solid #1abc9c; margin-bottom: 15px; padding-bottom: 5px; font-size: 18px; text-align: center; }
         .spec-section-head { font-weight: bold; font-size: 13px; color: #34495e; background: #e8f8f5; padding: 8px; margin-top: 15px; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #1abc9c;}
-
         #schemeResult { text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; display: none; border: 1px solid #eee; }
-        
         .color-palette { display: flex; gap: 10px; margin-bottom: 10px; align-items: center;}
         .color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
         .color-swatch:hover { transform: scale(1.1); border-color: #bdc3c7;}
         input[type="color"] { width: 34px; height: 34px; border: none; border-radius: 50%; cursor: pointer; padding: 0; overflow: hidden; }
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
         #chatHistory { height: 200px; overflow-y: auto; background: #fdfefe; padding: 15px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; font-size: 13px; white-space: pre-wrap; }
         .chat-input-group { display: flex; gap: 10px; }
         #chatInput { flex-grow: 1; }
@@ -76,7 +53,7 @@
 <body>
 
     <div id="viewport">
-        <div class="instruction-3d">Используйте левую кнопку мыши для вращения. Опустите камеру ВНИЗ, чтобы увидеть софиты.</div>
+        <div class="instruction-3d">Используйте левую кнопку мыши для вращения. ОПУСТИТЕ КАМЕРУ ВНИЗ, чтобы увидеть софиты.</div>
     </div>
 
     <div id="sidebar">
@@ -128,7 +105,7 @@
             </div>
         </div>
 
-        <div class="box" style="border-left: 4px solid #3498db;">
+        <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
             <h3>3. Водосток и Софиты</h3>
             <div class="grid-2-col" style="margin-bottom: 12px;">
                 <div class="form-group"><label>Высота стен (м):</label><input type="number" id="mWallHeight" value="3.5" step="0.1" oninput="render3D()"></div>
@@ -148,10 +125,10 @@
                         <option value="#ffffff">Белый</option>
                         <option value="#3b2821">Шоколад</option>
                         <option value="#2b2c2f">Графит</option>
-                        <option value="#e67e22">Дерево</option>
+                        <option value="#e67e22">Под дерево</option>
                     </select>
                 </div>
-            </div>
+                </div>
             <div class="form-group"><label>Воронки (стояки):</label><input type="number" id="vOutlets" value="4" min="0" oninput="render3D()"></div>
         </div>
 
@@ -362,12 +339,10 @@
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(20, 40, 20); dirLight.castShadow = true; dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.001; const d = 50; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 200; scene.add(dirLight);
                 
-                // СПЕЦИАЛЬНАЯ ПОДСВЕТКА СОФИТОВ СНИЗУ!
-                const bottomLight = new THREE.PointLight(0xffffff, 0.6, 100);
-                bottomLight.position.set(0, -5, 0);
+                // МОЩНАЯ ПОДСВЕТКА СОФИТОВ СНИЗУ (чтобы не было черных пятен)
+                const bottomLight = new THREE.DirectionalLight(0xffffff, 0.9);
+                bottomLight.position.set(0, -50, 0); 
                 scene.add(bottomLight);
-                
-                const backLight = new THREE.DirectionalLight(0xffffff, 0.3); backLight.position.set(-20, 20, -20); scene.add(backLight);
 
                 const planeGeo = new THREE.PlaneGeometry(100, 100); const planeMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 }); const planeMesh = new THREE.Mesh(planeGeo, planeMat); planeMesh.rotation.x = -Math.PI / 2; planeMesh.receiveShadow = true; scene.add(planeMesh);
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
@@ -412,76 +387,106 @@
             }
         }
 
-        // --- ГЕНЕРАТОР ПРОЦЕДУРНОЙ ТЕКСТУРЫ СОФИТА (УЛУЧШЕННЫЙ КОНТРАСТ) ---
+        // --- ГЕНЕРАТОР ПРОЦЕДУРНОЙ ТЕКСТУРЫ СОФИТА ---
         function createSoffitTexture(type, colorHex) {
-            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
             const ctx = canvas.getContext('2d');
             
-            // Базовый цвет панели
-            ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 256, 256);
             
-            // Фаски панелей
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 6;
-            let pSize = 512 / 3;
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
+            let pSize = 256 / 3;
             
-            // Точки перфорации (черные, чтобы было видно)
-            const drawPerf = (sx, sy, w, h) => {
-                ctx.fillStyle = '#000000';
-                for(let x=sx+12; x<sx+w-8; x+=16) {
-                    for(let y=sy+12; y<sy+h-8; y+=16) {
-                        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+            const drawPerf = (offsetX) => {
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                for(let x = offsetX + 8; x < offsetX + pSize - 8; x += 12) {
+                    for(let y = 8; y < 256; y += 12) {
+                        ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill();
                     }
                 }
             };
 
             for(let i=1; i<3; i++) { 
-                ctx.beginPath(); ctx.moveTo(i*pSize, 0); ctx.lineTo(i*pSize, 512); ctx.stroke(); 
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.beginPath(); ctx.moveTo(i*pSize+4, 0); ctx.lineTo(i*pSize+4, 512); ctx.stroke();
-                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath(); ctx.moveTo(i*pSize, 0); ctx.lineTo(i*pSize, 256); ctx.stroke(); 
             }
             
-            if(type === 'center' || type === 'full') drawPerf(pSize, 0, pSize, 512);
-            if(type === 'full') { drawPerf(0, 0, pSize, 512); drawPerf(pSize*2, 0, pSize, 512); }
+            if(type === 'center' || type === 'full') drawPerf(pSize);
+            if(type === 'full') { drawPerf(0); drawPerf(pSize*2); }
 
-            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            const tex = new THREE.CanvasTexture(canvas); 
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
             return tex;
         }
 
-        // --- НОВЫЙ 100% РАБОЧИЙ МЕТОД СОФИТОВ (БЕЗ ДЫРОК, НАДЁЖНЫЕ ПЛОСКОСТИ) ---
+        // --- НАДЕЖНАЯ ОТРИСОВКА СОФИТОВ (ИЗ 4 ПАНЕЛЕЙ ВОКРУГ СТЕН) ---
         function addSoffitPlanes(vars, houseHeight, soffit) {
             if(soffit <= 0) return;
+            
             let type = document.getElementById('soffitType').value;
             let color = document.getElementById('soffitColor').value;
             let texBase = createSoffitTexture(type, color);
 
-            let L_roof = vars.L + soffit * 2;
-            let W_roof = vars.W + soffit * 2;
-            let mat = new THREE.MeshStandardMaterial({ map: texBase, roughness: 0.9, side: THREE.DoubleSide });
+            // Функция сборки отдельной панели
+            const createPanel = (width, height, posX, posZ, rotZ) => {
+                let panelTex = texBase.clone();
+                panelTex.needsUpdate = true;
+                panelTex.repeat.set(width / 0.3, height / 0.3); // Панели по 30 см
+
+                let mat = new THREE.MeshStandardMaterial({
+                    map: panelTex,
+                    side: THREE.DoubleSide,
+                    roughness: 0.8
+                });
+
+                let mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+                mesh.rotation.x = Math.PI / 2;
+                mesh.rotation.z = rotZ;
+                mesh.position.set(posX, houseHeight - 0.02, posZ);
+                objectsGroup.add(mesh);
+            };
+
+            let Lr = vars.L + soffit * 2;
+            let Wr = vars.W + soffit * 2;
 
             if (vars.rType === 'multi_gable') {
+                // Для креста используем вырез (ShapeGeometry)
                 let D = Math.min(vars.L, vars.W) * 0.5;
-                let D_roof = D + soffit * 2;
+                let Dr = D + soffit * 2;
 
-                // Перекладина креста по длине
-                let tex1 = texBase.clone(); tex1.repeat.set(L_roof/0.3, D_roof/0.3); tex1.needsUpdate = true;
-                let mesh1 = new THREE.Mesh(new THREE.PlaneGeometry(L_roof, D_roof), new THREE.MeshStandardMaterial({ map: tex1, side: THREE.DoubleSide }));
-                mesh1.rotation.x = Math.PI/2; mesh1.position.set(0, houseHeight - 0.01, 0);
-                objectsGroup.add(mesh1);
+                let shape = new THREE.Shape();
+                shape.moveTo(-Dr/2, Wr/2); shape.lineTo(Dr/2, Wr/2); shape.lineTo(Dr/2, Dr/2);
+                shape.lineTo(Lr/2, Dr/2); shape.lineTo(Lr/2, -Dr/2); shape.lineTo(Dr/2, -Dr/2);
+                shape.lineTo(Dr/2, -Wr/2); shape.lineTo(-Dr/2, -Wr/2); shape.lineTo(-Dr/2, -Dr/2);
+                shape.lineTo(-Lr/2, -Dr/2); shape.lineTo(-Lr/2, Dr/2); shape.lineTo(-Dr/2, Dr/2);
+                shape.lineTo(-Dr/2, Wr/2);
 
-                // Перекладина креста по ширине
-                let tex2 = texBase.clone(); tex2.repeat.set(D_roof/0.3, W_roof/0.3); tex2.needsUpdate = true;
-                let mesh2 = new THREE.Mesh(new THREE.PlaneGeometry(D_roof, W_roof), new THREE.MeshStandardMaterial({ map: tex2, side: THREE.DoubleSide }));
-                mesh2.rotation.x = Math.PI/2; mesh2.position.set(0, houseHeight - 0.02, 0); // Чуть ниже, чтобы не мерцало
-                objectsGroup.add(mesh2);
+                let hole = new THREE.Path();
+                hole.moveTo(-D/2, vars.W/2); hole.lineTo(D/2, vars.W/2); hole.lineTo(D/2, D/2);
+                hole.lineTo(vars.L/2, D/2); hole.lineTo(vars.L/2, -D/2); hole.lineTo(D/2, -D/2);
+                hole.lineTo(D/2, -vars.W/2); hole.lineTo(-D/2, -vars.W/2); hole.lineTo(-D/2, -D/2);
+                hole.lineTo(-vars.L/2, -D/2); hole.lineTo(-vars.L/2, D/2); hole.lineTo(-D/2, D/2);
+                hole.lineTo(-D/2, vars.W/2);
+                shape.holes.push(hole);
 
-            } else {
-                // Обычный дом: Единый сплошной потолок-софит. Стены дома закроют внутреннюю часть!
-                let tex = texBase.clone(); tex.repeat.set(L_roof/0.3, W_roof/0.3); tex.needsUpdate = true;
-                let mesh = new THREE.Mesh(new THREE.PlaneGeometry(L_roof, W_roof), new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide }));
-                mesh.rotation.x = Math.PI/2; 
-                mesh.position.set(0, houseHeight - 0.01, 0); // Уровень потолка стен
+                let geo = new THREE.ShapeGeometry(shape);
+                let mat = new THREE.MeshStandardMaterial({ map: texBase, side: THREE.DoubleSide });
+                texBase.repeat.set(Lr/0.3, Wr/0.3);
+                let mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = Math.PI / 2;
+                mesh.position.set(0, houseHeight - 0.02, 0);
                 objectsGroup.add(mesh);
+            } else {
+                // Для обычных крыш собираем софит из 4 отдельных плоскостей
+                // Спереди
+                createPanel(Lr, soffit, 0, vars.W/2 + soffit/2, 0);
+                // Сзади (кроме односкатной)
+                if (vars.rType !== 'shed') {
+                    createPanel(Lr, soffit, 0, -vars.W/2 - soffit/2, 0);
+                }
+                // Слева
+                createPanel(soffit, vars.W, -vars.L/2 - soffit/2, 0, Math.PI / 2);
+                // Справа
+                createPanel(soffit, vars.W, vars.L/2 + soffit/2, 0, Math.PI / 2);
             }
         }
 
@@ -502,14 +507,14 @@
             const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 }); 
 
-            // 1. КОРОБКА ДОМА (Исключаем для многощипцовой, чтобы стены рисовались крестом)
+            // 1. КОРОБКА ДОМА
             if (vars.rType !== 'multi_gable') {
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
                 houseMesh.position.y = houseHeight / 2; houseMesh.castShadow = true; houseMesh.receiveShadow = true; houseMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(houseGeo), edgeMat)); objectsGroup.add(houseMesh); 
             }
 
-            // 2. ОТРИСОВКА СОФИТОВ (ДОБАВЛЕНО)
+            // 2. ОТРИСОВКА СОФИТОВ
             addSoffitPlanes(vars, houseHeight, soffit);
 
             // 3. ОТРИСОВКА КРЫШ И ВОДОСТОКА
