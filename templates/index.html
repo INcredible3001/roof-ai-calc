@@ -541,14 +541,14 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР ГРАНД ЛАЙН КЛАССИК И FARACS) ---
+        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР ПРОФИЛЕЙ) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
 
             // Физические размеры одной плитки в метрах
-            let tileW = (matType === 'soft') ? 1.0 : 0.183; // 1 волна GrandLine = 183 мм
-            let tileH = (matType === 'soft') ? 0.32 : 0.35; // 1 ступенька = 350 мм
+            let tileW = (matType === 'soft') ? 1.0 : 0.183;
+            let tileH = (matType === 'soft') ? 0.32 : 0.35;
 
             const dCanvas = document.createElement('canvas'); dCanvas.width = 128; dCanvas.height = 256;
             const dCtx = dCanvas.getContext('2d');
@@ -565,36 +565,53 @@
                 // Тень от ступеньки штамповки
                 let sGrad = dCtx.createLinearGradient(0, 200, 0, 256);
                 sGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                sGrad.addColorStop(0.8, 'rgba(0,0,0,0.6)'); // Резкая тень
+                sGrad.addColorStop(0.8, 'rgba(0,0,0,0.6)');
                 sGrad.addColorStop(1, 'rgba(0,0,0,0)');
                 dCtx.fillStyle = sGrad; dCtx.fillRect(0, 200, 128, 56);
 
-                // Блик на гребне волны (для объема)
+                // Блик на гребне волны
                 let hGrad = dCtx.createLinearGradient(0, 0, 128, 0);
                 hGrad.addColorStop(0, 'rgba(255,255,255,0)');
-                hGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)'); // Блик по центру
+                hGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
                 hGrad.addColorStop(1, 'rgba(255,255,255,0)');
                 dCtx.fillStyle = hGrad; dCtx.fillRect(0, 0, 128, 256);
 
-                // Бамп мапа (карта высот) для 3D рельефа (Coarser)
+                // Карта высот (BUMP MAP) для 3D рельефа
                 const bCanvas = document.createElement('canvas'); bCanvas.width = 128; bCanvas.height = 256;
                 const bCtx = bCanvas.getContext('2d');
-                for (let x = 0; x < 128; x++) {
-                    // broader wave profile (coarser)
-                    let wave = (Math.sin((x / 128) * Math.PI * 1.0 - Math.PI / 2) + 1) / 2 * 0.4; // simpler broader wave
-                    for (let y = 0; y < 256; y++) {
-                        // broader step profile
-                        let step = (y < 230) ? (y / 230) * 0.5 : 1.0 - ((y - 230) / 26);
-                        let h = Math.floor((step + wave) * 255 * 0.5); // softer and deeper
-                        bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
+
+                if (brand === 'classic') {
+                    // 1. ПРОФИЛЬ: GRAND LINE CLASSIC (Широкая, плавная волна)
+                    for (let x = 0; x < 128; x++) {
+                        let wave = (Math.sin((x / 128) * Math.PI * 1.0 - Math.PI / 2) + 1) / 2 * 0.4;
+                        for (let y = 0; y < 256; y++) {
+                            let step = (y < 230) ? (y / 230) * 0.5 : 1.0 - ((y - 230) / 26);
+                            let h = Math.floor((step + wave) * 255 * 0.5);
+                            bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
+                        }
                     }
+                    matParams.bumpScale = 0.012; // Мягкий рельеф
+                } else if (brand === 'megasteel') {
+                    // 2. ПРОФИЛЬ: МЕГАСТИЛ (Например, более частая и выраженная волна)
+                    // Если у Мегастила другой шаг, можем поменять tileW и tileH выше
+                    for (let x = 0; x < 128; x++) {
+                        // Увеличили частоту и высоту волны для визуального отличия
+                        let wave = (Math.sin((x / 128) * Math.PI * 2.0 - Math.PI / 2) + 1) / 2 * 0.6;
+                        for (let y = 0; y < 256; y++) {
+                            let step = (y < 220) ? (y / 220) * 0.4 : 1.0 - ((y - 220) / 36);
+                            let h = Math.floor((step + wave) * 255 * 0.6);
+                            bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
+                        }
+                    }
+                    matParams.bumpScale = 0.025; // Более глубокий рельеф
                 }
+
                 const bTex = new THREE.CanvasTexture(bCanvas);
                 bTex.wrapS = bTex.wrapT = THREE.RepeatWrapping;
                 matParams.bumpMap = bTex;
-                matParams.bumpScale = (brand === 'megasteel') ? 0.04 : 0.01; // Softer and deeper for broad features
+
             } else {
-                // Мягкая кровля (Faracs/Шестигранник)
+                // Мягкая кровля
                 matParams.roughness = 0.9; matParams.metalness = 0.0;
                 dCtx.strokeStyle = 'rgba(0,0,0,0.8)'; dCtx.lineWidth = 4;
                 let w = 64, h = 32;
@@ -612,7 +629,7 @@
             matParams.map = dTex;
 
             let material = new THREE.MeshStandardMaterial(matParams);
-            material.userData = { tileW, tileH }; // Сохраняем физические размеры плитки
+            material.userData = { tileW, tileH };
             return material;
         }
 
