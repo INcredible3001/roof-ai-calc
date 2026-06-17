@@ -334,6 +334,7 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
+        <!-- БЛОК 1: ГЕОМЕТРИЯ КРЫШИ -->
         <div class="box">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -364,12 +365,14 @@
             </div>
         </div>
 
+        <!-- БЛОК 2: ВНЕШНИЙ ВИД (БРЕНДЫ И ЦВЕТА) -->
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
             <h3>2. Внешний вид (Бренды)</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
                 <select id="materialType" onchange="updateBrandMenu()">
-                    <option value="metal" selected>Металлочерепица / Профнастил</option>
+                    <!-- ИСПРАВЛЕНО: Убрал "Профнастил" -->
+                    <option value="metal" selected>Металлочерепица</option>
                     <option value="soft">Гибкая черепица (Мягкая)</option>
                 </select>
             </div>
@@ -385,6 +388,7 @@
             <label style="font-weight: 600; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; display: block;">Цвет
                 по RAL:</label>
             <div class="color-palette">
+                <!-- ОФИЦИАЛЬНАЯ ПАЛИТРА RAL -->
                 <div class="color-swatch" style="background-color: #3b2821;" onclick="changeColor(0x3b2821)"
                     title="RAL 8017 (Шоколад)"></div>
                 <div class="color-swatch" style="background-color: #9ea0a1;" onclick="changeColor(0x9ea0a1)"
@@ -400,6 +404,7 @@
             </div>
         </div>
 
+        <!-- БЛОК 3: ВОДОСТОК И СОФИТЫ -->
         <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
             <h3>3. Водосток и Софиты</h3>
             <div class="grid-2-col" style="margin-bottom: 12px;">
@@ -430,6 +435,7 @@
                     oninput="render3D()"></div>
         </div>
 
+        <!-- БЛОК 4: РАСЧЕТ (Спрятан) -->
         <div class="box">
             <h3>4. Расчет спецификации</h3>
             <div id="hiddenDetailsBox" style="display: none;">
@@ -450,6 +456,7 @@
 
         <hr style="border: 0; border-top: 1px solid #ecf0f1; margin: 30px 0;">
 
+        <!-- БЛОК ИИ -->
         <div class="box">
             <h3>Загрузить чертеж (ИИ)</h3>
             <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf" style="margin-bottom: 10px;">
@@ -468,6 +475,7 @@
         </div>
     </div>
 
+    <!-- СКРИПТЫ -->
     <script>
         let conversationHistory = [];
         let currentRoofColor = 0x3b2821;
@@ -541,111 +549,113 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР ПРОФИЛЕЙ) ---
+        // --- МАТЕРИАЛЫ КРЫШИ (НОВЫЙ ГЕНЕРАТОР КАРТЫ НОРМАЛЕЙ) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
 
-            // Физические размеры одной плитки в метрах
-            let tileW = (matType === 'soft') ? 1.0 : 0.183;
-            let tileH = (matType === 'soft') ? 0.32 : 0.35;
-
-            const dCanvas = document.createElement('canvas'); dCanvas.width = 128; dCanvas.height = 256;
-            const dCtx = dCanvas.getContext('2d');
-
-            dCtx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0');
-            dCtx.fillRect(0, 0, 128, 256);
-
-            let matParams = { color: currentRoofColor, side: THREE.DoubleSide };
+            let matParams = {
+                color: currentRoofColor,
+                side: THREE.DoubleSide
+            };
 
             if (matType === 'metal') {
-                matParams.roughness = 0.4;
+                matParams.roughness = 0.5; // Настоящий матово-глянцевый металл
                 matParams.metalness = 0.3;
 
-                // Тень от ступеньки штамповки
-                let sGrad = dCtx.createLinearGradient(0, 200, 0, 256);
-                sGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                sGrad.addColorStop(0.8, 'rgba(0,0,0,0.6)');
-                sGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                dCtx.fillStyle = sGrad; dCtx.fillRect(0, 200, 128, 56);
+                // Создаем высокоточную карту нормалей (Normal Map) вместо бампа
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.createImageData(512, 512);
+                const data = imgData.data;
 
-                // Блик на гребне волны
-                let hGrad = dCtx.createLinearGradient(0, 0, 128, 0);
-                hGrad.addColorStop(0, 'rgba(255,255,255,0)');
-                hGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
-                hGrad.addColorStop(1, 'rgba(255,255,255,0)');
-                dCtx.fillStyle = hGrad; dCtx.fillRect(0, 0, 128, 256);
+                for (let y = 0; y < 512; y++) {
+                    let py = y / 512;
+                    let dy = 0;
 
-                // Карта высот (BUMP MAP) для 3D рельефа
-                const bCanvas = document.createElement('canvas'); bCanvas.width = 128; bCanvas.height = 256;
-                const bCtx = bCanvas.getContext('2d');
-
-                if (brand === 'classic') {
-                    // 1. ПРОФИЛЬ: GRAND LINE CLASSIC (Широкая, плавная волна)
-                    for (let x = 0; x < 128; x++) {
-                        let wave = (Math.sin((x / 128) * Math.PI * 1.0 - Math.PI / 2) + 1) / 2 * 0.4;
-                        for (let y = 0; y < 256; y++) {
-                            let step = (y < 230) ? (y / 230) * 0.5 : 1.0 - ((y - 230) / 26);
-                            let h = Math.floor((step + wave) * 255 * 0.5);
-                            bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
+                    if (brand === 'classic') {
+                        // Grand Line Classic: Ровный скат, затем мягкая ступенька вниз
+                        if (py < 0.85) { dy = 0.15; }
+                        else {
+                            let dropP = (py - 0.85) / 0.15;
+                            dy = -Math.sin(dropP * Math.PI) * 2.5; // Плавная светотень на ступеньке
+                        }
+                    } else {
+                        // Megasteel: Чуть другой профиль
+                        if (py < 0.80) { dy = 0.20; }
+                        else {
+                            let dropP = (py - 0.80) / 0.20;
+                            dy = -Math.sin(dropP * Math.PI) * 3.0;
                         }
                     }
-                    matParams.bumpScale = 0.012; // Мягкий рельеф
-                } else if (brand === 'megasteel') {
-                    // 2. ПРОФИЛЬ: МЕГАСТИЛ (Например, более частая и выраженная волна)
-                    // Если у Мегастила другой шаг, можем поменять tileW и tileH выше
-                    for (let x = 0; x < 128; x++) {
-                        // Увеличили частоту и высоту волны для визуального отличия
-                        let wave = (Math.sin((x / 128) * Math.PI * 2.0 - Math.PI / 2) + 1) / 2 * 0.6;
-                        for (let y = 0; y < 256; y++) {
-                            let step = (y < 220) ? (y / 220) * 0.4 : 1.0 - ((y - 220) / 36);
-                            let h = Math.floor((step + wave) * 255 * 0.6);
-                            bCtx.fillStyle = `rgb(${h},${h},${h})`; bCtx.fillRect(x, y, 1, 1);
+
+                    for (let x = 0; x < 512; x++) {
+                        let px = x / 512;
+                        let dx = 0;
+
+                        if (brand === 'classic') {
+                            // Широкая, реалистичная S-образная волна
+                            dx = Math.sin(px * Math.PI * 2) * 0.8;
+                        } else {
+                            dx = Math.sin(px * Math.PI * 2) * 1.2;
                         }
+
+                        // Вектор нормали (объем)
+                        let len = Math.sqrt(dx * dx + dy * dy + 1.0);
+                        let r = (dx / len) * 127.5 + 127.5;
+                        let g = (-dy / len) * 127.5 + 127.5; // В Three.js Y направлен вверх
+                        let b = (1.0 / len) * 127.5 + 127.5;
+
+                        let idx = (y * 512 + x) * 4;
+                        data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
                     }
-                    matParams.bumpScale = 0.025; // Более глубокий рельеф
                 }
+                ctx.putImageData(imgData, 0, 0);
 
-                const bTex = new THREE.CanvasTexture(bCanvas);
-                bTex.wrapS = bTex.wrapT = THREE.RepeatWrapping;
-                matParams.bumpMap = bTex;
+                const normTex = new THREE.CanvasTexture(canvas);
+                normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
+                matParams.normalMap = normTex;
+                matParams.normalScale = new THREE.Vector2(1.0, 1.0); // Сила рельефа
 
             } else {
-                // Мягкая кровля
+                // Мягкая кровля (Faracs)
                 matParams.roughness = 0.9; matParams.metalness = 0.0;
-                dCtx.strokeStyle = 'rgba(0,0,0,0.8)'; dCtx.lineWidth = 4;
-                let w = 64, h = 32;
-                for (let y = 0; y <= 256; y += h) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0');
+                ctx.fillRect(0, 0, 512, 512);
+                ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
+                let w = 128, h = 64;
+                for (let y = 0; y <= 512; y += h) {
                     let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
-                    for (let x = -w; x <= 128; x += w) {
-                        dCtx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.15})`;
-                        dCtx.beginPath(); dCtx.moveTo(x + offset, y); dCtx.lineTo(x + offset + w / 2, y + h / 2); dCtx.lineTo(x + offset + w, y); dCtx.lineTo(x + offset + w, y + h); dCtx.lineTo(x + offset, y + h); dCtx.fill(); dCtx.stroke();
+                    for (let x = -w; x <= 512; x += w) {
+                        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.15})`;
+                        ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset + w / 2, y + h / 2); ctx.lineTo(x + offset + w, y); ctx.lineTo(x + offset + w, y + h); ctx.lineTo(x + offset, y + h); ctx.fill(); ctx.stroke();
                     }
                 }
+                const mapTex = new THREE.CanvasTexture(canvas);
+                mapTex.wrapS = THREE.RepeatWrapping; mapTex.wrapT = THREE.RepeatWrapping;
+                matParams.map = mapTex;
             }
 
-            const dTex = new THREE.CanvasTexture(dCanvas);
-            dTex.wrapS = dTex.wrapT = THREE.RepeatWrapping;
-            matParams.map = dTex;
-
-            let material = new THREE.MeshStandardMaterial(matParams);
-            material.userData = { tileW, tileH };
-            return material;
+            return new THREE.MeshStandardMaterial(matParams);
         }
 
-        // --- СОЗДАНИЕ ИДЕАЛЬНОЙ ПЛОСКОСТИ ДЛЯ КРЫШИ (БЕЗ ИСКАЖЕНИЙ И МУАРА) ---
-        function createRoofPlane(p1, p2, p3, p4, material) {
-            // p1: низ-лево, p2: низ-право, p3: верх-лево, p4: верх-право (координаты X, Y, Z)
+        function createRoofPlane(p1, p2, p3, p4, material, matType) {
             const geo = new THREE.BufferGeometry();
             const vertices = new Float32Array([...p1, ...p2, ...p3, ...p2, ...p4, ...p3]);
 
-            // Считаем физические размеры плоскости в метрах
             const width = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
             const height = Math.hypot(p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]);
 
-            // Считаем сколько раз текстура (18.3см х 35см) должна повториться на этом куске
-            const u = width / material.userData.tileW;
-            const v = height / material.userData.tileH;
+            // Точные физические размеры:
+            let tileW = (matType === 'soft') ? 1.0 : 0.183; // 1 волна
+            let tileH = (matType === 'soft') ? 0.32 : 0.35; // 1 ступенька
+
+            const u = width / tileW;
+            const v = height / tileH;
 
             const uvs = new Float32Array([0, 0, u, 0, 0, v, u, 0, u, v, 0, v]);
 
@@ -690,22 +700,22 @@
                 let D = Math.min(vars.L, vars.W) * 0.5; let Dr = D + soffit * 2;
                 createPanel(Lr, Dr, 0, 0, 0); createPanel(Dr, Wr, 0, 0, 0);
             } else {
-                createPanel(Lr, soffit, 0, vars.W / 2 + soffit / 2, 0); // Перед
-                if (vars.rType !== 'shed') createPanel(Lr, soffit, 0, -vars.W / 2 - soffit / 2, Math.PI); // Зад
-                createPanel(vars.W, soffit, -vars.L / 2 - soffit / 2, 0, Math.PI / 2); // Лево
-                createPanel(vars.W, soffit, vars.L / 2 + soffit / 2, 0, -Math.PI / 2); // Право
+                createPanel(Lr, soffit, 0, vars.W / 2 + soffit / 2, 0);
+                if (vars.rType !== 'shed') createPanel(Lr, soffit, 0, -vars.W / 2 - soffit / 2, Math.PI);
+                createPanel(vars.W, soffit, -vars.L / 2 - soffit / 2, 0, Math.PI / 2);
+                createPanel(vars.W, soffit, vars.L / 2 + soffit / 2, 0, -Math.PI / 2);
             }
         }
 
-        // --- ВОДОСТОК (МЯГКИЕ ТЕНИ) ---
+        // --- ВОДОСТОК ---
         function createGutter(length) { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 }); geo.translate(0, 0, -length / 2); return geo; }
         function createEndCap() { let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0); let geo = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: false }); geo.translate(0, 0, -0.0075); return geo; }
 
         function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat) {
             if (edgeLength <= 0) return;
             let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat); gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(gutter);
-            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(capL);
-            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(capR);
+            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; objectsGroup.add(capL);
+            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; objectsGroup.add(capR);
 
             if (nOutlets > 0) {
                 let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
@@ -735,16 +745,38 @@
             if (!scene) {
                 scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; container.appendChild(renderer.domElement);
+                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
+
+                // Включаем мягкие и качественные тени
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
+
                 if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
                 controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
-                scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-                const dirLight = new THREE.DirectionalLight(0xffffff, 0.9); dirLight.position.set(20, 50, 20); dirLight.castShadow = true; scene.add(dirLight);
-                const bottomLight = new THREE.DirectionalLight(0xffffff, 1.0); bottomLight.position.set(0, -50, 0); scene.add(bottomLight); // Мощный свет снизу для софитов
+                // ИСПРАВЛЕННЫЙ СВЕТ: Убрал нижний фонарь, добавил реалистичный свет
+                scene.add(new THREE.AmbientLight(0xffffff, 0.4)); // Мягкий базовый свет
 
-                dirLight.shadow.bias = -0.001; // subtle shadow bias to prevent acne/sharp edges
-                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; // keep resolution high for detail while soft map softens edges.
+                // Небесный/земной свет (устраняет черные дыры под крышей без артефактов)
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+                hemiLight.position.set(0, 50, 0);
+                scene.add(hemiLight);
+
+                // Главное солнце (рисует тени)
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(30, 60, 40);
+                dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 2048; // Высокое качество теней
+                dirLight.shadow.mapSize.height = 2048;
+                dirLight.shadow.bias = -0.0005; // КРИТИЧЕСКИ ВАЖНО: убирает "полосы" на стенах
+
+                const d = 25;
+                dirLight.shadow.camera.left = -d;
+                dirLight.shadow.camera.right = d;
+                dirLight.shadow.camera.top = d;
+                dirLight.shadow.camera.bottom = -d;
+                scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
                 scene.add(objectsGroup); animate();
@@ -762,13 +794,13 @@
             const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
+            const matType = document.getElementById('materialType').value;
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             const roofMat = createRoofMaterial();
             const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3 });
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 });
 
-            // Стены дома
             if (vars.rType !== 'multi_gable') {
                 const houseGeo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W);
                 const houseMesh = new THREE.Mesh(houseGeo, wallMat);
@@ -777,48 +809,42 @@
 
             addSoffitPlanes(vars, houseHeight, soffit);
 
-            let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2;
-
             if (vars.rType === 'gable') {
-                let h = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                let L_roof = vars.L + soffit * 2, W_roof = vars.W + soffit * 2;
+                const h = (W_roof / 2) * Math.tan(vars.P1 * Math.PI / 180);
 
-                // СОБИРАЕМ ИДЕАЛЬНУЮ КРЫШУ ИЗ ПЛОСКОСТЕЙ
-                // Левый скат
-                let p1 = [-Lr / 2, houseHeight, Wr / 2], p2 = [Lr / 2, houseHeight, Wr / 2], p3 = [-Lr / 2, houseHeight + h, 0], p4 = [Lr / 2, houseHeight + h, 0];
-                objectsGroup.add(createRoofPlane(p1, p2, p3, p4, roofMat));
+                let p1 = [-L_roof / 2, houseHeight, W_roof / 2], p2 = [L_roof / 2, houseHeight, W_roof / 2], p3 = [-L_roof / 2, houseHeight + h, 0], p4 = [L_roof / 2, houseHeight + h, 0];
+                objectsGroup.add(createRoofPlane(p1, p2, p3, p4, roofMat, matType));
 
-                // Правый скат
-                let p5 = [-Lr / 2, houseHeight, -Wr / 2], p6 = [Lr / 2, houseHeight, -Wr / 2];
-                objectsGroup.add(createRoofPlane(p6, p5, p4, p3, roofMat)); // Порядок важен для текстуры
+                let p5 = [-L_roof / 2, houseHeight, -W_roof / 2], p6 = [L_roof / 2, houseHeight, -W_roof / 2];
+                objectsGroup.add(createRoofPlane(p6, p5, p4, p3, roofMat, matType));
 
-                // Зашиваем фронтоны (треугольники)
-                const frontShape = new THREE.Shape(); frontShape.moveTo(-Wr / 2, 0); frontShape.lineTo(Wr / 2, 0); frontShape.lineTo(0, h);
+                const frontShape = new THREE.Shape(); frontShape.moveTo(-W_roof / 2, 0); frontShape.lineTo(W_roof / 2, 0); frontShape.lineTo(0, h);
                 let gMat = new THREE.MeshLambertMaterial({ color: currentRoofColor });
-                let front = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); front.position.set(Lr / 2, houseHeight, 0); front.rotation.y = Math.PI / 2; front.castShadow = true; objectsGroup.add(front);
-                let back = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); back.position.set(-Lr / 2, houseHeight, 0); back.rotation.y = -Math.PI / 2; back.castShadow = true; objectsGroup.add(back);
+                let front = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); front.position.set(L_roof / 2, houseHeight, 0); front.rotation.y = Math.PI / 2; front.castShadow = true; objectsGroup.add(front);
+                let back = new THREE.Mesh(new THREE.ShapeGeometry(frontShape), gMat); back.position.set(-L_roof / 2, houseHeight, 0); back.rotation.y = -Math.PI / 2; back.castShadow = true; objectsGroup.add(back);
 
-                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, vars.W / 4); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
-                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat); addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat); }
+                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, W_roof / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof / 2 - 0.1, houseHeight + h / 2, vars.W / 4); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
+                if (L_roof > 0) { addGutterSystem(L_roof, vars.L, houseHeight, W_roof / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat); addGutterSystem(L_roof, vars.L, houseHeight, -W_roof / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat); }
 
             } else if (vars.rType === 'shed') {
-                let h = Wr * Math.tan(vars.P1 * Math.PI / 180);
-                let p1 = [-Lr / 2, houseHeight, Wr / 2], p2 = [Lr / 2, houseHeight, Wr / 2], p3 = [-Lr / 2, houseHeight + h, -Wr / 2], p4 = [Lr / 2, houseHeight + h, -Wr / 2];
-                objectsGroup.add(createRoofPlane(p1, p2, p3, p4, roofMat));
+                let L_roof = vars.L + soffit * 2, W_roof = vars.W + soffit * 2;
+                let h = W_roof * Math.tan(vars.P1 * Math.PI / 180);
+                let p1 = [-L_roof / 2, houseHeight, W_roof / 2], p2 = [L_roof / 2, houseHeight, W_roof / 2], p3 = [-L_roof / 2, houseHeight + h, -W_roof / 2], p4 = [L_roof / 2, houseHeight + h, -W_roof / 2];
+                objectsGroup.add(createRoofPlane(p1, p2, p3, p4, roofMat, matType));
 
-                // Зашиваем бока
-                const sideShape = new THREE.Shape(); sideShape.moveTo(-Wr / 2, 0); sideShape.lineTo(-Wr / 2, h); sideShape.lineTo(Wr / 2, 0);
+                const sideShape = new THREE.Shape(); sideShape.moveTo(-W_roof / 2, 0); sideShape.lineTo(-W_roof / 2, h); sideShape.lineTo(W_roof / 2, 0);
                 let gMat = new THREE.MeshLambertMaterial({ color: currentRoofColor });
-                let left = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); left.position.set(-Lr / 2, houseHeight, 0); left.rotation.y = -Math.PI / 2; left.castShadow = true; objectsGroup.add(left);
-                let right = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); right.position.set(Lr / 2, houseHeight, 0); right.rotation.y = Math.PI / 2; right.castShadow = true; objectsGroup.add(right);
+                let left = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); left.position.set(-L_roof / 2, houseHeight, 0); left.rotation.y = -Math.PI / 2; left.castShadow = true; objectsGroup.add(left);
+                let right = new THREE.Mesh(new THREE.ShapeGeometry(sideShape), gMat); right.position.set(L_roof / 2, houseHeight, 0); right.rotation.y = Math.PI / 2; right.castShadow = true; objectsGroup.add(right);
 
-                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + h + 0.5, -Wr / 2 - 0.1); addLabel(objectsGroup, 'Скат: ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, 0);
-                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, nOutlets, drainMat); }
+                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, -W_roof / 2 - 0.1); addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, W_roof / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -L_roof / 2 - 0.1, houseHeight + h / 2, 0);
+                if (L_roof > 0) { addGutterSystem(L_roof, vars.L, houseHeight, -W_roof / 2, -vars.W / 2 - 0.002, -1, nOutlets, drainMat); }
             } else {
-                // ДЛЯ ВАЛЬМЫ И ШАТРА - Временно используем базовый рендер без сложных UV
-                let H = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                let shape = new THREE.Shape(); shape.moveTo(-Wr / 2, 0); shape.lineTo(0, H); shape.lineTo(Wr / 2, 0);
-                let rGeo = new THREE.ExtrudeGeometry(shape, { depth: Lr, bevelEnabled: false }); rGeo.translate(0, 0, -Lr / 2);
-                let roofMesh = new THREE.Mesh(rGeo, new THREE.MeshStandardMaterial({ color: currentRoofColor })); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true; objectsGroup.add(roofMesh);
+                let H = (Math.min(vars.L + soffit * 2, vars.W + soffit * 2) / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                let shape = new THREE.Shape(); shape.moveTo(-(vars.W + soffit * 2) / 2, 0); shape.lineTo(0, H); shape.lineTo((vars.W + soffit * 2) / 2, 0);
+                let rGeo = new THREE.ExtrudeGeometry(shape, { depth: vars.L + soffit * 2, bevelEnabled: false }); rGeo.translate(0, 0, -(vars.L + soffit * 2) / 2);
+                let roofMesh = new THREE.Mesh(rGeo, roofMat); roofMesh.position.set(0, houseHeight, 0); roofMesh.rotation.y = Math.PI / 2; roofMesh.castShadow = true; objectsGroup.add(roofMesh);
             }
 
             if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
