@@ -334,7 +334,6 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- БЛОК 1: ГЕОМЕТРИЯ КРЫШИ -->
         <div class="box">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -365,13 +364,11 @@
             </div>
         </div>
 
-        <!-- БЛОК 2: ВНЕШНИЙ ВИД (БРЕНДЫ И ЦВЕТА) -->
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
-            <h3>2. Внешний вид (Бренды)</h3>
+            <h3>2. Внешний вид</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
                 <select id="materialType" onchange="updateBrandMenu()">
-                    <!-- ИСПРАВЛЕНО: Убрал "Профнастил" -->
                     <option value="metal" selected>Металлочерепица</option>
                     <option value="soft">Гибкая черепица (Мягкая)</option>
                 </select>
@@ -381,14 +378,13 @@
                 <label>Бренд / Коллекция:</label>
                 <select id="roofBrand" onchange="render3D()">
                     <option value="classic">Grand Line Classic</option>
-                    <option value="megasteel">Мегастил (Фактум)</option>
+                    <option value="megasteel">Мегастил</option>
                 </select>
             </div>
 
             <label style="font-weight: 600; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; display: block;">Цвет
                 по RAL:</label>
             <div class="color-palette">
-                <!-- ОФИЦИАЛЬНАЯ ПАЛИТРА RAL -->
                 <div class="color-swatch" style="background-color: #3b2821;" onclick="changeColor(0x3b2821)"
                     title="RAL 8017 (Шоколад)"></div>
                 <div class="color-swatch" style="background-color: #9ea0a1;" onclick="changeColor(0x9ea0a1)"
@@ -404,7 +400,6 @@
             </div>
         </div>
 
-        <!-- БЛОК 3: ВОДОСТОК И СОФИТЫ -->
         <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
             <h3>3. Водосток и Софиты</h3>
             <div class="grid-2-col" style="margin-bottom: 12px;">
@@ -435,7 +430,6 @@
                     oninput="render3D()"></div>
         </div>
 
-        <!-- БЛОК 4: РАСЧЕТ (Спрятан) -->
         <div class="box">
             <h3>4. Расчет спецификации</h3>
             <div id="hiddenDetailsBox" style="display: none;">
@@ -453,29 +447,8 @@
             <div id="specContent"></div>
             <button class="btn-blue" style="margin-top: 20px;">ОТПРАВИТЬ СЧЕТ В 1С (API)</button>
         </div>
-
-        <hr style="border: 0; border-top: 1px solid #ecf0f1; margin: 30px 0;">
-
-        <!-- БЛОК ИИ -->
-        <div class="box">
-            <h3>Загрузить чертеж (ИИ)</h3>
-            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf" style="margin-bottom: 10px;">
-            <button class="btn-dark" onclick="analyzeImage()" style="width: 100%;">Распознать чертеж</button>
-            <div class="loader" id="loader">Изучаю... ⏳</div>
-            <div id="aiResult"></div>
-        </div>
-
-        <div class="box">
-            <h3>ИИ-Ассистент</h3>
-            <div id="chatHistory"></div>
-            <div class="chat-input-group">
-                <input type="text" id="chatInput" placeholder="Ваш вопрос...">
-                <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Ответить</button>
-            </div>
-        </div>
     </div>
 
-    <!-- СКРИПТЫ -->
     <script>
         let conversationHistory = [];
         let currentRoofColor = 0x3b2821;
@@ -500,7 +473,7 @@
             const brandSel = document.getElementById('roofBrand');
             brandSel.innerHTML = '';
             if (matType === 'metal') {
-                brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил (Фактум)</option>';
+                brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
             } else {
                 brandSel.innerHTML = '<option value="faracs">Faracs (Шестигранник)</option>';
             }
@@ -549,7 +522,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- МАТЕРИАЛЫ КРЫШИ (НОВЫЙ ГЕНЕРАТОР КАРТЫ НОРМАЛЕЙ) ---
+        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР КАРТЫ НОРМАЛЕЙ) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
@@ -559,11 +532,15 @@
                 side: THREE.DoubleSide
             };
 
+            // Физические размеры одной плитки в метрах
+            // Металлочерепица: Рабочая ширина 1100мм = 6 волн -> 1 волна = 183.3 мм. Шаг = 350 мм.
+            let tileW = (matType === 'soft') ? 1.0 : 0.1833;
+            let tileH = (matType === 'soft') ? 0.32 : 0.350;
+
             if (matType === 'metal') {
-                matParams.roughness = 0.5; // Настоящий матово-глянцевый металл
+                matParams.roughness = 0.5;
                 matParams.metalness = 0.3;
 
-                // Создаем высокоточную карту нормалей (Normal Map) вместо бампа
                 const canvas = document.createElement('canvas');
                 canvas.width = 512; canvas.height = 512;
                 const ctx = canvas.getContext('2d');
@@ -574,19 +551,18 @@
                     let py = y / 512;
                     let dy = 0;
 
+                    // НАСТРОЙКА СТУПЕНЬКИ
                     if (brand === 'classic') {
-                        // Grand Line Classic: Ровный скат, затем мягкая ступенька вниз
                         if (py < 0.85) { dy = 0.15; }
                         else {
                             let dropP = (py - 0.85) / 0.15;
-                            dy = -Math.sin(dropP * Math.PI) * 2.5; // Плавная светотень на ступеньке
+                            dy = -Math.sin(dropP * Math.PI) * 2.0;
                         }
                     } else {
-                        // Megasteel: Чуть другой профиль
-                        if (py < 0.80) { dy = 0.20; }
+                        if (py < 0.82) { dy = 0.15; }
                         else {
-                            let dropP = (py - 0.80) / 0.20;
-                            dy = -Math.sin(dropP * Math.PI) * 3.0;
+                            let dropP = (py - 0.82) / 0.18;
+                            dy = -Math.sin(dropP * Math.PI) * 3.0; // Более резкая тень
                         }
                     }
 
@@ -594,17 +570,17 @@
                         let px = x / 512;
                         let dx = 0;
 
+                        // НАСТРОЙКА ВОЛНЫ
                         if (brand === 'classic') {
-                            // Широкая, реалистичная S-образная волна
-                            dx = Math.sin(px * Math.PI * 2) * 0.8;
+                            dx = Math.sin(px * Math.PI * 2) * 0.8; // Плавная S-волна
                         } else {
-                            dx = Math.sin(px * Math.PI * 2) * 1.2;
+                            dx = (Math.sin(px * Math.PI * 2) + Math.sin(px * Math.PI * 4) * 0.25) * 1.1; // Асимметричный, резкий гребень
                         }
 
-                        // Вектор нормали (объем)
+                        // Вектор нормали
                         let len = Math.sqrt(dx * dx + dy * dy + 1.0);
                         let r = (dx / len) * 127.5 + 127.5;
-                        let g = (-dy / len) * 127.5 + 127.5; // В Three.js Y направлен вверх
+                        let g = (-dy / len) * 127.5 + 127.5;
                         let b = (1.0 / len) * 127.5 + 127.5;
 
                         let idx = (y * 512 + x) * 4;
@@ -616,10 +592,10 @@
                 const normTex = new THREE.CanvasTexture(canvas);
                 normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
                 matParams.normalMap = normTex;
-                matParams.normalScale = new THREE.Vector2(1.0, 1.0); // Сила рельефа
+                matParams.normalScale = new THREE.Vector2(1.0, 1.0);
 
             } else {
-                // Мягкая кровля (Faracs)
+                // Мягкая кровля
                 matParams.roughness = 0.9; matParams.metalness = 0.0;
                 const canvas = document.createElement('canvas');
                 canvas.width = 512; canvas.height = 512;
@@ -640,7 +616,9 @@
                 matParams.map = mapTex;
             }
 
-            return new THREE.MeshStandardMaterial(matParams);
+            let material = new THREE.MeshStandardMaterial(matParams);
+            material.userData = { tileW, tileH };
+            return material;
         }
 
         function createRoofPlane(p1, p2, p3, p4, material, matType) {
@@ -650,9 +628,8 @@
             const width = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
             const height = Math.hypot(p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]);
 
-            // Точные физические размеры:
-            let tileW = (matType === 'soft') ? 1.0 : 0.183; // 1 волна
-            let tileH = (matType === 'soft') ? 0.32 : 0.35; // 1 ступенька
+            let tileW = material.userData.tileW;
+            let tileH = material.userData.tileH;
 
             const u = width / tileW;
             const v = height / tileH;
@@ -747,7 +724,6 @@
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
                 renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
 
-                // Включаем мягкие и качественные тени
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
@@ -755,21 +731,18 @@
                 if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
                 controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
-                // ИСПРАВЛЕННЫЙ СВЕТ: Убрал нижний фонарь, добавил реалистичный свет
-                scene.add(new THREE.AmbientLight(0xffffff, 0.4)); // Мягкий базовый свет
-
-                // Небесный/земной свет (устраняет черные дыры под крышей без артефактов)
+                // СВЕТ
+                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
                 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
                 hemiLight.position.set(0, 50, 0);
                 scene.add(hemiLight);
 
-                // Главное солнце (рисует тени)
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 dirLight.position.set(30, 60, 40);
                 dirLight.castShadow = true;
-                dirLight.shadow.mapSize.width = 2048; // Высокое качество теней
+                dirLight.shadow.mapSize.width = 2048;
                 dirLight.shadow.mapSize.height = 2048;
-                dirLight.shadow.bias = -0.0005; // КРИТИЧЕСКИ ВАЖНО: убирает "полосы" на стенах
+                dirLight.shadow.bias = -0.0005;
 
                 const d = 25;
                 dirLight.shadow.camera.left = -d;
