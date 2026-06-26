@@ -370,33 +370,20 @@
                 <label>Покрытие крыши:</label>
                 <select id="materialType" onchange="updateBrandMenu()">
                     <option value="metal" selected>Металлочерепица</option>
-                    <option value="soft">Гибкая черепица (Мягкая)</option>
+                    <option value="soft">Гибкая черепица (Faracs)</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Бренд / Коллекция:</label>
-                <select id="roofBrand" onchange="render3D()">
-                    <option value="classic">Grand Line Classic</option>
-                    <option value="megasteel">Мегастил</option>
+                <label>Серия / Коллекция:</label>
+                <select id="roofBrand" onchange="updateColorMenu()">
                 </select>
             </div>
 
-            <label style="font-weight: 600; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; display: block;">Цвет
-                по RAL:</label>
-            <div class="color-palette">
-                <div class="color-swatch" style="background-color: #3b2821;" onclick="changeColor(0x3b2821)"
-                    title="RAL 8017 (Шоколад)"></div>
-                <div class="color-swatch" style="background-color: #9ea0a1;" onclick="changeColor(0x9ea0a1)"
-                    title="RAL 7004 (Сигнальный серый)"></div>
-                <div class="color-swatch" style="background-color: #474a51;" onclick="changeColor(0x474a51)"
-                    title="RAL 7024 (Графит)"></div>
-                <div class="color-swatch" style="background-color: #5e2028;" onclick="changeColor(0x5e2028)"
-                    title="RAL 3005 (Красное вино)"></div>
-                <div class="color-swatch" style="background-color: #2a3a32;" onclick="changeColor(0x2a3a32)"
-                    title="RAL 6005 (Зеленый мох)"></div>
-                <input type="color" id="customColor" value="#3b2821" oninput="changeColor(this.value)"
-                    title="Свой цвет">
+            <label
+                style="font-weight: 600; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; display: block;">Доступные
+                цвета:</label>
+            <div class="color-palette" id="colorPalette">
             </div>
         </div>
 
@@ -453,6 +440,31 @@
         let conversationHistory = [];
         let currentRoofColor = 0x3b2821;
 
+        // --- БАЗЫ ДАННЫХ ПО ЦВЕТАМ И КОЛЛЕКЦИЯМ ---
+        const colorDB = {
+            metal: [
+                { name: 'RAL 8017 (Шоколад)', hex: '#3b2821' },
+                { name: 'RAL 7004 (Сигнальный серый)', hex: '#9ea0a1' },
+                { name: 'RAL 7024 (Графит)', hex: '#474a51' },
+                { name: 'RAL 3005 (Красное вино)', hex: '#5e2028' },
+                { name: 'RAL 6005 (Зеленый мох)', hex: '#2a3a32' }
+            ],
+            soft_anthracite: { name: 'Антрацит', hex: '#2b2c2f' },
+            soft_mocca: { name: 'Мокка', hex: '#4a3525' },
+            soft_chestnut: { name: 'Каштан', hex: '#5c3126' },
+            soft_granite: { name: 'Гранит', hex: '#5e6063' },
+            soft_terracotta: { name: 'Терракота', hex: '#8c422b' }
+        };
+
+        const softCollections = {
+            'vision': { name: 'Elite - VISION (Сланец)', colors: ['soft_anthracite', 'soft_mocca'] },
+            'twx': { name: 'Premium - TW\'X (Двухслойная)', colors: ['soft_anthracite', 'soft_mocca', 'soft_chestnut', 'soft_granite'] },
+            'hexa': { name: 'Classic - HEXA (Соты)', colors: ['soft_anthracite', 'soft_mocca', 'soft_terracotta'] },
+            'tetra': { name: 'Classic - TETRA (Кирпичики)', colors: ['soft_anthracite', 'soft_mocca', 'soft_granite'] },
+            'lite_hexa': { name: 'Classic LITE - HEXA', colors: ['soft_anthracite', 'soft_mocca'] },
+            'lite_tetra': { name: 'Classic LITE - TETRA', colors: ['soft_anthracite', 'soft_mocca'] }
+        };
+
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
             if (camera && renderer && labelRenderer) {
@@ -463,20 +475,54 @@
             }
         });
 
-        function changeColor(colorValue) {
-            currentRoofColor = (typeof colorValue === 'string') ? parseInt(colorValue.replace('#', '0x')) : colorValue;
-            render3D();
-        }
-
+        // --- ЛОГИКА ДИНАМИЧЕСКИХ МЕНЮ ---
         function updateBrandMenu() {
             const matType = document.getElementById('materialType').value;
             const brandSel = document.getElementById('roofBrand');
             brandSel.innerHTML = '';
+
             if (matType === 'metal') {
                 brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
             } else {
-                brandSel.innerHTML = '<option value="faracs">Faracs (Шестигранник)</option>';
+                for (let key in softCollections) {
+                    brandSel.innerHTML += `<option value="${key}">${softCollections[key].name}</option>`;
+                }
             }
+            updateColorMenu(); // Автоматически обновит цвета под выбранный бренд
+        }
+
+        function updateColorMenu() {
+            const matType = document.getElementById('materialType').value;
+            const brand = document.getElementById('roofBrand').value;
+            const palette = document.getElementById('colorPalette');
+            palette.innerHTML = '';
+
+            let activeColors = [];
+            if (matType === 'metal') {
+                activeColors = colorDB.metal;
+            } else {
+                if (softCollections[brand]) {
+                    activeColors = softCollections[brand].colors.map(c => colorDB[c]);
+                }
+            }
+
+            activeColors.forEach((c) => {
+                palette.innerHTML += `<div class="color-swatch" style="background-color: ${c.hex};" onclick="changeColor('${c.hex}')" title="${c.name}"></div>`;
+            });
+
+            if (matType === 'metal') {
+                palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`;
+            }
+
+            if (activeColors.length > 0) {
+                changeColor(activeColors[0].hex); // Запускает render3D
+            } else {
+                render3D();
+            }
+        }
+
+        function changeColor(colorValue) {
+            currentRoofColor = (typeof colorValue === 'string') ? parseInt(colorValue.replace('#', '0x')) : colorValue;
             render3D();
         }
 
@@ -498,7 +544,7 @@
             }
         }
 
-        window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); render3D(); };
+        window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
 
         function doMath() {
             const rType = document.getElementById('roofType').value;
@@ -522,7 +568,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- МАТЕРИАЛЫ КРЫШИ (ГЕНЕРАТОР КАРТЫ НОРМАЛЕЙ) ---
+        // --- МАТЕРИАЛЫ КРЫШИ (НОРМАЛИ + FARACS ПРОЦЕДУРНЫЕ ТЕКСТУРЫ) ---
         function createRoofMaterial() {
             const matType = document.getElementById('materialType').value;
             const brand = document.getElementById('roofBrand').value;
@@ -532,10 +578,8 @@
                 side: THREE.DoubleSide
             };
 
-            // Физические размеры одной плитки в метрах
-            // Металлочерепица: Рабочая ширина 1100мм = 6 волн -> 1 волна = 183.3 мм. Шаг = 350 мм.
             let tileW = (matType === 'soft') ? 1.0 : 0.1833;
-            let tileH = (matType === 'soft') ? 0.32 : 0.350;
+            let tileH = (matType === 'soft') ? 0.33 : 0.350;
 
             if (matType === 'metal') {
                 matParams.roughness = 0.5;
@@ -550,8 +594,6 @@
                 for (let y = 0; y < 512; y++) {
                     let py = y / 512;
                     let dy = 0;
-
-                    // НАСТРОЙКА СТУПЕНЬКИ
                     if (brand === 'classic') {
                         if (py < 0.85) { dy = 0.15; }
                         else {
@@ -562,22 +604,19 @@
                         if (py < 0.82) { dy = 0.15; }
                         else {
                             let dropP = (py - 0.82) / 0.18;
-                            dy = -Math.sin(dropP * Math.PI) * 3.0; // Более резкая тень
+                            dy = -Math.sin(dropP * Math.PI) * 3.0;
                         }
                     }
 
                     for (let x = 0; x < 512; x++) {
                         let px = x / 512;
                         let dx = 0;
-
-                        // НАСТРОЙКА ВОЛНЫ
                         if (brand === 'classic') {
-                            dx = Math.sin(px * Math.PI * 2) * 0.8; // Плавная S-волна
+                            dx = Math.sin(px * Math.PI * 2) * 0.8;
                         } else {
-                            dx = (Math.sin(px * Math.PI * 2) + Math.sin(px * Math.PI * 4) * 0.25) * 1.1; // Асимметричный, резкий гребень
+                            dx = (Math.sin(px * Math.PI * 2) + Math.sin(px * Math.PI * 4) * 0.25) * 1.1;
                         }
 
-                        // Вектор нормали
                         let len = Math.sqrt(dx * dx + dy * dy + 1.0);
                         let r = (dx / len) * 127.5 + 127.5;
                         let g = (-dy / len) * 127.5 + 127.5;
@@ -588,29 +627,108 @@
                     }
                 }
                 ctx.putImageData(imgData, 0, 0);
-
                 const normTex = new THREE.CanvasTexture(canvas);
                 normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
                 matParams.normalMap = normTex;
                 matParams.normalScale = new THREE.Vector2(1.0, 1.0);
 
             } else {
-                // Мягкая кровля
-                matParams.roughness = 0.9; matParams.metalness = 0.0;
+                // МЯГКАЯ КРОВЛЯ FARACS (ГЕНЕРАЦИЯ УЗОРОВ)
+                matParams.roughness = 0.95; matParams.metalness = 0.0;
                 const canvas = document.createElement('canvas');
                 canvas.width = 512; canvas.height = 512;
                 const ctx = canvas.getContext('2d');
+
+                // Базовый цвет
                 ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0');
                 ctx.fillRect(0, 0, 512, 512);
-                ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
-                let w = 128, h = 64;
-                for (let y = 0; y <= 512; y += h) {
-                    let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
-                    for (let x = -w; x <= 512; x += w) {
-                        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.15})`;
-                        ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset + w / 2, y + h / 2); ctx.lineTo(x + offset + w, y); ctx.lineTo(x + offset + w, y + h); ctx.lineTo(x + offset, y + h); ctx.fill(); ctx.stroke();
+
+                // Шум для имитации базальтовой крошки
+                const imgData = ctx.getImageData(0, 0, 512, 512);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    let noise = (Math.random() - 0.5) * 35;
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+                    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctx.lineWidth = 3;
+
+                // Отрисовка конкретной формы лепестков Faracs
+                if (brand.includes('hexa')) {
+                    // HEXA - Соты (Шестигранники)
+                    let w = 128, h = 64;
+                    for (let y = 0; y <= 512; y += h) {
+                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
+                        for (let x = -w; x <= 512; x += w) {
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.25})`;
+                            ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset + w / 2, y + h / 2); ctx.lineTo(x + offset + w, y); ctx.lineTo(x + offset + w, y + h); ctx.lineTo(x + offset, y + h); ctx.fill(); ctx.stroke();
+                        }
+                    }
+                } else if (brand.includes('tetra')) {
+                    // TETRA - Кирпичики (Прямоугольники 3-tab)
+                    let w = 128, h = 64;
+                    for (let y = 0; y <= 512; y += h) {
+                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
+                        for (let x = -w; x <= 512; x += w) {
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.2})`;
+                            ctx.fillRect(x + offset, y, w, h);
+                            ctx.strokeRect(x + offset, y, w, h);
+                            // Фаска
+                            let grad = ctx.createLinearGradient(0, y, 0, y + h);
+                            grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+                            grad.addColorStop(0.2, 'rgba(0,0,0,0)');
+                            ctx.fillStyle = grad;
+                            ctx.fillRect(x + offset, y, w, h);
+                        }
+                    }
+                } else if (brand === 'twx') {
+                    // PREMIUM TW'X - Двухслойная (Ламинированная / Драконий зуб)
+                    let h = 85;
+                    for (let y = 0; y <= 512; y += h) {
+                        let x = 0;
+                        while (x < 512) {
+                            let w = 80 + Math.random() * 80;
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.3})`;
+                            ctx.fillRect(x, y, w, h);
+                            ctx.strokeRect(x, y, w, h);
+                            if (Math.random() > 0.4) {
+                                let tabW = w * (0.4 + Math.random() * 0.4);
+                                let tabX = x + (w - tabW) / 2;
+                                ctx.fillStyle = 'rgba(0,0,0,0.6)'; // Тень от второго слоя
+                                ctx.fillRect(tabX, y + h / 2, tabW, h / 2);
+                                ctx.fillStyle = `rgba(255,255,255, ${Math.random() * 0.15})`; // Светлый край
+                                ctx.fillRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2);
+                                ctx.strokeRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2);
+                            }
+                            x += w;
+                        }
+                    }
+                } else if (brand === 'vision') {
+                    // ELITE VISION - Нестандартные прямоугольники с визуальным объемом (эффект сланца)
+                    let h = 85;
+                    for (let y = 0; y <= 512; y += h) {
+                        let x = -((y / h) % 2) * 40;
+                        while (x < 512) {
+                            let w = 90 + Math.random() * 40;
+                            let grad = ctx.createLinearGradient(x, y, x + w, y + h);
+                            grad.addColorStop(0, `rgba(255,255,255,0.2)`);
+                            grad.addColorStop(1, `rgba(0,0,0,0.4)`);
+                            ctx.fillStyle = grad;
+                            ctx.fillRect(x, y, w, h);
+                            ctx.strokeRect(x, y, w, h);
+                            // Имитация глубокой фаски
+                            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                            ctx.fillRect(x, y + h - 5, w, 5);
+                            ctx.fillRect(x + w - 5, y, 5, h);
+                            x += w;
+                        }
                     }
                 }
+
                 const mapTex = new THREE.CanvasTexture(canvas);
                 mapTex.wrapS = THREE.RepeatWrapping; mapTex.wrapT = THREE.RepeatWrapping;
                 matParams.map = mapTex;
@@ -731,7 +849,6 @@
                 if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
                 controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
-                // СВЕТ
                 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
                 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
                 hemiLight.position.set(0, 50, 0);
