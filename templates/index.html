@@ -556,7 +556,6 @@
             return material;
         }
 
-        // --- СОЗДАНИЕ ГЕОМЕТРИИ КРЫШИ ---
         function createRoofQuad(p1, p2, p3, p4, material) {
             const geo = new THREE.BufferGeometry();
             const vertices = new Float32Array([...p1, ...p2, ...p3, ...p1, ...p3, ...p4]);
@@ -579,7 +578,6 @@
             let mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
         }
 
-        // --- СОФИТЫ ПО ПЕРИМЕТРУ ---
         function createSoffitTexture(type, colorHex) {
             const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
             ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
@@ -590,7 +588,6 @@
             const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; return tex;
         }
 
-        // --- ВОДОСТОК С ЗАГЛУШКАМИ ---
         function createGutter(length) {
             let shape = new THREE.Shape();
             shape.absarc(0, 0, 0.07, 0, Math.PI, true);
@@ -602,25 +599,35 @@
             return geo;
         }
 
-        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ЗАГЛУШЕК (теперь рисует сплошной круглый щиток)
+        // РИСУЕМ ПОЛНЫЕ, СПЛОШНЫЕ ЗАГЛУШКИ
         function createEndCap() {
-            let shape = new THREE.Shape();
-            // Создаем полный полукруг без внутренней полости
-            shape.absarc(0, 0, 0.072, 0, Math.PI, true);
-            shape.lineTo(0.072, 0);
-            let geo = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false, curveSegments: 8 });
-            // Смещаем, чтобы она закрывала торец
-            geo.translate(0, 0, -0.01);
+            const capShape = new THREE.Shape();
+            capShape.absarc(0, 0, 0.072, 0, Math.PI, true);
+            capShape.lineTo(0.072, 0);
+            let geo = new THREE.ShapeGeometry(capShape);
             return geo;
         }
 
-        function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat) {
+        function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat, hasCapL = true, hasCapR = true) {
             if (edgeLength <= 0) return;
-            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat); gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(gutter);
+            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
+            gutter.position.set(0, houseHeight - 0.05, zGutter);
+            gutter.rotation.y = Math.PI / 2;
+            gutter.castShadow = true;
+            objectsGroup.add(gutter);
 
-            // ВЕРНУЛ ЗАГЛУШКИ
-            let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; objectsGroup.add(capL);
-            let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; objectsGroup.add(capR);
+            if (hasCapL) {
+                let capL = new THREE.Mesh(createEndCap(), drainMat);
+                capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter);
+                capL.rotation.y = Math.PI / 2;
+                objectsGroup.add(capL);
+            }
+            if (hasCapR) {
+                let capR = new THREE.Mesh(createEndCap(), drainMat);
+                capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter);
+                capR.rotation.y = Math.PI / 2;
+                objectsGroup.add(capR);
+            }
 
             if (nOutlets > 0) {
                 let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
@@ -683,13 +690,14 @@
             const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
+            const matType = document.getElementById('materialType').value;
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
             const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3 });
 
             let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
-            let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.BackSide, roughness: 0.8 });
+            let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
             soffitMat.userData = { tileW: 0.3, tileH: 0.3 };
 
             const createWallQuad = (v1, v2, v3, v4) => {
@@ -702,7 +710,6 @@
             let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2;
             let y0 = houseHeight;
 
-            // ОТРИСОВКА КРЫШИ
             if (vars.rType === 'gable') {
                 let h = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
 
@@ -805,7 +812,21 @@
                 createWallQuad([vars.L / 2, 0, vars.W / 2], [vars.L / 2, 0, -vars.W / 2], [vars.L / 2, houseHeight, -vars.W / 2], [vars.L / 2, houseHeight, vars.W / 2]);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -Lr / 2 - 0.1, houseHeight, 0); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H_roof + 0.5, 0); if (vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -Lr / 4, houseHeight + H_roof / 2 + 0.5, Wr / 4);
-                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat); addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat); let gLeft = new THREE.Mesh(createGutter(Wr), drainMat); gLeft.position.set(-Lr / 2, houseHeight - 0.05, 0); objectsGroup.add(gLeft); let gRight = new THREE.Mesh(createGutter(Wr), drainMat); gRight.position.set(Lr / 2, houseHeight - 0.05, 0); objectsGroup.add(gRight); }
+                if (Lr > 0) {
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat, false, false);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat, false, false);
+
+                    let gLeft = new THREE.Mesh(createGutter(Wr), drainMat); gLeft.position.set(-Lr / 2, houseHeight - 0.05, 0); gLeft.castShadow = true; objectsGroup.add(gLeft);
+                    let gRight = new THREE.Mesh(createGutter(Wr), drainMat); gRight.position.set(Lr / 2, houseHeight - 0.05, 0); gRight.castShadow = true; objectsGroup.add(gRight);
+
+                    const addCorner = (x, z) => {
+                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
+                        corner.position.set(x, houseHeight - 0.05 - 0.0375, z);
+                        corner.castShadow = true;
+                        objectsGroup.add(corner);
+                    };
+                    addCorner(-Lr / 2, Wr / 2); addCorner(Lr / 2, Wr / 2); addCorner(-Lr / 2, -Wr / 2); addCorner(Lr / 2, -Wr / 2);
+                }
 
             } else if (vars.rType === 'multi_gable') {
                 const box1Geo = new THREE.BoxGeometry(vars.L, houseHeight, vars.W * 0.5); const box1 = new THREE.Mesh(box1Geo, wallMat); box1.position.y = houseHeight / 2; box1.castShadow = true; box1.receiveShadow = true; objectsGroup.add(box1);
@@ -834,10 +855,40 @@
                 let f3 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), wallMat); f3.position.set(0, houseHeight, vars.W / 2); f3.rotation.y = 0; f3.castShadow = true; objectsGroup.add(f3);
                 let f4 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), wallMat); f4.position.set(0, houseHeight, -vars.W / 2); f4.rotation.y = Math.PI; f4.castShadow = true; objectsGroup.add(f4);
 
+                const createWallQuad = (v1, v2, v3, v4) => {
+                    const geo = new THREE.BufferGeometry();
+                    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...v1, ...v2, ...v3, ...v1, ...v3, ...v4]), 3));
+                    geo.computeVertexNormals();
+                    let mesh = new THREE.Mesh(geo, wallMat); mesh.castShadow = true; mesh.receiveShadow = true; objectsGroup.add(mesh);
+                };
+
                 createWallQuad([-vars.L / 2, houseHeight, D / 2], [vars.L / 2, houseHeight, D / 2], [vars.L / 2, houseHeight + drop, D / 2], [-vars.L / 2, houseHeight + drop, D / 2]);
                 createWallQuad([-vars.L / 2, houseHeight, -D / 2], [vars.L / 2, houseHeight, -D / 2], [vars.L / 2, houseHeight + drop, -D / 2], [-vars.L / 2, houseHeight + drop, -D / 2]);
                 createWallQuad([D / 2, houseHeight, -vars.W / 2], [D / 2, houseHeight, vars.W / 2], [D / 2, houseHeight + drop, vars.W / 2], [D / 2, houseHeight + drop, -vars.W / 2]);
                 createWallQuad([-D / 2, houseHeight, -vars.W / 2], [-D / 2, houseHeight, vars.W / 2], [-D / 2, houseHeight + drop, vars.W / 2], [-D / 2, houseHeight + drop, -vars.W / 2]);
+
+                if (Dr > 0) {
+                    let signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+                    signs.forEach(([sx, sz]) => {
+                        let lenX = (Lr - Dr) / 2; let cx = sx * (Dr / 2 + lenX / 2); let cz = sz * Dr / 2;
+                        let gX = new THREE.Mesh(createGutter(lenX), drainMat); gX.position.set(cx, houseHeight - 0.05, cz); gX.rotation.y = Math.PI / 2; gX.castShadow = true; objectsGroup.add(gX);
+
+                        let capShape = new THREE.Shape(); capShape.absarc(0, 0, 0.072, 0, Math.PI, true); capShape.lineTo(0.072, 0);
+                        let capX = new THREE.Mesh(new THREE.ShapeGeometry(capShape), drainMat);
+                        capX.position.set(sx * Lr / 2, houseHeight - 0.05, cz); capX.rotation.y = Math.PI / 2; objectsGroup.add(capX);
+
+                        let lenZ = (Wr - Dr) / 2; let px = sx * Dr / 2; let pz = sz * (Dr / 2 + lenZ / 2);
+                        let gZ = new THREE.Mesh(createGutter(lenZ), drainMat); gZ.position.set(px, houseHeight - 0.05, pz); gZ.rotation.y = 0; gZ.castShadow = true; objectsGroup.add(gZ);
+
+                        let capZ = new THREE.Mesh(new THREE.ShapeGeometry(capShape), drainMat);
+                        capZ.position.set(px, houseHeight - 0.05, sz * Wr / 2); capZ.rotation.y = 0; objectsGroup.add(capZ);
+
+                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
+                        corner.position.set(sx * Dr / 2, houseHeight - 0.05 - 0.0375, sz * Dr / 2);
+                        corner.castShadow = true;
+                        objectsGroup.add(corner);
+                    });
+                }
 
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H_mg + 0.5, 0);
             }
