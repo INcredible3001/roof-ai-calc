@@ -247,7 +247,6 @@
                     <option value="gable" selected>Двухскатная (Классика)</option>
                     <option value="hip">Вальмовая (Сложная)</option>
                     <option value="tent">Шатровая (Пирамида)</option>
-                    <option value="multi_gable">Многощипцовая (Крест)</option>
                 </select>
             </div>
 
@@ -375,6 +374,7 @@
             const matType = document.getElementById('materialType').value;
             const brandSel = document.getElementById('roofBrand');
             brandSel.innerHTML = '';
+
             if (matType === 'metal') {
                 brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
             } else {
@@ -390,15 +390,26 @@
             const brand = document.getElementById('roofBrand').value;
             const palette = document.getElementById('colorPalette');
             palette.innerHTML = '';
+
             let activeColors = [];
-            if (matType === 'metal') { activeColors = colorDB.metal; }
-            else { if (softCollections[brand]) { activeColors = softCollections[brand].colors.map(c => colorDB[c]); } }
+            if (matType === 'metal') {
+                activeColors = colorDB.metal;
+            } else {
+                if (softCollections[brand]) {
+                    activeColors = softCollections[brand].colors.map(c => colorDB[c]);
+                }
+            }
 
             activeColors.forEach((c) => {
                 palette.innerHTML += `<div class="color-swatch" style="background-color: ${c.hex};" onclick="changeColor('${c.hex}')" title="${c.name}"></div>`;
             });
-            if (matType === 'metal') { palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`; }
-            if (activeColors.length > 0) { changeColor(activeColors[0].hex); } else { render3D(); }
+
+            if (matType === 'metal') {
+                palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`;
+            }
+
+            if (activeColors.length > 0) { changeColor(activeColors[0].hex); }
+            else { render3D(); }
         }
 
         function changeColor(colorValue) {
@@ -456,6 +467,7 @@
 
             if (matType === 'metal') {
                 matParams.roughness = 0.5; matParams.metalness = 0.3;
+
                 const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
                 const imgData = ctx.createImageData(512, 512); const data = imgData.data;
 
@@ -479,12 +491,14 @@
                 matParams.roughness = 0.95; matParams.metalness = 0.0;
                 const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0'); ctx.fillRect(0, 0, 512, 512);
+
                 const imgData = ctx.getImageData(0, 0, 512, 512); const data = imgData.data;
                 for (let i = 0; i < data.length; i += 4) {
                     let noise = (Math.random() - 0.5) * 35;
                     data[i] = Math.min(255, Math.max(0, data[i] + noise)); data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
                 }
                 ctx.putImageData(imgData, 0, 0);
+
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
                 if (brand.includes('hexa')) {
                     let w = 128, h = 64;
@@ -536,7 +550,9 @@
                 const mapTex = new THREE.CanvasTexture(canvas); mapTex.wrapS = THREE.RepeatWrapping; mapTex.wrapT = THREE.RepeatWrapping; matParams.map = mapTex;
             }
 
-            let material = new THREE.MeshStandardMaterial(matParams); material.userData = { tileW, tileH }; return material;
+            let material = new THREE.MeshStandardMaterial(matParams);
+            material.userData = { tileW, tileH };
+            return material;
         }
 
         function createRoofQuad(p1, p2, p3, p4, material) {
@@ -572,16 +588,25 @@
         }
 
         function createGutter(length) {
-            let shape = new THREE.Shape(); shape.absarc(0, 0, 0.07, 0, Math.PI, true); shape.lineTo(-0.06, 0); shape.absarc(0, 0, 0.06, Math.PI, 0, false); shape.lineTo(0.07, 0);
-            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 }); geo.translate(0, 0, -length / 2); return geo;
+            let shape = new THREE.Shape();
+            shape.absarc(0, 0, 0.07, 0, Math.PI, true);
+            shape.lineTo(-0.06, 0);
+            shape.absarc(0, 0, 0.06, Math.PI, 0, false);
+            shape.lineTo(0.07, 0);
+            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 });
+            geo.translate(0, 0, -length / 2);
+            return geo;
         }
 
         function createEndCap() {
-            const capShape = new THREE.Shape(); capShape.absarc(0, 0, 0.072, 0, Math.PI, true); capShape.lineTo(0.072, 0);
-            let geo = new THREE.ExtrudeGeometry(capShape, { depth: 0.01, bevelEnabled: false, curveSegments: 8 }); geo.translate(0, 0, -0.005); return geo;
+            const capShape = new THREE.Shape();
+            capShape.absarc(0, 0, 0.072, 0, Math.PI, true);
+            capShape.lineTo(0.072, 0);
+            let geo = new THREE.ExtrudeGeometry(capShape, { depth: 0.01, bevelEnabled: false, curveSegments: 8 });
+            geo.translate(0, 0, -0.005);
+            return geo;
         }
 
-        // --- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ВОДОСТОКА (ИСПОЛЬЗУЕТСЯ НА ВСЕХ КРЫШАХ) ---
         function createGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat, hasCapL = true, hasCapR = true) {
             let group = new THREE.Group();
             if (edgeLength <= 0) return group;
@@ -652,6 +677,7 @@
             const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
+            const matType = document.getElementById('materialType').value;
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
@@ -782,30 +808,33 @@
                 objectsGroup.add(r2);
                 if (soffit > 0) { let sof2 = r2.clone(); sof2.material = soffitMat; sof2.position.y -= 0.03; objectsGroup.add(sof2); }
 
-                // ИДЕАЛЬНЫЙ ФРОНТОН МНОГОЩИПЦОВОЙ (Без "протыкания" крыши белыми углами и без "ряби")
-                // Специальный материал без receiveShadow для чистых фасадов
+                // ИДЕАЛЬНЫЕ ФРОНТОНЫ БЕЗ РЯБИ (Отключено получение теней)
                 let fMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
                 let drop = soffit * Math.tan(vars.P1 * Math.PI / 180);
                 const gableShape = new THREE.Shape();
-                gableShape.moveTo(-D / 2, 0);
-                gableShape.lineTo(D / 2, 0);
-                gableShape.lineTo(D / 2, drop);
-                // Важное исправление: линия идет только до H_mg, а не до H_mg + drop!
-                gableShape.lineTo(0, H_mg);
-                gableShape.lineTo(-D / 2, drop);
+                gableShape.moveTo(-D / 2, houseHeight);
+                gableShape.lineTo(D / 2, houseHeight);
+                gableShape.lineTo(D / 2, houseHeight + drop);
+                gableShape.lineTo(0, houseHeight + H_mg);
+                gableShape.lineTo(-D / 2, houseHeight + drop);
                 gableShape.closePath();
 
-                let f1 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f1.position.set(vars.L / 2, houseHeight, 0); f1.rotation.y = Math.PI / 2; f1.castShadow = true; objectsGroup.add(f1);
-                let f2 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f2.position.set(-vars.L / 2, houseHeight, 0); f2.rotation.y = -Math.PI / 2; f2.castShadow = true; objectsGroup.add(f2);
-                let f3 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f3.position.set(0, houseHeight, vars.W / 2); f3.rotation.y = 0; f3.castShadow = true; objectsGroup.add(f3);
-                let f4 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f4.position.set(0, houseHeight, -vars.W / 2); f4.rotation.y = Math.PI; f4.castShadow = true; objectsGroup.add(f4);
+                let f1 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f1.position.set(vars.L / 2, 0, 0); f1.rotation.y = Math.PI / 2; objectsGroup.add(f1);
+                let f2 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f2.position.set(-vars.L / 2, 0, 0); f2.rotation.y = -Math.PI / 2; objectsGroup.add(f2);
+                let f3 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f3.position.set(0, 0, vars.W / 2); f3.rotation.y = 0; objectsGroup.add(f3);
+                let f4 = new THREE.Mesh(new THREE.ShapeGeometry(gableShape), fMat); f4.position.set(0, 0, -vars.W / 2); f4.rotation.y = Math.PI; objectsGroup.add(f4);
 
                 createWallQuad([-vars.L / 2, 0, D / 2], [vars.L / 2, 0, D / 2], [vars.L / 2, houseHeight, D / 2], [-vars.L / 2, houseHeight, D / 2]);
                 createWallQuad([-vars.L / 2, 0, -D / 2], [vars.L / 2, 0, -D / 2], [vars.L / 2, houseHeight, -D / 2], [-vars.L / 2, houseHeight, -D / 2]);
                 createWallQuad([D / 2, 0, -vars.W / 2], [D / 2, 0, vars.W / 2], [D / 2, houseHeight, vars.W / 2], [D / 2, houseHeight, -vars.W / 2]);
                 createWallQuad([-D / 2, 0, -vars.W / 2], [-D / 2, 0, vars.W / 2], [-D / 2, houseHeight, vars.W / 2], [-D / 2, houseHeight, -vars.W / 2]);
 
-                // ВОДОСТОК (8 ветвей со стояками на краях)
+                createWallQuad([-vars.L / 2, houseHeight, D / 2], [vars.L / 2, houseHeight, D / 2], [vars.L / 2, houseHeight + drop, D / 2], [-vars.L / 2, houseHeight + drop, D / 2]);
+                createWallQuad([-vars.L / 2, houseHeight, -D / 2], [vars.L / 2, houseHeight, -D / 2], [vars.L / 2, houseHeight + drop, -D / 2], [-vars.L / 2, houseHeight + drop, -D / 2]);
+                createWallQuad([D / 2, houseHeight, -vars.W / 2], [D / 2, houseHeight, vars.W / 2], [D / 2, houseHeight + drop, vars.W / 2], [D / 2, houseHeight + drop, -vars.W / 2]);
+                createWallQuad([-D / 2, houseHeight, -vars.W / 2], [-D / 2, houseHeight, vars.W / 2], [-D / 2, houseHeight + drop, vars.W / 2], [-D / 2, houseHeight + drop, -vars.W / 2]);
+
+                // ВОДОСТОК (Воссоздан с трубами на основе твоих требований)
                 if (Dr > 0) {
                     let wingL_X = (vars.L - D) / 2; let roofWingL_X = (Lr - Dr) / 2; let cx = (Dr / 2 + Lr / 2) / 2;
                     let g1 = createGutterSystem(roofWingL_X, wingL_X, houseHeight, Dr / 2, D / 2 + 0.002, 1, Math.ceil(nOutlets / 8), drainMat, false, true); g1.position.x = cx; objectsGroup.add(g1);
@@ -819,7 +848,6 @@
                     let g7 = createGutterSystem(roofWingL_Z, wingL_Z, houseHeight, Dr / 2, D / 2 + 0.002, 1, Math.ceil(nOutlets / 8), drainMat, true, false); g7.rotation.y = -Math.PI / 2; g7.position.z = -cz; objectsGroup.add(g7);
                     let g8 = createGutterSystem(roofWingL_Z, wingL_Z, houseHeight, -Dr / 2, -D / 2 - 0.002, -1, Math.ceil(nOutlets / 8), drainMat, true, false); g8.rotation.y = -Math.PI / 2; g8.position.z = -cz; objectsGroup.add(g8);
 
-                    // Внутренние соединительные углы
                     let signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
                     signs.forEach(([sx, sz]) => {
                         let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
@@ -827,10 +855,10 @@
                     });
                 }
 
-                // ПОДПИСИ ЭЛЕМЕНТОВ КРЫШИ
+                // ПОДПИСИ
                 addLabel(objectsGroup, 'Конёк: ' + vars.L + ' м', 0, houseHeight + H_mg + 0.5, 0);
                 addLabel(objectsGroup, 'Карниз: ' + ((vars.L - D) / 2).toFixed(2) + ' м', -(vars.L + D) / 4, houseHeight, Dr / 2 + 0.2);
-                addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', vars.L / 2 + 0.1, houseHeight + H_mg / 2, 0);
+                addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', Lr / 2 + 0.1, houseHeight + H_mg / 2, 0);
                 addLabel(objectsGroup, 'Ендова: ' + (vars.Valleys / 4).toFixed(2) + ' м', -Dr / 4, houseHeight + H_mg / 2 + 0.5, Dr / 4);
             }
 
