@@ -588,6 +588,7 @@
             const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; return tex;
         }
 
+        // --- ВОДОСТОК ---
         function createGutter(length) {
             let shape = new THREE.Shape();
             shape.absarc(0, 0, 0.07, 0, Math.PI, true);
@@ -599,17 +600,23 @@
             return geo;
         }
 
-        // РИСУЕМ ПОЛНЫЕ, СПЛОШНЫЕ ЗАГЛУШКИ
+        // ИСПРАВЛЕННАЯ ФУНКЦИЯ: Заглушка теперь сплошная и 2-сторонняя
         function createEndCap() {
             const capShape = new THREE.Shape();
             capShape.absarc(0, 0, 0.072, 0, Math.PI, true);
             capShape.lineTo(0.072, 0);
-            let geo = new THREE.ShapeGeometry(capShape);
+            // Толщина заглушки 1 см
+            let geo = new THREE.ExtrudeGeometry(capShape, { depth: 0.01, bevelEnabled: false, curveSegments: 8 });
+            geo.translate(0, 0, -0.005);
             return geo;
         }
 
         function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat, hasCapL = true, hasCapR = true) {
             if (edgeLength <= 0) return;
+
+            // ДЕЛАЕМ МАТЕРИАЛ ДВУХСТОРОННИМ ЧТОБЫ ИЗБЕЖАТЬ НЕВИДИМОСТИ С ОДНОЙ СТОРОНЫ
+            drainMat.side = THREE.DoubleSide;
+
             let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
             gutter.position.set(0, houseHeight - 0.05, zGutter);
             gutter.rotation.y = Math.PI / 2;
@@ -694,7 +701,8 @@
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
-            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3 });
+            // Обрати внимание: теперь side: THREE.DoubleSide добавлен и сюда
+            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
 
             let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
             let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
@@ -745,7 +753,10 @@
                 let gMesh2 = new THREE.Mesh(new THREE.ShapeGeometry(gShape), wallMat); gMesh2.rotation.y = -Math.PI / 2; gMesh2.position.x = -vars.L / 2; gMesh2.castShadow = true; gMesh2.receiveShadow = true; objectsGroup.add(gMesh2);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Скат (Торец): ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, vars.W / 4); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
-                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat); addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat); }
+                if (Lr > 0) {
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat, true, true);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat, true, true);
+                }
 
             } else if (vars.rType === 'shed') {
                 let h = Wr * Math.tan(vars.P1 * Math.PI / 180);
@@ -766,7 +777,7 @@
                 createWallQuad([vars.L / 2, 0, vars.W / 2], [vars.L / 2, 0, -vars.W / 2], [vars.L / 2, houseHeight + dropBack, -vars.W / 2], [vars.L / 2, houseHeight + dropFront, vars.W / 2]);
 
                 addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Конёк / Примык.: ' + vars.L + ' м', 0, houseHeight + h + 0.5, -Wr / 2 - 0.1); addLabel(objectsGroup, 'Скат: ' + vars.S1.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, 0);
-                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, nOutlets, drainMat); }
+                if (Lr > 0) { addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, nOutlets, drainMat, true, true); }
 
             } else if (vars.rType === 'hip' || vars.rType === 'tent') {
                 let H_roof = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
@@ -873,14 +884,14 @@
                         let lenX = (Lr - Dr) / 2; let cx = sx * (Dr / 2 + lenX / 2); let cz = sz * Dr / 2;
                         let gX = new THREE.Mesh(createGutter(lenX), drainMat); gX.position.set(cx, houseHeight - 0.05, cz); gX.rotation.y = Math.PI / 2; gX.castShadow = true; objectsGroup.add(gX);
 
-                        let capShape = new THREE.Shape(); capShape.absarc(0, 0, 0.072, 0, Math.PI, true); capShape.lineTo(0.072, 0);
-                        let capX = new THREE.Mesh(new THREE.ShapeGeometry(capShape), drainMat);
+                        // Заглушки на концах креста
+                        let capX = new THREE.Mesh(createEndCap(), drainMat);
                         capX.position.set(sx * Lr / 2, houseHeight - 0.05, cz); capX.rotation.y = Math.PI / 2; objectsGroup.add(capX);
 
                         let lenZ = (Wr - Dr) / 2; let px = sx * Dr / 2; let pz = sz * (Dr / 2 + lenZ / 2);
                         let gZ = new THREE.Mesh(createGutter(lenZ), drainMat); gZ.position.set(px, houseHeight - 0.05, pz); gZ.rotation.y = 0; gZ.castShadow = true; objectsGroup.add(gZ);
 
-                        let capZ = new THREE.Mesh(new THREE.ShapeGeometry(capShape), drainMat);
+                        let capZ = new THREE.Mesh(createEndCap(), drainMat);
                         capZ.position.set(px, houseHeight - 0.05, sz * Wr / 2); capZ.rotation.y = 0; objectsGroup.add(capZ);
 
                         let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
