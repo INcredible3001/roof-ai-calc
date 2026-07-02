@@ -776,9 +776,15 @@
                 }
 
             } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                let H_roof = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                let indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
-                if (indent >= Lr / 2) { indent = Lr / 2; H_roof = (Lr / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                let H_roof, indent;
+                if (vars.rType === 'tent') {
+                    H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    indent = Lr / 2;
+                } else {
+                    H_roof = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
+                    if (indent >= Lr / 2) { indent = Lr / 2; H_roof = (Lr / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                }
 
                 let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2];
                 let p3 = [Lr / 2 - indent, y0 + H_roof, 0], p4 = [-Lr / 2 + indent, y0 + H_roof, 0];
@@ -813,8 +819,14 @@
                     objectsGroup.add(createRoofTri(s2, s5, s3, soffitMat));
                 }
 
-                let dropW = soffit * Math.tan(vars.P1 * Math.PI / 180);
-                let dropL = soffit * Math.tan(vars.P2 * Math.PI / 180);
+                let dropW, dropL;
+                if (vars.rType === 'tent') {
+                    dropW = soffit * (H_roof / (Wr / 2));
+                    dropL = soffit * (H_roof / (Lr / 2));
+                } else {
+                    dropW = soffit * Math.tan(vars.P1 * Math.PI / 180);
+                    dropL = soffit * Math.tan(vars.P2 * Math.PI / 180);
+                }
 
                 createWallQuad([-vars.L / 2, 0, vars.W / 2], [vars.L / 2, 0, vars.W / 2], [vars.L / 2, houseHeight, vars.W / 2], [-vars.L / 2, houseHeight, vars.W / 2]);
                 createWallQuad([vars.L / 2, 0, -vars.W / 2], [-vars.L / 2, 0, -vars.W / 2], [-vars.L / 2, houseHeight, -vars.W / 2], [vars.L / 2, houseHeight, -vars.W / 2]);
@@ -826,7 +838,8 @@
                 createWallQuad([-vars.L / 2, houseHeight, -vars.W / 2], [-vars.L / 2, houseHeight, vars.W / 2], [-vars.L / 2, houseHeight + dropL, vars.W / 2], [-vars.L / 2, houseHeight + dropL, -vars.W / 2]);
                 createWallQuad([vars.L / 2, houseHeight, vars.W / 2], [vars.L / 2, houseHeight, -vars.W / 2], [vars.L / 2, houseHeight + dropL, -vars.W / 2], [vars.L / 2, houseHeight + dropL, vars.W / 2]);
 
-                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -Lr / 2 - 0.1, houseHeight, 0); if (vars.Ridge > 0) addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H_roof + 0.5, 0); if (vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -Lr / 4, houseHeight + H_roof / 2 + 0.5, Wr / 4);
+                addLabel(objectsGroup, 'Карниз: ' + vars.L + ' м', 0, houseHeight, Wr / 2 + 0.1); addLabel(objectsGroup, 'Карниз: ' + vars.W + ' м', -Lr / 2 - 0.1, houseHeight, 0); if (vars.Ridge > 0 && vars.rType !== 'tent') addLabel(objectsGroup, 'Конёк: ' + vars.Ridge.toFixed(2) + ' м', 0, houseHeight + H_roof + 0.5, 0); if (vars.Hip > 0) addLabel(objectsGroup, 'Хребет: ' + vars.Hip.toFixed(2) + ' м', -Lr / 4, houseHeight + H_roof / 2 + 0.5, Wr / 4);
+
                 if (Lr > 0) {
                     addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(nOutlets / 2), drainMat, false, false);
                     addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(nOutlets / 2), drainMat, false, false);
