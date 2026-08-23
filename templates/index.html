@@ -9,6 +9,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+    <!-- Подключаем библиотеку для работы с Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         body {
@@ -354,6 +356,8 @@
         <div class="final-box" id="finalBox">
             <div class="spec-title">Итоговая спецификация</div>
             <div id="specContent"></div>
+            <!-- Новая кнопка для скачивания в Excel -->
+            <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
         </div>
     </div>
 
@@ -478,7 +482,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- ОБНОВЛЕННЫЙ РАСЧЕТ СПЕЦИФИКАЦИИ С ЗАПАСАМИ ПОГОНАЖА ---
+        // --- ЛОГИКА РАСЧЕТА СПЕЦИФИКАЦИИ ---
         function calculateFinal() {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -533,30 +537,26 @@
                 hips = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             }
 
+            let areaWithMargin = area * 1.15;
+
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
 
-            // ПЛОЩАДЬ 15%
-            let areaWithMargin = area * 1.15;
             html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-            // КОНЕК 5%
             if (ridge > 0) {
                 html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
                 html += `<div class="result-item"><span class="result-label"><b>Конёк с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(ridge * 1.05).toFixed(2)} м</span></div>`;
             }
 
-            // ХРЕБТЫ 5%
             if (hips > 0) {
                 html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
                 html += `<div class="result-item"><span class="result-label"><b>Хребты с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(hips * 1.05).toFixed(2)} м</span></div>`;
             }
 
-            // КАРНИЗЫ 5%
             html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Карнизы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(eaves * 1.05).toFixed(2)} м</span></div>`;
 
-            // ТОРЦЫ 5%
             if (rakes > 0) {
                 html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${rakes.toFixed(2)} м</span></div>`;
                 html += `<div class="result-item"><span class="result-label"><b>Торцы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(rakes * 1.05).toFixed(2)} м</span></div>`;
@@ -579,6 +579,45 @@
 
             document.getElementById('specContent').innerHTML = html;
             document.getElementById('finalBox').style.display = 'block';
+        }
+
+        // --- ФУНКЦИЯ ВЫГРУЗКИ В EXCEL ---
+        function exportToExcel() {
+            // Создаем новую рабочую книгу
+            let wb = XLSX.utils.book_new();
+
+            // Массив для данных, первая строка - заголовки
+            let ws_data = [
+                ["Позиция", "Значение"]
+            ];
+
+            // Находим все элементы со спецификацией
+            let items = document.querySelectorAll('#specContent .result-item, #specContent .spec-section-head');
+
+            items.forEach(function (item) {
+                if (item.classList.contains('spec-section-head')) {
+                    // Это заголовок раздела
+                    ws_data.push([""]); // пустая строка для отступа
+                    ws_data.push([item.innerText.toUpperCase(), ""]);
+                } else {
+                    // Это обычная строка с данными
+                    let label = item.querySelector('.result-label').innerText.replace(':', '').trim();
+                    let value = item.querySelector('.result-value').innerText.replace('~', '').trim();
+                    ws_data.push([label, value]);
+                }
+            });
+
+            // Конвертируем массив в формат листа Excel
+            let ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+            // Настраиваем ширину столбцов для красоты
+            ws['!cols'] = [{ wch: 35 }, { wch: 20 }];
+
+            // Добавляем лист в книгу
+            XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
+
+            // Генерируем файл и вызываем скачивание
+            XLSX.writeFile(wb, "Спецификация_Кровли.xlsx");
         }
 
         function createRoofMaterial() {
@@ -993,4 +1032,4 @@
     </script>
 </body>
 
-</html> 
+</html>
