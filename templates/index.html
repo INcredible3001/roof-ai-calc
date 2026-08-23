@@ -275,6 +275,7 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
+        <!-- БЛОК 1: ГЕОМЕТРИЯ КРЫШИ -->
         <div class="box">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -300,6 +301,7 @@
             </div>
         </div>
 
+        <!-- БЛОК 2: ВНЕШНИЙ ВИД -->
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
             <h3>2. Внешний вид</h3>
             <div class="form-group">
@@ -321,6 +323,7 @@
             <div class="color-palette" id="colorPalette"></div>
         </div>
 
+        <!-- БЛОК 3: ВОДОСТОК И СОФИТЫ -->
         <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
             <h3>3. Водосток и Софиты</h3>
             <div class="grid-2-col" style="margin-bottom: 12px;">
@@ -351,6 +354,7 @@
                     oninput="render3D()"></div>
         </div>
 
+        <!-- БЛОК 4: РАСЧЕТ -->
         <div class="box">
             <h3>4. Расчет спецификации</h3>
             <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
@@ -406,6 +410,7 @@
             const matType = document.getElementById('materialType').value;
             const brandSel = document.getElementById('roofBrand');
             brandSel.innerHTML = '';
+
             if (matType === 'metal') {
                 brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
             } else {
@@ -458,21 +463,9 @@
             let P1 = parseFloat(document.getElementById('mPitch').value) || 0; let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
             if (P2 === 0) P2 = P1;
             let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1; let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
-            let S1 = 0, S2 = 0, Ridge = 0, Hip = 0, Valleys = 0;
-
-            if (rType === 'shed') {
-                S1 = W / cos1; Ridge = L;
-            } else if (rType === 'gable') {
-                S1 = (W / 2) / cos1; Ridge = L;
-            } else if (rType === 'hip') {
-                S1 = (W / 2) / cos1; S2 = (W / 2) / cos2; let planH = (W / 2) * Math.tan(P1 * Math.PI / 180); Ridge = L > W ? L - W : 0; let planHip = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(W / 2, 2)); Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(planH, 2));
-            } else if (rType === 'tent') {
-                let H = (Math.min(L, W) / 2) * Math.tan(P1 * Math.PI / 180); S1 = Math.sqrt(Math.pow(L / 2, 2) + H * H); S2 = Math.sqrt(Math.pow(W / 2, 2) + H * H); Ridge = 0; let planHip = Math.sqrt(Math.pow(L / 2, 2) + Math.pow(W / 2, 2)); Hip = Math.sqrt(Math.pow(planHip, 2) + Math.pow(H, 2));
-            }
-            return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
+            return { rType, L, W, P1, P2, cos1, cos2 };
         }
 
-        // АЛГОРИТМ ПРОВЕРКИ ЗАПРЕТНЫХ РАЗМЕРОВ
         function isForbiddenLength(L) {
             if (L < 0.56) return true;
             let baseMin = 0.69; let baseMax = 0.81; let step = 0.35;
@@ -484,14 +477,12 @@
             return false;
         }
 
-        // АЛГОРИТМ НАРЕЗКИ С ВЫЧИСЛЕНИЕМ БЕЗОПАСНЫХ РАЗМЕРОВ
         function splitSheetHeight(H) {
             H = Math.round(H * 1000) / 1000;
             if (H <= 8.0 && !isForbiddenLength(H)) return [H];
 
             let sheets = [];
             let rem = H;
-
             let safetyCount = 0;
             while (rem > 0 && safetyCount < 10) {
                 safetyCount++;
@@ -499,7 +490,6 @@
                     sheets.push(Math.round(rem * 1000) / 1000);
                     break;
                 }
-
                 let L1 = Math.min(rem, 7.5);
                 let found = false;
                 for (let tryL = L1; tryL >= 0.56; tryL -= 0.01) {
@@ -523,7 +513,6 @@
             return sheets;
         }
 
-        // ГЕНЕРАТОР ЧЕРТЕЖА РАСКЛАДКИ В CANVAS
         window.downloadLayout = function () {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -566,7 +555,6 @@
             for (let slopeIdx = 0; slopeIdx < numSlopes; slopeIdx++) {
                 let offsetX = slopeIdx * (W_roof * scale + margin);
 
-                // Draw title for this slope
                 ctx.save();
                 ctx.scale(1, -1);
                 ctx.fillStyle = '#000';
@@ -574,12 +562,10 @@
                 ctx.fillText(`Скат №${slopeIdx + 1}`, offsetX, -(H_roof * scale + 15));
                 ctx.restore();
 
-                // Контур ската (Красный)
                 ctx.strokeStyle = '#e74c3c';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(offsetX, 0, W_roof * scale, H_roof * scale);
 
-                // Отрисовка листов
                 ctx.lineWidth = 1;
                 let currentY = 0;
                 for (let r = 0; r < sheetsH.length; r++) {
@@ -607,7 +593,6 @@
             }
             ctx.restore();
 
-            // Инфо внизу
             ctx.fillStyle = '#333';
             ctx.textAlign = 'left';
             ctx.font = '14px sans-serif';
@@ -650,23 +635,27 @@
                 rakes = s1 * 4;
                 ridge = Lr;
             } else if (vars.rType === 'hip') {
-                let h1 = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                // АВТОМАТИЧЕСКАЯ КОРРЕКЦИЯ: Ищем настоящую Длину (бОльшую сторону)
+                let mainL = Math.max(Lr, Wr);
+                let mainW = Math.min(Lr, Wr);
+
+                let h1 = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 let indent = h1 / Math.tan(vars.P2 * Math.PI / 180);
-                if (indent >= Lr / 2) indent = Lr / 2;
+                if (indent >= mainL / 2) indent = mainL / 2;
                 let r_indent = Math.round(indent * 100) / 100;
 
-                ridge = Math.max(0, Lr - r_indent * 2);
+                ridge = Math.max(0, mainL - r_indent * 2);
                 ridge = Math.round(ridge * 100) / 100;
 
-                let s_side = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
+                let s_side = Math.round(((mainW / 2) / vars.cos1) * 100) / 100;
                 let s_end = Math.round(Math.sqrt(Math.pow(h1, 2) + Math.pow(r_indent, 2)) * 100) / 100;
 
-                let trapezeArea = ((Lr + ridge) / 2) * s_side;
-                let triangleArea = (Wr * s_end) / 2;
+                let trapezeArea = ((mainL + ridge) / 2) * s_side;
+                let triangleArea = (mainW * s_end) / 2;
                 area = trapezeArea * 2 + triangleArea * 2;
 
                 eaves = Lr * 2 + Wr * 2;
-                hips = Math.round(Math.sqrt(Math.pow(indent, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
+                hips = Math.round(Math.sqrt(Math.pow(indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             } else if (vars.rType === 'tent') {
                 let h1 = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 let s_L = Math.round(Math.sqrt(Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
@@ -680,7 +669,6 @@
             let areaWithMargin = area * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
-
             html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
@@ -960,9 +948,11 @@
                 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
                 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
                 dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
-                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
+                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
+                scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
                 scene.add(objectsGroup); animate();
@@ -1007,19 +997,25 @@
                 } else if (vars.rType === 'gable') {
                     return y0 + (Wr / 2 - Math.abs(z)) * Math.tan(vars.P1 * Math.PI / 180);
                 } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    let H_roof = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    let isRotated = Lr < Wr && vars.rType === 'hip';
+                    let mainL = isRotated ? Wr : Lr;
+                    let mainW = isRotated ? Lr : Wr;
+
+                    let H_roof = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
                     let indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
                     if (vars.rType === 'tent') {
                         H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                        indent = Lr / 2;
+                        indent = mainL / 2;
                     } else {
-                        if (indent >= Lr / 2) { indent = Lr / 2; H_roof = (Lr / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                        if (indent >= mainL / 2) { indent = mainL / 2; H_roof = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
                     }
-                    let dZ = Wr / 2 - Math.abs(z);
-                    let dX = Lr / 2 - Math.abs(x);
-                    let yZ = y0 + dZ * (H_roof / (Wr / 2));
-                    let yX = y0 + dX * (H_roof / indent);
-                    return Math.min(yZ, yX);
+
+                    let dMainW = mainW / 2 - Math.abs(isRotated ? x : z);
+                    let dMainL = mainL / 2 - Math.abs(isRotated ? z : x);
+
+                    let yW = y0 + dMainW * (H_roof / (mainW / 2));
+                    let yL = y0 + dMainL * (H_roof / indent);
+                    return Math.min(yW, yL);
                 }
                 return y0;
             };
@@ -1095,45 +1091,86 @@
                 }
 
             } else if (vars.rType === 'hip' || vars.rType === 'tent') {
+                let isRotated = Lr < Wr && vars.rType === 'hip';
+                let mainL = isRotated ? Wr : Lr;
+                let mainW = isRotated ? Lr : Wr;
+
                 let H_roof, indent;
                 if (vars.rType === 'tent') {
-                    H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180); indent = Lr / 2;
+                    H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    indent = Lr / 2;
                 } else {
-                    H_roof = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180); indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
-                    if (indent >= Lr / 2) { indent = Lr / 2; H_roof = (Lr / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                    H_roof = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
+                    if (indent >= mainL / 2) { indent = mainL / 2; H_roof = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
                 }
 
-                let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2];
-                let p3 = [Lr / 2 - indent, y0 + H_roof, 0], p4 = [-Lr / 2 + indent, y0 + H_roof, 0];
-                let p5 = [Lr / 2, y0, -Wr / 2], p6 = [-Lr / 2, y0, -Wr / 2];
+                let p_FL = [-Lr / 2, y0, Wr / 2];
+                let p_FR = [Lr / 2, y0, Wr / 2];
+                let p_BR = [Lr / 2, y0, -Wr / 2];
+                let p_BL = [-Lr / 2, y0, -Wr / 2];
 
-                if (indent < Lr / 2) {
-                    objectsGroup.add(createRoofQuad(p1, p2, p3, p4, roofMat)); objectsGroup.add(createRoofQuad(p5, p6, p4, p3, roofMat));
+                let ridgeStart, ridgeEnd;
+                if (vars.rType === 'tent') {
+                    ridgeStart = [0, y0 + H_roof, 0];
+                    ridgeEnd = [0, y0 + H_roof, 0];
+                } else if (isRotated) {
+                    ridgeStart = [0, y0 + H_roof, Wr / 2 - indent];
+                    ridgeEnd = [0, y0 + H_roof, -Wr / 2 + indent];
+                } else {
+                    ridgeStart = [-Lr / 2 + indent, y0 + H_roof, 0];
+                    ridgeEnd = [Lr / 2 - indent, y0 + H_roof, 0];
+                }
+
+                if (isRotated) {
+                    objectsGroup.add(createRoofTri(p_FL, p_FR, ridgeStart, roofMat));
+                    objectsGroup.add(createRoofTri(p_BR, p_BL, ridgeEnd, roofMat));
+                    objectsGroup.add(createRoofQuad(p_FR, p_BR, ridgeEnd, ridgeStart, roofMat));
+                    objectsGroup.add(createRoofQuad(p_BL, p_FL, ridgeStart, ridgeEnd, roofMat));
+
                     if (soffit > 0) {
-                        let s1 = [...p1], s2 = [...p2], s3 = [...p3], s4 = [...p4]; s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
-                        objectsGroup.add(createRoofQuad(s1, s2, s3, s4, soffitMat));
-                        let s5 = [...p5], s6 = [...p6]; s5[1] -= 0.03; s6[1] -= 0.03;
-                        objectsGroup.add(createRoofQuad(s5, s6, s4, s3, soffitMat));
+                        let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sRS = [...ridgeStart], sRE = [...ridgeEnd];
+                        sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sRS[1] -= 0.03; sRE[1] -= 0.03;
+                        objectsGroup.add(createRoofTri(sFL, sFR, sRS, soffitMat));
+                        objectsGroup.add(createRoofTri(sBR, sBL, sRE, soffitMat));
+                        objectsGroup.add(createRoofQuad(sFR, sBR, sRE, sRS, soffitMat));
+                        objectsGroup.add(createRoofQuad(sBL, sFL, sRS, sRE, soffitMat));
                     }
                 } else {
-                    objectsGroup.add(createRoofTri(p1, p2, p3, roofMat)); objectsGroup.add(createRoofTri(p5, p6, p3, roofMat));
-                    if (soffit > 0) {
-                        let s1 = [...p1], s2 = [...p2], s3 = [...p3]; s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03;
-                        objectsGroup.add(createRoofTri(s1, s2, s3, soffitMat));
-                        let s5 = [...p5], s6 = [...p6]; s5[1] -= 0.03; s6[1] -= 0.03;
-                        objectsGroup.add(createRoofTri(s5, s6, s3, soffitMat));
+                    let p_TL = ridgeStart;
+                    let p_TR = ridgeEnd;
+
+                    if (indent < mainL / 2) {
+                        objectsGroup.add(createRoofQuad(p_FL, p_FR, p_TR, p_TL, roofMat));
+                        objectsGroup.add(createRoofQuad(p_BR, p_BL, p_TL, p_TR, roofMat));
+                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TR, roofMat));
+                        if (soffit > 0) {
+                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL], sTR = [...p_TR];
+                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03; sTR[1] -= 0.03;
+                            objectsGroup.add(createRoofQuad(sFL, sFR, sTR, sTL, soffitMat));
+                            objectsGroup.add(createRoofQuad(sBR, sBL, sTL, sTR, soffitMat));
+                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sFR, sBR, sTR, soffitMat));
+                        }
+                    } else {
+                        objectsGroup.add(createRoofTri(p_FL, p_FR, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_BR, p_BL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TL, roofMat));
+                        if (soffit > 0) {
+                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL];
+                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03;
+                            objectsGroup.add(createRoofTri(sFL, sFR, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sBR, sBL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sFR, sBR, sTL, soffitMat));
+                        }
                     }
                 }
 
-                objectsGroup.add(createRoofTri(p6, p1, p4, roofMat)); objectsGroup.add(createRoofTri(p2, p5, p3, roofMat));
-                if (soffit > 0) {
-                    let s6 = [...p6], s1 = [...p1], s4 = [...p4], s2 = [...p2], s5 = [...p5], s3 = [...p3];
-                    s6[1] -= 0.03; s1[1] -= 0.03; s4[1] -= 0.03; s2[1] -= 0.03; s5[1] -= 0.03; s3[1] -= 0.03;
-                    objectsGroup.add(createRoofTri(s6, s1, s4, soffitMat)); objectsGroup.add(createRoofTri(s2, s5, s3, soffitMat));
-                }
-
-                let ridge_label = Math.max(0, Lr - indent * 2);
-                let hipLen_label = Math.sqrt(Math.pow(indent, 2) + Math.pow(Wr / 2, 2) + Math.pow(H_roof, 2));
+                let ridge_label = Math.max(0, mainL - indent * 2);
+                let hipLen_label = Math.sqrt(Math.pow(indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(H_roof, 2));
 
                 addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
                 addLabel(objectsGroup, 'Карниз: ' + Wr.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight, 0);
