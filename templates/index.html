@@ -406,13 +406,10 @@
             const matType = document.getElementById('materialType').value;
             const brandSel = document.getElementById('roofBrand');
             brandSel.innerHTML = '';
-
             if (matType === 'metal') {
                 brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
             } else {
-                for (let key in softCollections) {
-                    brandSel.innerHTML += `<option value="${key}">${softCollections[key].name}</option>`;
-                }
+                for (let key in softCollections) { brandSel.innerHTML += `<option value="${key}">${softCollections[key].name}</option>`; }
             }
             updateColorMenu();
         }
@@ -424,24 +421,14 @@
             palette.innerHTML = '';
 
             let activeColors = [];
-            if (matType === 'metal') {
-                activeColors = colorDB.metal;
-            } else {
-                if (softCollections[brand]) {
-                    activeColors = softCollections[brand].colors.map(c => colorDB[c]);
-                }
-            }
+            if (matType === 'metal') { activeColors = colorDB.metal; }
+            else { if (softCollections[brand]) activeColors = softCollections[brand].colors.map(c => colorDB[c]); }
 
             activeColors.forEach((c) => {
                 palette.innerHTML += `<div class="color-swatch" style="background-color: ${c.hex};" onclick="changeColor('${c.hex}')" title="${c.name}"></div>`;
             });
-
-            if (matType === 'metal') {
-                palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`;
-            }
-
-            if (activeColors.length > 0) { changeColor(activeColors[0].hex); }
-            else { render3D(); }
+            if (matType === 'metal') palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`;
+            if (activeColors.length > 0) changeColor(activeColors[0].hex); else render3D();
         }
 
         function changeColor(colorValue) {
@@ -542,20 +529,25 @@
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
+            let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
 
             let W_roof = Lr;
             let H_roof = (vars.rType === 'shed') ? Math.round((Wr / vars.cos1) * 100) / 100 : Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
+
+            let numSlopes = (vars.rType === 'gable') ? 2 : 1;
 
             let cols = Math.ceil((W_roof - 1.189) / 1.10) + 1;
             if (W_roof <= 1.189) cols = 1;
 
             let sheetsH = splitSheetHeight(H_roof);
 
-            let scale = Math.min(1000 / W_roof, 800 / H_roof);
-            let margin = 100;
+            let totalW = W_roof * numSlopes;
+            let scale = Math.min(1200 / totalW, 800 / H_roof);
+            let margin = 80;
+
             let canvas = document.createElement('canvas');
-            canvas.width = W_roof * scale + margin * 2 + 100;
-            canvas.height = H_roof * scale + margin * 3;
+            canvas.width = (W_roof * scale) * numSlopes + margin * (numSlopes + 1) + 100;
+            canvas.height = H_roof * scale + margin * 3 + 60;
             let ctx = canvas.getContext('2d');
 
             ctx.fillStyle = '#ffffff';
@@ -563,53 +555,68 @@
 
             ctx.fillStyle = '#000000';
             ctx.font = 'bold 20px sans-serif';
-            ctx.fillText(`Схема раскладки листов (Металлочерепица Grand Line Classic)`, margin, 40);
+            ctx.fillText(`Схема раскладки листов (Металлочерепица ${brand})`, margin, 40);
             ctx.font = '16px sans-serif';
-            ctx.fillText(`Скат: ${W_roof.toFixed(2)} м (ширина) х ${H_roof.toFixed(2)} м (высота)`, margin, 65);
+            ctx.fillText(`Размер ската: ${W_roof.toFixed(2)} м (ширина) х ${H_roof.toFixed(2)} м (высота)`, margin, 65);
 
-            ctx.translate(margin, canvas.height - margin - 50);
+            ctx.save();
+            ctx.translate(margin, canvas.height - margin - 80);
             ctx.scale(1, -1);
 
-            // Контур ската (Красный)
-            ctx.strokeStyle = '#e74c3c';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(0, 0, W_roof * scale, H_roof * scale);
+            for (let slopeIdx = 0; slopeIdx < numSlopes; slopeIdx++) {
+                let offsetX = slopeIdx * (W_roof * scale + margin);
 
-            // Отрисовка листов
-            ctx.lineWidth = 1;
-            let currentY = 0;
-            for (let r = 0; r < sheetsH.length; r++) {
-                let h = sheetsH[r];
-                let currentX = 0;
-                for (let c = 0; c < cols; c++) {
-                    let w = 1.189;
-                    ctx.strokeStyle = '#34495e';
-                    ctx.strokeRect(currentX * scale, currentY * scale, w * scale, h * scale);
+                // Draw title for this slope
+                ctx.save();
+                ctx.scale(1, -1);
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText(`Скат №${slopeIdx + 1}`, offsetX, -(H_roof * scale + 15));
+                ctx.restore();
 
-                    ctx.save();
-                    ctx.scale(1, -1);
-                    ctx.font = 'bold 14px sans-serif';
-                    ctx.fillStyle = '#2980b9';
-                    ctx.textAlign = 'center';
-                    let textX = (currentX + 1.10 / 2) * scale;
-                    let textY = -(currentY + h / 2) * scale;
-                    ctx.fillText(h.toFixed(3), textX, textY);
-                    ctx.restore();
+                // Контур ската (Красный)
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(offsetX, 0, W_roof * scale, H_roof * scale);
 
-                    currentX += 1.10;
+                // Отрисовка листов
+                ctx.lineWidth = 1;
+                let currentY = 0;
+                for (let r = 0; r < sheetsH.length; r++) {
+                    let h = sheetsH[r];
+                    let currentX = 0;
+                    for (let c = 0; c < cols; c++) {
+                        let w = 1.189;
+                        ctx.strokeStyle = '#34495e';
+                        ctx.strokeRect(offsetX + currentX * scale, currentY * scale, w * scale, h * scale);
+
+                        ctx.save();
+                        ctx.scale(1, -1);
+                        ctx.font = 'bold 14px sans-serif';
+                        ctx.fillStyle = '#2980b9';
+                        ctx.textAlign = 'center';
+                        let textX = offsetX + (currentX + 1.10 / 2) * scale;
+                        let textY = -(currentY + h / 2) * scale;
+                        ctx.fillText(h.toFixed(3), textX, textY);
+                        ctx.restore();
+
+                        currentX += 1.10;
+                    }
+                    currentY += (h - 0.15);
                 }
-                currentY += (h - 0.15);
             }
+            ctx.restore();
 
             // Инфо внизу
-            ctx.save();
-            ctx.scale(1, -1);
             ctx.fillStyle = '#333';
             ctx.textAlign = 'left';
             ctx.font = '14px sans-serif';
-            ctx.fillText(`Параметры листа: Полная ширина 1.189 м | Полезная 1.1 м | Нахлест 0.15 м`, 0, 40);
-            ctx.fillText(`Итого на 1 скат: ${cols} шт. по ширине, рядов: ${sheetsH.length} -> Всего ${cols * sheetsH.length} листов`, 0, 60);
-            ctx.restore();
+            let totalSheetsPerSlope = cols * sheetsH.length;
+            ctx.fillText(`Параметры листа: Полная ширина 1.189 м | Полезная 1.1 м | Нахлест 0.15 м`, margin, canvas.height - 70);
+            ctx.fillText(`На 1 скат: ${cols} шт. по ширине, рядов: ${sheetsH.length}. Всего на 1 скат: ${totalSheetsPerSlope} листов.`, margin, canvas.height - 45);
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillStyle = '#27ae60';
+            ctx.fillText(`ИТОГО НА КРОВЛЮ (${numSlopes} скат.): ${totalSheetsPerSlope * numSlopes} листов.`, margin, canvas.height - 20);
 
             let link = document.createElement('a');
             link.download = 'Раскладка_Кровли.jpg';
@@ -673,6 +680,7 @@
             let areaWithMargin = area * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
+
             html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
@@ -712,7 +720,7 @@
 
             let btnContainer = document.getElementById('layoutBtnContainer');
             if (document.getElementById('materialType').value === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
-                btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТА (JPG)</button>`;
+                btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px; width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТОВ (JPG)</button>`;
             } else {
                 btnContainer.innerHTML = '';
             }
