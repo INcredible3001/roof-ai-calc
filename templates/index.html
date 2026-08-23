@@ -478,7 +478,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- ОБНОВЛЕННЫЙ И ТОЧНЫЙ РАСЧЕТ СПЕЦИФИКАЦИИ (КАК НА КАЛЬКУЛЯТОРЕ) ---
+        // --- ОБНОВЛЕННЫЙ РАСЧЕТ СПЕЦИФИКАЦИИ С ЗАПАСАМИ ПОГОНАЖА ---
         function calculateFinal() {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -487,7 +487,7 @@
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
 
-            // Округляем базовые размеры кровли (с учетом свесов) до 2-х знаков
+            // Округляем базовые размеры кровли
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
 
@@ -500,7 +500,6 @@
                 ridge = Lr;
                 rakes = s1 * 2;
             } else if (vars.rType === 'gable') {
-                // Строго округляем длину ската, как это делает человек
                 let s1 = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
                 area = Lr * s1 * 2;
                 eaves = Lr * 2;
@@ -534,18 +533,34 @@
                 hips = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             }
 
-            let areaWithMargin = area * 1.15;
-
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
-            html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
 
+            // ПЛОЩАДЬ 15%
+            let areaWithMargin = area * 1.15;
+            html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-            if (ridge > 0) html += `<div class="result-item"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
-            if (hips > 0) html += `<div class="result-item"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
+            // КОНЕК 5%
+            if (ridge > 0) {
+                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
+                html += `<div class="result-item"><span class="result-label"><b>Конёк с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(ridge * 1.05).toFixed(2)} м</span></div>`;
+            }
 
-            html += `<div class="result-item"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
-            if (rakes > 0) html += `<div class="result-item"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${rakes.toFixed(2)} м</span></div>`;
+            // ХРЕБТЫ 5%
+            if (hips > 0) {
+                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
+                html += `<div class="result-item"><span class="result-label"><b>Хребты с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(hips * 1.05).toFixed(2)} м</span></div>`;
+            }
+
+            // КАРНИЗЫ 5%
+            html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
+            html += `<div class="result-item"><span class="result-label"><b>Карнизы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(eaves * 1.05).toFixed(2)} м</span></div>`;
+
+            // ТОРЦЫ 5%
+            if (rakes > 0) {
+                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${rakes.toFixed(2)} м</span></div>`;
+                html += `<div class="result-item"><span class="result-label"><b>Торцы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(rakes * 1.05).toFixed(2)} м</span></div>`;
+            }
 
             html += `<div class="spec-section-head">Водосточная система</div>`;
             html += `<div class="result-item"><span class="result-label">Желоба:</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
@@ -767,7 +782,6 @@
                 scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
                 renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
-
                 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
 
@@ -777,11 +791,9 @@
                 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
                 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-                dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
                 dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
-                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
-                scene.add(dirLight);
+                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
                 scene.add(objectsGroup); animate();
@@ -981,4 +993,4 @@
     </script>
 </body>
 
-</html>
+</html> 
