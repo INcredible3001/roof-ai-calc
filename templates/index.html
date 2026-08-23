@@ -184,6 +184,18 @@
             text-align: center;
         }
 
+        .spec-section-head {
+            font-weight: bold;
+            font-size: 13px;
+            color: #34495e;
+            background: #e8f8f5;
+            padding: 8px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #1abc9c;
+        }
+
         .color-palette {
             display: flex;
             flex-wrap: wrap;
@@ -207,6 +219,22 @@
             border-color: #bdc3c7;
         }
 
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-bottom: 1px dashed #bdc3c7;
+            padding-bottom: 3px;
+            align-items: center;
+        }
+
+        .result-value {
+            font-weight: bold;
+            color: #c0392b;
+            text-align: right;
+        }
+
         input[type="color"] {
             width: 34px;
             height: 34px;
@@ -225,32 +253,6 @@
             border: none;
             border-radius: 50%;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        .result-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 13px;
-            border-bottom: 1px dashed #bdc3c7;
-            padding-bottom: 3px;
-        }
-
-        .result-value {
-            font-weight: bold;
-            color: #c0392b;
-        }
-
-        .spec-section-head {
-            font-weight: bold;
-            font-size: 13px;
-            color: #34495e;
-            background: #e8f8f5;
-            padding: 8px;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border-left: 4px solid #1abc9c;
         }
     </style>
 </head>
@@ -476,6 +478,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
+        // --- ЛОГИКА РАСЧЕТА СПЕЦИФИКАЦИИ С ЗАПАСОМ ---
         function calculateFinal() {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -487,7 +490,7 @@
             let Lr = vars.L + soffit * 2;
             let Wr = vars.W + soffit * 2;
 
-            let area = 0, eaves = 0, rakes = 0, ridge = 0, hips = 0, valleys = 0;
+            let area = 0, eaves = 0, rakes = 0, ridge = 0, hips = 0;
 
             if (vars.rType === 'shed') {
                 let s1 = Wr / vars.cos1;
@@ -517,8 +520,14 @@
                 hips = Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 4;
             }
 
+            // Добавляем 15% запас к итоговой площади
+            let areaWithMargin = area * 1.15;
+
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
-            html += `<div class="result-item"><span class="result-label">Площадь кровли:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
+
+            // Вывод площади с запасом выделен зеленым
+            html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
             if (ridge > 0) html += `<div class="result-item"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
             if (hips > 0) html += `<div class="result-item"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
@@ -578,12 +587,14 @@
                 matParams.roughness = 0.95; matParams.metalness = 0.0;
                 const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0'); ctx.fillRect(0, 0, 512, 512);
+
                 const imgData = ctx.getImageData(0, 0, 512, 512); const data = imgData.data;
                 for (let i = 0; i < data.length; i += 4) {
                     let noise = (Math.random() - 0.5) * 35;
                     data[i] = Math.min(255, Math.max(0, data[i] + noise)); data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
                 }
                 ctx.putImageData(imgData, 0, 0);
+
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
                 if (brand.includes('hexa')) {
                     let w = 128, h = 64;
@@ -697,10 +708,23 @@
             drainMat.side = THREE.DoubleSide;
 
             let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
-            gutter.position.set(0, houseHeight - 0.05, zGutter); gutter.rotation.y = Math.PI / 2; gutter.castShadow = true; objectsGroup.add(gutter);
+            gutter.position.set(0, houseHeight - 0.05, zGutter);
+            gutter.rotation.y = Math.PI / 2;
+            gutter.castShadow = true;
+            objectsGroup.add(gutter);
 
-            if (hasCapL) { let capL = new THREE.Mesh(createEndCap(), drainMat); capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter); capL.rotation.y = Math.PI / 2; objectsGroup.add(capL); }
-            if (hasCapR) { let capR = new THREE.Mesh(createEndCap(), drainMat); capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter); capR.rotation.y = Math.PI / 2; objectsGroup.add(capR); }
+            if (hasCapL) {
+                let capL = new THREE.Mesh(createEndCap(), drainMat);
+                capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter);
+                capL.rotation.y = Math.PI / 2;
+                objectsGroup.add(capL);
+            }
+            if (hasCapR) {
+                let capR = new THREE.Mesh(createEndCap(), drainMat);
+                capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter);
+                capR.rotation.y = Math.PI / 2;
+                objectsGroup.add(capR);
+            }
 
             if (nOutlets > 0) {
                 let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
@@ -731,6 +755,7 @@
                 scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
                 renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
+
                 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
 
@@ -740,9 +765,11 @@
                 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
                 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
                 dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
-                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
+                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
+                scene.add(dirLight);
 
                 const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
                 scene.add(objectsGroup); animate();
