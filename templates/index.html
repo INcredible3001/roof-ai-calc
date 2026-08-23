@@ -478,7 +478,7 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- ЛОГИКА РАСЧЕТА СПЕЦИФИКАЦИИ С ЗАПАСОМ ---
+        // --- ОБНОВЛЕННЫЙ И ТОЧНЫЙ РАСЧЕТ СПЕЦИФИКАЦИИ (КАК НА КАЛЬКУЛЯТОРЕ) ---
         function calculateFinal() {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -487,19 +487,21 @@
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
 
-            let Lr = vars.L + soffit * 2;
-            let Wr = vars.W + soffit * 2;
+            // Округляем базовые размеры кровли (с учетом свесов) до 2-х знаков
+            let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
+            let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
 
             let area = 0, eaves = 0, rakes = 0, ridge = 0, hips = 0;
 
             if (vars.rType === 'shed') {
-                let s1 = Wr / vars.cos1;
+                let s1 = Math.round((Wr / vars.cos1) * 100) / 100;
                 area = Lr * s1;
                 eaves = Lr;
                 ridge = Lr;
                 rakes = s1 * 2;
             } else if (vars.rType === 'gable') {
-                let s1 = (Wr / 2) / vars.cos1;
+                // Строго округляем длину ската, как это делает человек
+                let s1 = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
                 area = Lr * s1 * 2;
                 eaves = Lr * 2;
                 rakes = s1 * 4;
@@ -508,25 +510,35 @@
                 let h1 = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 let indent = h1 / Math.tan(vars.P2 * Math.PI / 180);
                 if (indent >= Lr / 2) indent = Lr / 2;
+                let r_indent = Math.round(indent * 100) / 100;
 
-                area = (Lr * Wr) / vars.cos1;
+                ridge = Math.max(0, Lr - r_indent * 2);
+                ridge = Math.round(ridge * 100) / 100;
+
+                let s_side = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
+                let s_end = Math.round(Math.sqrt(Math.pow(h1, 2) + Math.pow(r_indent, 2)) * 100) / 100;
+
+                let trapezeArea = ((Lr + ridge) / 2) * s_side;
+                let triangleArea = (Wr * s_end) / 2;
+                area = trapezeArea * 2 + triangleArea * 2;
+
                 eaves = Lr * 2 + Wr * 2;
-                ridge = Math.max(0, Lr - indent * 2);
-                hips = Math.sqrt(Math.pow(indent, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 4;
+                hips = Math.round(Math.sqrt(Math.pow(indent, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             } else if (vars.rType === 'tent') {
-                area = (Lr * Wr) / vars.cos1;
-                eaves = Lr * 2 + Wr * 2;
                 let h1 = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                hips = Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 4;
+                let s_L = Math.round(Math.sqrt(Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
+                let s_W = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
+
+                area = (Lr * s_L / 2) * 2 + (Wr * s_W / 2) * 2;
+                eaves = Lr * 2 + Wr * 2;
+                hips = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             }
 
-            // Добавляем 15% запас к итоговой площади
             let areaWithMargin = area * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
 
-            // Вывод площади с запасом выделен зеленым
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
             if (ridge > 0) html += `<div class="result-item"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
