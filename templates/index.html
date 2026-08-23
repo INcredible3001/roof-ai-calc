@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
-    <!-- Подключаем библиотеку для работы с Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
@@ -168,6 +167,14 @@
             background-color: #e67e22;
         }
 
+        .btn-green {
+            background-color: #27ae60;
+        }
+
+        .btn-green:hover {
+            background-color: #219653;
+        }
+
         .final-box {
             background-color: #fdfefe;
             border: 2px solid #1abc9c;
@@ -268,7 +275,6 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- БЛОК 1: ГЕОМЕТРИЯ КРЫШИ -->
         <div class="box">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -294,7 +300,6 @@
             </div>
         </div>
 
-        <!-- БЛОК 2: ВНЕШНИЙ ВИД -->
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
             <h3>2. Внешний вид</h3>
             <div class="form-group">
@@ -316,7 +321,6 @@
             <div class="color-palette" id="colorPalette"></div>
         </div>
 
-        <!-- БЛОК 3: ВОДОСТОК И СОФИТЫ -->
         <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
             <h3>3. Водосток и Софиты</h3>
             <div class="grid-2-col" style="margin-bottom: 12px;">
@@ -347,7 +351,6 @@
                     oninput="render3D()"></div>
         </div>
 
-        <!-- БЛОК 4: РАСЧЕТ -->
         <div class="box">
             <h3>4. Расчет спецификации</h3>
             <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
@@ -356,8 +359,8 @@
         <div class="final-box" id="finalBox">
             <div class="spec-title">Итоговая спецификация</div>
             <div id="specContent"></div>
-            <!-- Новая кнопка для скачивания в Excel -->
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
+            <div id="layoutBtnContainer"></div>
         </div>
     </div>
 
@@ -482,7 +485,138 @@
             return { rType, L, W, P1, P2, S1, S2, Ridge, Hip, Valleys, cos1, cos2 };
         }
 
-        // --- ЛОГИКА РАСЧЕТА СПЕЦИФИКАЦИИ ---
+        // АЛГОРИТМ ПРОВЕРКИ ЗАПРЕТНЫХ РАЗМЕРОВ
+        function isForbiddenLength(L) {
+            if (L < 0.56) return true;
+            let baseMin = 0.69; let baseMax = 0.81; let step = 0.35;
+            for (let i = 0; i <= 25; i++) {
+                let min = baseMin + step * i;
+                let max = baseMax + step * i;
+                if (L >= min - 0.005 && L <= max + 0.005) return true;
+            }
+            return false;
+        }
+
+        // АЛГОРИТМ НАРЕЗКИ С ВЫЧИСЛЕНИЕМ БЕЗОПАСНЫХ РАЗМЕРОВ
+        function splitSheetHeight(H) {
+            H = Math.round(H * 1000) / 1000;
+            if (H <= 8.0 && !isForbiddenLength(H)) return [H];
+
+            let sheets = [];
+            let rem = H;
+
+            let safetyCount = 0;
+            while (rem > 0 && safetyCount < 10) {
+                safetyCount++;
+                if (rem <= 8.0 && !isForbiddenLength(rem)) {
+                    sheets.push(Math.round(rem * 1000) / 1000);
+                    break;
+                }
+
+                let L1 = Math.min(rem, 7.5);
+                let found = false;
+                for (let tryL = L1; tryL >= 0.56; tryL -= 0.01) {
+                    if (!isForbiddenLength(tryL)) {
+                        let nextRem = rem - tryL + 0.15;
+                        if (nextRem <= 8.0 && !isForbiddenLength(nextRem)) {
+                            sheets.push(Math.round(tryL * 1000) / 1000);
+                            rem = nextRem;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found) {
+                    let L = Math.min(rem, 6.0);
+                    while (isForbiddenLength(L)) L -= 0.01;
+                    sheets.push(Math.round(L * 1000) / 1000);
+                    rem = rem - L + 0.15;
+                }
+            }
+            return sheets;
+        }
+
+        // ГЕНЕРАТОР ЧЕРТЕЖА РАСКЛАДКИ В CANVAS
+        window.downloadLayout = function () {
+            let vars = doMath();
+            let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
+            let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
+            let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
+
+            let W_roof = Lr;
+            let H_roof = (vars.rType === 'shed') ? Math.round((Wr / vars.cos1) * 100) / 100 : Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
+
+            let cols = Math.ceil((W_roof - 1.189) / 1.10) + 1;
+            if (W_roof <= 1.189) cols = 1;
+
+            let sheetsH = splitSheetHeight(H_roof);
+
+            let scale = Math.min(1000 / W_roof, 800 / H_roof);
+            let margin = 100;
+            let canvas = document.createElement('canvas');
+            canvas.width = W_roof * scale + margin * 2 + 100;
+            canvas.height = H_roof * scale + margin * 3;
+            let ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillText(`Схема раскладки листов (Металлочерепица Grand Line Classic)`, margin, 40);
+            ctx.font = '16px sans-serif';
+            ctx.fillText(`Скат: ${W_roof.toFixed(2)} м (ширина) х ${H_roof.toFixed(2)} м (высота)`, margin, 65);
+
+            ctx.translate(margin, canvas.height - margin - 50);
+            ctx.scale(1, -1);
+
+            // Контур ската (Красный)
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(0, 0, W_roof * scale, H_roof * scale);
+
+            // Отрисовка листов
+            ctx.lineWidth = 1;
+            let currentY = 0;
+            for (let r = 0; r < sheetsH.length; r++) {
+                let h = sheetsH[r];
+                let currentX = 0;
+                for (let c = 0; c < cols; c++) {
+                    let w = 1.189;
+                    ctx.strokeStyle = '#34495e';
+                    ctx.strokeRect(currentX * scale, currentY * scale, w * scale, h * scale);
+
+                    ctx.save();
+                    ctx.scale(1, -1);
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.fillStyle = '#2980b9';
+                    ctx.textAlign = 'center';
+                    let textX = (currentX + 1.10 / 2) * scale;
+                    let textY = -(currentY + h / 2) * scale;
+                    ctx.fillText(h.toFixed(3), textX, textY);
+                    ctx.restore();
+
+                    currentX += 1.10;
+                }
+                currentY += (h - 0.15);
+            }
+
+            // Инфо внизу
+            ctx.save();
+            ctx.scale(1, -1);
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'left';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(`Параметры листа: Полная ширина 1.189 м | Полезная 1.1 м | Нахлест 0.15 м`, 0, 40);
+            ctx.fillText(`Итого на 1 скат: ${cols} шт. по ширине, рядов: ${sheetsH.length} -> Всего ${cols * sheetsH.length} листов`, 0, 60);
+            ctx.restore();
+
+            let link = document.createElement('a');
+            link.download = 'Раскладка_Кровли.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 1.0);
+            link.click();
+        };
+
         function calculateFinal() {
             let vars = doMath();
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
@@ -491,7 +625,6 @@
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
 
-            // Округляем базовые размеры кровли
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
 
@@ -540,7 +673,6 @@
             let areaWithMargin = area * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
-
             html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
@@ -548,7 +680,6 @@
                 html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
                 html += `<div class="result-item"><span class="result-label"><b>Конёк с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(ridge * 1.05).toFixed(2)} м</span></div>`;
             }
-
             if (hips > 0) {
                 html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
                 html += `<div class="result-item"><span class="result-label"><b>Хребты с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(hips * 1.05).toFixed(2)} м</span></div>`;
@@ -578,45 +709,36 @@
             }
 
             document.getElementById('specContent').innerHTML = html;
+
+            let btnContainer = document.getElementById('layoutBtnContainer');
+            if (document.getElementById('materialType').value === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
+                btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТА (JPG)</button>`;
+            } else {
+                btnContainer.innerHTML = '';
+            }
+
             document.getElementById('finalBox').style.display = 'block';
         }
 
-        // --- ФУНКЦИЯ ВЫГРУЗКИ В EXCEL ---
         function exportToExcel() {
-            // Создаем новую рабочую книгу
             let wb = XLSX.utils.book_new();
-
-            // Массив для данных, первая строка - заголовки
-            let ws_data = [
-                ["Позиция", "Значение"]
-            ];
-
-            // Находим все элементы со спецификацией
+            let ws_data = [["Позиция", "Значение"]];
             let items = document.querySelectorAll('#specContent .result-item, #specContent .spec-section-head');
 
             items.forEach(function (item) {
                 if (item.classList.contains('spec-section-head')) {
-                    // Это заголовок раздела
-                    ws_data.push([""]); // пустая строка для отступа
+                    ws_data.push([""]);
                     ws_data.push([item.innerText.toUpperCase(), ""]);
                 } else {
-                    // Это обычная строка с данными
                     let label = item.querySelector('.result-label').innerText.replace(':', '').trim();
                     let value = item.querySelector('.result-value').innerText.replace('~', '').trim();
                     ws_data.push([label, value]);
                 }
             });
 
-            // Конвертируем массив в формат листа Excel
             let ws = XLSX.utils.aoa_to_sheet(ws_data);
-
-            // Настраиваем ширину столбцов для красоты
             ws['!cols'] = [{ wch: 35 }, { wch: 20 }];
-
-            // Добавляем лист в книгу
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
-
-            // Генерируем файл и вызываем скачивание
             XLSX.writeFile(wb, "Спецификация_Кровли.xlsx");
         }
 
