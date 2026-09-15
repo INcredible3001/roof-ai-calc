@@ -425,14 +425,24 @@
         <!-- НОВЫЙ БЛОК: УТЕПЛЕНИЕ -->
         <div class="box" style="border-left: 4px solid #9b59b6; padding-left: 15px;">
             <h3>4. Утепление</h3>
-            <div class="form-group">
-                <label>Слои утепления (Paroc Extra 100 мм):</label>
-                <select id="mInsLayers" onchange="calculateFinal()">
-                    <option value="0">Без утепления</option>
-                    <option value="1" selected>1 слой (100 мм)</option>
-                    <option value="2">2 слоя (200 мм)</option>
-                    <option value="3">3 слоя (300 мм)</option>
-                </select>
+            <div class="grid-2-col">
+                <div class="form-group">
+                    <label>Paroc 100 мм:</label>
+                    <select id="mInsLayers" onchange="calculateFinal()">
+                        <option value="0">Без утепления</option>
+                        <option value="1" selected>1 слой (100 мм)</option>
+                        <option value="2">2 слоя (200 мм)</option>
+                        <option value="3">3 слоя (300 мм)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Paroc 50 мм:</label>
+                    <select id="mInsLayers50" onchange="calculateFinal()">
+                        <option value="0" selected>Без утепления</option>
+                        <option value="1">1 слой (50 мм)</option>
+                        <option value="2">2 слоя (100 мм)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -558,15 +568,14 @@
             return { rType, L, W, P1, P2, cos1, cos2 };
         }
 
-        // --- УМНОЕ ОКРУГЛЕНИЕ ПЛАНОК (если остаток >= 0.5, то +1 запас) ---
+        // --- УМНОЕ ОКРУГЛЕНИЕ ПЛАНОК (+1 шт, если остаток >= 0.5) ---
         function calcPlanks(len) {
             if (len <= 0) return 0;
             let val = len / 1.9; // делим на 1.9 (с учетом нахлеста)
-            let dec = val - Math.floor(val); // дробная часть
-            let res = Math.ceil(val); // стандартное округление вверх (например 5.78 -> 6)
-            if (dec >= 0.5) {
-                res += 1; // Если остаток больше половины, даем еще 1 планку запаса (станет 7)
-            }
+            let dec = val - Math.floor(val);
+            let res = Math.floor(val);
+            if (dec >= 0.5) res += 2; // +1 за обычное округление, +1 за запас
+            else if (dec > 0) res += 1; // просто вверх
             return res;
         }
 
@@ -690,6 +699,7 @@
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
             let insLayers = parseInt(document.getElementById('mInsLayers').value) || 0;
+            let insLayers50 = parseInt(document.getElementById('mInsLayers50').value) || 0;
 
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
@@ -755,7 +765,6 @@
                 let ridgePlanks = calcPlanks(cRidges + cHips);
                 let rakePlanks = calcPlanks(cRakes);
 
-                // Длина ендовы в скате для расчетов
                 let slopedValleys = cValleys > 0 ? (cValleys / vars.cos1) : 0;
                 let valleyBottomPlanks = calcPlanks(slopedValleys);
                 let valleyTopPlanks = calcPlanks(slopedValleys);
@@ -775,7 +784,9 @@
                 let butylWall = Math.ceil((cEaves + cAbutments + cRakes) / 25);
                 let condDropPlanks = eavesPlanks;
                 let butylDrop = Math.ceil((condDropPlanks * 2) / 25);
+
                 let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
+                let paroc50 = insLayers50 > 0 ? Math.ceil((slopedArea / 11.52) * insLayers50) : 0;
 
                 // --- НОВЫЙ РАСЧЕТ САМОРЕЗОВ ---
                 let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
@@ -857,7 +868,8 @@
                             { name: "Бутил-каучуковая лента для приклеивания пароизоляции к строительным конструкциям", qty: butylWall, unit: "рул" },
                             { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
-                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" }
+                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
+                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", qty: paroc50, unit: "упак" }
                         ]
                     }
                 ];
