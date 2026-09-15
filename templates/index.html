@@ -422,7 +422,6 @@
                     oninput="render3D()"></div>
         </div>
 
-        <!-- НОВЫЙ БЛОК: УТЕПЛЕНИЕ -->
         <div class="box" style="border-left: 4px solid #9b59b6; padding-left: 15px;">
             <h3>4. Утепление</h3>
             <div class="grid-2-col">
@@ -458,11 +457,12 @@
             <div id="layoutBtnContainer"></div>
         </div>
 
+        <!-- ОБНОВЛЕННЫЙ ЧАТ -->
         <div class="box chat-box" style="margin-top: 30px;">
             <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
-                <input type="text" id="chatInput" placeholder="Задай вопрос...">
+                <input type="text" id="chatInput" placeholder="Спроси про материалы, размеры или количество...">
                 <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
             </div>
         </div>
@@ -568,14 +568,13 @@
             return { rType, L, W, P1, P2, cos1, cos2 };
         }
 
-        // --- УМНОЕ ОКРУГЛЕНИЕ ПЛАНОК (+1 шт, если остаток >= 0.5) ---
         function calcPlanks(len) {
             if (len <= 0) return 0;
-            let val = len / 1.9; // делим на 1.9 (с учетом нахлеста)
+            let val = len / 1.9;
             let dec = val - Math.floor(val);
             let res = Math.floor(val);
-            if (dec >= 0.5) res += 2; // +1 за обычное округление, +1 за запас
-            else if (dec > 0) res += 1; // просто вверх
+            if (dec >= 0.5) res += 2;
+            else if (dec > 0) res += 1;
             return res;
         }
 
@@ -683,9 +682,6 @@
             let link = document.createElement('a'); link.download = 'Раскладка_Кровли.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
         };
 
-        // ==========================================
-        // ОБНОВЛЕННЫЙ РАСЧЕТ С ТАБЛИЦЕЙ ДОПРОДАЖ
-        // ==========================================
         function calculateFinal() {
             let vars = doMath();
             let area = parseFloat(document.getElementById('mArea').value) || 0;
@@ -759,9 +755,7 @@
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-            // СПЕЦИФИКАЦИЯ ДЛЯ МЕТАЛЛОЧЕРЕПИЦЫ ИЗ ТАБЛИЦЫ
             if (matTypeVal === 'metal') {
-
                 let ridgePlanks = calcPlanks(cRidges + cHips);
                 let rakePlanks = calcPlanks(cRakes);
 
@@ -772,7 +766,6 @@
                 let abutmentPlanks = calcPlanks(cAbutments);
                 let eavesPlanks = calcPlanks(cEaves);
 
-                // --- НОВЫЙ РАСЧЕТ КРОВЕЛЬНОГО ПИРОГА ---
                 let sealTape = Math.ceil(slopedArea * 1.83);
                 let membraneBaseArea = slopedArea + (slopedValleys > 0 ? 1.5 * slopedValleys : 0);
                 let membraneRolls = Math.ceil(membraneBaseArea / 65);
@@ -788,7 +781,6 @@
                 let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
                 let paroc50 = insLayers50 > 0 ? Math.ceil((slopedArea / 11.52) * insLayers50) : 0;
 
-                // --- НОВЫЙ РАСЧЕТ САМОРЕЗОВ ---
                 let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
                 let screws5519_total = (areaWithMargin * 2)
                     + (ridgePlanks * 12)
@@ -865,7 +857,7 @@
                             { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции к строительным конструкциям", qty: butylWall, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции", qty: butylWall, unit: "рул" },
                             { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
@@ -899,7 +891,6 @@
                 if (cRakes > 0) html += `<div class="result-item"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${cRakes.toFixed(2)} м</span></div>`;
             }
 
-            // Добавляем водосток и софиты
             html += `<div class="spec-section-head">Водосточная система и Свесы</div>`;
             html += `<div class="result-item"><span class="result-label">Желоба:</span><span class="result-value">${cEaves.toFixed(2)} м</span></div>`;
             if (nOutlets > 0) {
@@ -1423,6 +1414,44 @@
 
             if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
         }
+
+        // === УМНЫЙ ОТПРАВИТЕЛЬ В ЧАТ ===
+        async function sendChatMessage() {
+            const inputField = document.getElementById('chatInput');
+            const historyBox = document.getElementById('chatHistory');
+            const message = inputField.value.trim();
+            if (!message) return;
+
+            // Собираем текущие расчеты для ИИ, чтобы он мог умно отвечать
+            let specHtml = document.getElementById('specContent').innerText;
+            let currentContext = specHtml ? `ТЕКУЩАЯ СПЕЦИФИКАЦИЯ КЛИЕНТА:\n${specHtml}` : "Клиент еще не нажал кнопку Рассчитать.";
+
+            historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
+            inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory,
+                        context: currentContext // <-- Отправляем контекст на сервер
+                    })
+                });
+                const data = await response.json();
+                if (data.error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`; }
+                else {
+                    historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`;
+                    conversationHistory.push({ role: "user", text: message });
+                    conversationHistory.push({ role: "model", text: data.reply });
+                }
+                historyBox.scrollTop = historyBox.scrollHeight;
+            } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
+
     </script>
 </body>
 

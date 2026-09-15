@@ -12,7 +12,7 @@ except Exception:
 
 from flask import Flask, render_template, request, jsonify
 from google import genai
-from google.genai import types # Импортируем типы для работы с PDF и файлами
+from google.genai import types 
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
@@ -20,11 +20,9 @@ app.config["JSON_AS_ASCII"] = False
 # ТВОЙ КЛЮЧ (убедись, что он в переменных окружения)
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/analyze", methods=["POST"])
 def analyze_image():
@@ -33,7 +31,7 @@ def analyze_image():
     
     file = request.files["file"]
     file_bytes = file.read()
-    mime_type = file.mimetype # Автоматически определяет: image/jpeg, image/png или application/pdf
+    mime_type = file.mimetype 
     
     prompt = """
     Ты профессиональный расчетчик кровельных материалов.
@@ -41,9 +39,7 @@ def analyze_image():
     Выведи ответ списком и определи тип кровли.
     """
     try:
-        # Передаем файл напрямую в Gemini без использования PIL (теперь PDF тоже работает!)
         document_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-        
         response = client.models.generate_content(
             model="gemini-2.5-flash", 
             contents=[prompt, document_part]
@@ -53,25 +49,45 @@ def analyze_image():
         return jsonify({"error": str(e)})
 
 
-# НОВЫЙ МАРШРУТ: Работа ИИ-ассистента в чате
+# --- ОБНОВЛЕННЫЙ УМНЫЙ ЧАТ С ИИ ---
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         data = request.json
-        message = data.get("message", "")
+        user_message = data.get("message", "")
+        chat_history = data.get("history", [])
+        calc_context = data.get("context", "") # Получаем текущие цифры с сайта
+
+        # Собираем историю диалога в правильном формате для Gemini
+        formatted_contents = []
+        for msg in chat_history:
+            formatted_contents.append({"role": msg["role"], "parts": [{"text": msg["text"]}]})
         
-        # Системная настройка для бота (чтобы он понимал свою роль)
-        system_prompt = "Ты профессиональный ИИ-ассистент в кровельном калькуляторе. Отвечай дружелюбно, кратко и по делу.\nВопрос пользователя: "
+        # Добавляем новый вопрос
+        formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
+
+        # Инструкция: говорим ИИ, кто он такой, и скармливаем ему цифры
+        sys_instruct = f"""
+        Ты профессиональный инженер-консультант в строительном калькуляторе кровли.
+        Твоя задача — вежливо, экспертно и кратко отвечать на вопросы клиента.
+        
+        Вот ТЕКУЩИЕ ДАННЫЕ проекта клиента (размеры и рассчитанная спецификация материалов), 
+        которые он видит на экране прямо сейчас:
+        ---
+        {calc_context}
+        ---
+        Опирайся исключительно на эти данные при ответе на вопросы о количестве, длинах или материалах. 
+        Если клиент спрашивает "сколько нужно X", найди X в спецификации выше и назови точное количество.
+        """
         
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=system_prompt + message
+            contents=formatted_contents,
+            config=types.GenerateContentConfig(system_instruction=sys_instruct)
         )
-        # Обязательно возвращаем text, а не весь объект
         return jsonify({"reply": response.text})
         
     except Exception as e:
-        # Если будет сбой (например, кончились лимиты API), сервер не упадет
         return jsonify({"error": f"Ошибка ИИ: {str(e)}"}), 500
 
 
@@ -238,7 +254,6 @@ def generate_scheme():
     </div>
     """
     return jsonify({"svg": svg + legend})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
