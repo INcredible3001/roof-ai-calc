@@ -422,8 +422,22 @@
                     oninput="render3D()"></div>
         </div>
 
+        <!-- НОВЫЙ БЛОК: УТЕПЛЕНИЕ -->
+        <div class="box" style="border-left: 4px solid #9b59b6; padding-left: 15px;">
+            <h3>4. Утепление</h3>
+            <div class="form-group">
+                <label>Слои утепления (Paroc Extra 100 мм):</label>
+                <select id="mInsLayers" onchange="calculateFinal()">
+                    <option value="0">Без утепления</option>
+                    <option value="1" selected>1 слой (100 мм)</option>
+                    <option value="2">2 слоя (200 мм)</option>
+                    <option value="3">3 слоя (300 мм)</option>
+                </select>
+            </div>
+        </div>
+
         <div class="box">
-            <h3>4. Расчет спецификации</h3>
+            <h3>5. Расчет спецификации</h3>
             <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
         </div>
 
@@ -544,14 +558,15 @@
             return { rType, L, W, P1, P2, cos1, cos2 };
         }
 
-        // --- УМНОЕ ОКРУГЛЕНИЕ ПЛАНОК (+1 шт, если остаток >= 0.5) ---
+        // --- УМНОЕ ОКРУГЛЕНИЕ ПЛАНОК (если остаток >= 0.5, то +1 запас) ---
         function calcPlanks(len) {
             if (len <= 0) return 0;
             let val = len / 1.9; // делим на 1.9 (с учетом нахлеста)
-            let dec = val - Math.floor(val);
-            let res = Math.floor(val);
-            if (dec >= 0.5) res += 1;
-            else if (dec > 0) res += 1; // Всегда округляем вверх, чтобы хватило
+            let dec = val - Math.floor(val); // дробная часть
+            let res = Math.ceil(val); // стандартное округление вверх (например 5.78 -> 6)
+            if (dec >= 0.5) {
+                res += 1; // Если остаток больше половины, даем еще 1 планку запаса (станет 7)
+            }
             return res;
         }
 
@@ -674,6 +689,7 @@
             let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
+            let insLayers = parseInt(document.getElementById('mInsLayers').value) || 0;
 
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
@@ -727,7 +743,7 @@
             }
 
             document.getElementById('mArea').value = area.toFixed(2);
-            let areaWithMargin = slopedArea * 1.15; // Запас 15% 
+            let areaWithMargin = slopedArea * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
@@ -736,19 +752,33 @@
             // СПЕЦИФИКАЦИЯ ДЛЯ МЕТАЛЛОЧЕРЕПИЦЫ ИЗ ТАБЛИЦЫ
             if (matTypeVal === 'metal') {
 
-                // Рассчитываем кол-во планок по умной формуле (остаток >= 0.5 дает +1)
                 let ridgePlanks = calcPlanks(cRidges + cHips);
                 let rakePlanks = calcPlanks(cRakes);
-                let valleyBottomPlanks = calcPlanks(cValleys);
-                let valleyTopPlanks = calcPlanks(cValleys);
+
+                // Длина ендовы в скате для расчетов
+                let slopedValleys = cValleys > 0 ? (cValleys / vars.cos1) : 0;
+                let valleyBottomPlanks = calcPlanks(slopedValleys);
+                let valleyTopPlanks = calcPlanks(slopedValleys);
+
                 let abutmentPlanks = calcPlanks(cAbutments);
                 let eavesPlanks = calcPlanks(cEaves);
 
-                // --- ИСПРАВЛЕННЫЙ РАСЧЕТ САМОРЕЗОВ ---
-                // Саморезы 4.8x35 (6 шт на каждый кв.м. площади с запасом)
-                let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
+                // --- НОВЫЙ РАСЧЕТ КРОВЕЛЬНОГО ПИРОГА ---
+                let sealTape = Math.ceil(slopedArea * 1.83);
+                let membraneBaseArea = slopedArea + (slopedValleys > 0 ? 1.5 * slopedValleys : 0);
+                let membraneRolls = Math.ceil(membraneBaseArea / 65);
+                let membraneTape = Math.ceil((membraneRolls * 70) / 25);
 
-                // Саморезы 5.5x19 (2 шт на кв.м. + на конкретные планки)
+                let vaporRolls = Math.ceil(slopedArea / 65);
+                let vaporTape = Math.ceil((vaporRolls * 70) / 25);
+
+                let butylWall = Math.ceil((cEaves + cAbutments + cRakes) / 25);
+                let condDropPlanks = eavesPlanks;
+                let butylDrop = Math.ceil((condDropPlanks * 2) / 25);
+                let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
+
+                // --- НОВЫЙ РАСЧЕТ САМОРЕЗОВ ---
+                let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
                 let screws5519_total = (areaWithMargin * 2)
                     + (ridgePlanks * 12)
                     + (valleyTopPlanks * 10)
@@ -760,10 +790,10 @@
                     {
                         title: "Конек/хребет", items: [
                             { name: "Коньковая планка (2м)", qty: ridgePlanks, unit: "шт" },
-                            { name: "Тройник Y - образный (для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 2 : 0, unit: "шт" },
-                            { name: "Четверник Х - образный (для полукруглого конька)", qty: 0, unit: "шт" },
-                            { name: "Торцевая крышка конька (для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
-                            { name: "Конусная заглушка конька (для полукруглого конька)", qty: 0, unit: "шт" },
+                            { name: "Тройник Y - образный (только для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 2 : 0, unit: "шт" },
+                            { name: "Четверник Х - образный (только для полукруглого конька)", qty: 0, unit: "шт" },
+                            { name: "Торцевая крышка конька (только для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
+                            { name: "Конусная заглушка конька (только для полукруглого конька)", qty: 0, unit: "шт" },
                             { name: "Аэроролик конька/хребта (5м)", qty: Math.ceil((cRidges + cHips) / 5), unit: "рул" }
                         ]
                     },
@@ -777,8 +807,8 @@
                         title: "Ендова", items: [
                             { name: "Ендова нижняя (2м)", qty: valleyBottomPlanks, unit: "шт" },
                             { name: "Накладка ендовы (верхняя, 2м)", qty: valleyTopPlanks, unit: "шт" },
-                            { name: "Герметик 310 мл (для стыка нижних ендов)", qty: Math.ceil(valleyBottomPlanks / 11), unit: "тюбик" },
-                            { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(cValleys * 2), unit: "шт" }
+                            { name: "Герметик 310 мл", qty: Math.ceil(valleyBottomPlanks / 11), unit: "тюбик" },
+                            { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(slopedValleys * 2), unit: "шт" }
                         ]
                     },
                     {
@@ -788,7 +818,7 @@
                             { name: "Гладкий лист 1,25х2,5 м", qty: 0, unit: "лист" },
                             { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(cAbutments), unit: "шт" },
                             { name: "Шуруп с дюбелем для прижимной планки", qty: Math.ceil(cAbutments * 4), unit: "шт" },
-                            { name: "Герметик 310 мл (для примыканий)", qty: Math.ceil(cAbutments / 7), unit: "тюбик" }
+                            { name: "Герметик 310 мл", qty: Math.ceil(cAbutments / 7), unit: "тюбик" }
                         ]
                     },
                     {
@@ -800,8 +830,8 @@
                     {
                         title: "Крепеж", items: [
                             { name: "Корректор для ремонта царапин", qty: 1, unit: "шт" },
-                            { name: "Саморезы 4,8х35 мм (4,8х29) (уп. 250 шт)", qty: screws4835_packs, unit: "уп" },
-                            { name: "Саморезы 5,5х19 мм (уп. 250 шт)", qty: screws5519_packs > 0 ? screws5519_packs : 1, unit: "уп" }
+                            { name: "Саморезы 4,8х35 мм (4,8х29)", qty: screws4835_packs, unit: "уп" },
+                            { name: "Саморезы 5,5х19 мм", qty: screws5519_packs > 0 ? screws5519_packs : 1, unit: "уп" }
                         ]
                     },
                     {
@@ -819,16 +849,15 @@
                     },
                     {
                         title: "Кровельный пирог", items: [
-                            { name: "Уплотнительная лента под контр обрешетку", qty: Math.ceil(slopedArea / 0.6), unit: "м.п." },
-                            { name: "Диффузионная мембрана (рул. 70 кв.м.)", qty: Math.ceil((slopedArea * 1.1) / 70), unit: "рул" },
-                            { name: "Скотч для диффузионной мембраны (25 м.п.)", qty: Math.ceil((slopedArea / 1.5) / 25), unit: "рул" },
-                            { name: "Пароизоляция (рул. 70 кв.м.)", qty: Math.ceil((area * 1.1) / 70), unit: "рул" },
-                            { name: "Скотч для пароизоляции (25 м.п.)", qty: Math.ceil((area / 1.5) / 25), unit: "рул" },
-                            { name: "Бутил-каучуковая лента (25 м.п.)", qty: Math.ceil(area / 25), unit: "рул" },
-                            { name: "Капельник конденсата (2м)", qty: eavesPlanks, unit: "шт" },
-                            { name: "Бутил-каучуковая лента (для мембраны к капельнику, 25м)", qty: Math.ceil(cEaves / 25), unit: "рул" },
-                            { name: "Paroc Extra 100 мм (5,76 кв.м./упак)", qty: Math.ceil(area / 5.76), unit: "упак" },
-                            { name: "Paroc Extra 50 мм (11,52 кв.м./упак)", qty: Math.ceil(area / 11.52), unit: "упак" }
+                            { name: "Уплотнительная лента под контр обрешетку", qty: sealTape, unit: "м.п." },
+                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", qty: membraneRolls, unit: "рул" },
+                            { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
+                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
+                            { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции к строительным конструкциям", qty: butylWall, unit: "рул" },
+                            { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
+                            { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
+                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" }
                         ]
                     }
                 ];
