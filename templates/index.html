@@ -305,6 +305,17 @@
                 <input type="number" id="mRidgeHip" class="highlight-input" step="0.01" placeholder="По углу (Авто)"
                     oninput="render3D()">
             </div>
+
+            <!-- Скрытые поля для расчетов, чтобы математика работала как часы -->
+            <div style="display: none;">
+                <input type="number" id="mArea" value="0">
+                <input type="number" id="mRidges" value="0">
+                <input type="number" id="mHips" value="0">
+                <input type="number" id="mValleys" value="0">
+                <input type="number" id="mAbutments" value="0">
+                <input type="number" id="mSlopeTrap" value="0">
+                <input type="number" id="mSlopeHip" value="0">
+            </div>
         </div>
 
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
@@ -575,9 +586,17 @@
             let link = document.createElement('a'); link.download = 'Раскладка_Кровли.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
         };
 
+        // ==========================================
+        // ОБНОВЛЕННЫЙ РАСЧЕТ С ТАБЛИЦЕЙ ДОПРОДАЖ
+        // ==========================================
         function calculateFinal() {
             let vars = doMath();
+            let area = parseFloat(document.getElementById('mArea').value) || 0;
+            let valleys = parseFloat(document.getElementById('mValleys').value) || 0;
+            let abutments = parseFloat(document.getElementById('mAbutments').value) || 0;
+
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
+            let matTypeVal = document.getElementById('materialType').value;
             let matType = document.getElementById('materialType').options[document.getElementById('materialType').selectedIndex].text;
             let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
@@ -586,19 +605,17 @@
             let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
             let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
 
-            let area = 0, eaves = 0, rakes = 0, ridge = 0, hips = 0;
-
+            let cEaves = 0, cRakes = 0, cRidges = 0, cHips = 0, cValleys = valleys, cAbutments = abutments; let slopedArea = 0;
             if (vars.rType === 'shed') {
                 let s1 = Math.round((Wr / vars.cos1) * 100) / 100;
-                area = Lr * s1; eaves = Lr; ridge = Lr; rakes = s1 * 2;
+                cEaves = Lr; cRakes = s1 * 2; cRidges = Lr; cAbutments = abutments > 0 ? abutments : Lr; slopedArea = Lr * s1; area = Lr * Wr;
             } else if (vars.rType === 'gable') {
                 let s1 = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
-                area = Lr * s1 * 2; eaves = Lr * 2; rakes = s1 * 4; ridge = Lr;
+                cEaves = Lr * 2; cRakes = s1 * 4; cRidges = Lr; slopedArea = (Lr * s1) * 2; area = Lr * Wr;
             } else if (vars.rType === 'hip') {
                 let isRotated = Lr < Wr;
                 let mainL = isRotated ? Wr : Lr;
                 let mainW = isRotated ? Lr : Wr;
-
                 let h1 = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
                 let indent = 0;
 
@@ -613,71 +630,150 @@
                     if (indent >= mainL / 2) indent = mainL / 2;
                 }
                 let r_indent = Math.round(indent * 100) / 100;
-
-                ridge = Math.max(0, mainL - r_indent * 2);
-                ridge = Math.round(ridge * 100) / 100;
+                cRidges = Math.max(0, mainL - r_indent * 2);
+                cRidges = Math.round(cRidges * 100) / 100;
 
                 let s_side = Math.round(Math.sqrt(Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
                 let s_end = Math.round(Math.sqrt(Math.pow(r_indent, 2) + Math.pow(h1, 2)) * 100) / 100;
 
-                let trapezeArea = ((mainL + ridge) / 2) * s_side;
+                let trapezeArea = ((mainL + cRidges) / 2) * s_side;
                 let triangleArea = (mainW * s_end) / 2;
-                area = trapezeArea * 2 + triangleArea * 2;
+                slopedArea = trapezeArea * 2 + triangleArea * 2;
+                area = Lr * Wr;
 
-                eaves = Lr * 2 + Wr * 2;
-                hips = Math.round(Math.sqrt(Math.pow(r_indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
+                cEaves = Lr * 2 + Wr * 2;
+                cHips = Math.round(Math.sqrt(Math.pow(r_indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
             } else if (vars.rType === 'tent') {
                 let h1 = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                let s_L = Math.round(Math.sqrt(Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
-                let s_W = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
-
-                area = (Lr * s_L / 2) * 2 + (Wr * s_W / 2) * 2;
-                eaves = Lr * 2 + Wr * 2;
-                hips = Math.round(Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 100) / 100 * 4;
+                let s_L = Math.sqrt(Math.pow(Wr / 2, 2) + Math.pow(h1, 2));
+                let s_W = Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(h1, 2));
+                area = Lr * Wr;
+                slopedArea = (Lr * s_L / 2) * 2 + (Wr * s_W / 2) * 2;
+                cEaves = Lr * 2 + Wr * 2;
+                cHips = Math.sqrt(Math.pow(Lr / 2, 2) + Math.pow(Wr / 2, 2) + Math.pow(h1, 2)) * 4;
             }
 
-            let areaWithMargin = area * 1.15;
+            document.getElementById('mArea').value = area.toFixed(2);
+            let areaWithMargin = slopedArea * 1.15; // Запас 15% 
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
-            html += `<div class="result-item"><span class="result-label">Чистая площадь:</span><span class="result-value">~${area.toFixed(2)} м²</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
             html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-            if (ridge > 0) {
-                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Конёк:</span><span class="result-value">${ridge.toFixed(2)} м</span></div>`;
-                html += `<div class="result-item"><span class="result-label"><b>Конёк с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(ridge * 1.05).toFixed(2)} м</span></div>`;
-            }
-            if (hips > 0) {
-                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${hips.toFixed(2)} м</span></div>`;
-                html += `<div class="result-item"><span class="result-label"><b>Хребты с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(hips * 1.05).toFixed(2)} м</span></div>`;
+            // СПЕЦИФИКАЦИЯ ДЛЯ МЕТАЛЛОЧЕРЕПИЦЫ ИЗ ТАБЛИЦЫ
+            if (matTypeVal === 'metal') {
+                const pLen = 1.9; // Полезная длина планок (нахлест 10см)
+
+                const specData = [
+                    {
+                        title: "Конек/хребет", items: [
+                            { name: "Коньковая планка (2м)", qty: Math.ceil((cRidges + cHips) / pLen), unit: "шт" },
+                            { name: "Тройник Y-образный / Четверник X-образный", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 2 : 0, unit: "шт" },
+                            { name: "Торцевая крышка / Конусная заглушка", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
+                            { name: "Аэроролик конька/хребта (5м)", qty: Math.ceil((cRidges + cHips) / 5), unit: "рул" }
+                        ]
+                    },
+                    {
+                        title: "Торец", items: [
+                            { name: "Торцевая планка (2м)", qty: Math.ceil(cRakes / pLen), unit: "шт" },
+                            { name: "Торцевая страховочная планка (2м)", qty: Math.ceil(cRakes / pLen), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Ендова", items: [
+                            { name: "Ендова нижняя (2м)", qty: Math.ceil(cValleys / pLen), unit: "шт" },
+                            { name: "Накладка ендовы (верхняя, 2м)", qty: Math.ceil(cValleys / pLen), unit: "шт" },
+                            { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(cValleys * 2), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Примыкание", items: [
+                            { name: "Планка примыкания (2м)", qty: Math.ceil(cAbutments / pLen), unit: "шт" },
+                            { name: "Шуруп с дюбелем для прижимной планки", qty: Math.ceil(cAbutments * 3), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Карниз", items: [
+                            { name: "Карнизная планка (2м)", qty: Math.ceil(cEaves / pLen), unit: "шт" },
+                            { name: "Вент сетка ПВХ (5м)", qty: Math.ceil(cEaves / 5), unit: "рул" }
+                        ]
+                    },
+                    {
+                        title: "Крепеж и Герметики", items: [
+                            { name: "Саморезы 4,8х35 мм (уп 250 шт)", qty: Math.ceil((areaWithMargin * 8) / 250), unit: "уп" },
+                            { name: "Саморезы 5,5х19 мм (для планок, уп 250 шт)", qty: Math.ceil(((cRidges + cHips + cEaves + cRakes) * 6) / 250) || 1, unit: "уп" },
+                            { name: "Корректор для ремонта царапин", qty: 1, unit: "шт" },
+                            { name: "Герметик 310 мл", qty: Math.max(1, Math.ceil((cValleys + cAbutments) / 5)), unit: "тюбик" }
+                        ]
+                    },
+                    {
+                        title: "Снегозадержание", items: [
+                            { name: "Снегозадержатель трубчатый 3 м", qty: Math.ceil(cEaves / 3), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Вентиляция", items: [
+                            { name: "Штучный аэратор (аэровент, KTV)", qty: Math.ceil(slopedArea / 60), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Кровельный пирог", items: [
+                            { name: "Уплотнительная лента под контр обрешетку", qty: Math.ceil(slopedArea / 0.6), unit: "м.п." },
+                            { name: "Диффузионная мембрана (рул. 70 кв.м.)", qty: Math.ceil((slopedArea * 1.1) / 70), unit: "рул" },
+                            { name: "Скотч для диффузионной мембраны (25 м.п.)", qty: Math.ceil((slopedArea / 1.5) / 25), unit: "рул" },
+                            { name: "Пароизоляция (рул. 70 кв.м.)", qty: Math.ceil((area * 1.1) / 70), unit: "рул" },
+                            { name: "Скотч для пароизоляции (25 м.п.)", qty: Math.ceil((area / 1.5) / 25), unit: "рул" },
+                            { name: "Бутил-каучуковая лента (25 м.п.)", qty: Math.ceil(area / 25), unit: "рул" },
+                            { name: "Капельник конденсата (2м)", qty: Math.ceil(cEaves / pLen), unit: "шт" },
+                            { name: "Paroc Extra 100 мм (5,76 кв.м./упак)", qty: Math.ceil(area / 5.76), unit: "упак" },
+                            { name: "Paroc Extra 50 мм (11,52 кв.м./упак)", qty: Math.ceil(area / 11.52), unit: "упак" }
+                        ]
+                    }
+                ];
+
+                html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
+                            <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
+                            <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для металлочерепицы)</p>
+                         </div>`;
+
+                specData.forEach(section => {
+                    let hasItems = false;
+                    let sectionHtml = `<div class="spec-section-head" style="background: #fcf3cf; border-left: 4px solid #f1c40f; color: #d35400;">${section.title}</div>`;
+
+                    section.items.forEach(item => {
+                        hasItems = true;
+                        let qtyDisplay = item.qty > 0 ? item.qty : `<span style="color:#bdc3c7;">0 (уточнить)</span>`;
+                        sectionHtml += `<div class="result-item"><span class="result-label">${item.name}:</span><span class="result-value">${qtyDisplay} ${item.unit}</span></div>`;
+                    });
+
+                    if (hasItems) html += sectionHtml;
+                });
+            } else {
+                html += `<div class="spec-section-head">Доборные элементы (База)</div>`;
+                if (cRidges > 0) html += `<div class="result-item"><span class="result-label">Конёк:</span><span class="result-value">${cRidges.toFixed(2)} м</span></div>`;
+                if (cHips > 0) html += `<div class="result-item"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${cHips.toFixed(2)} м</span></div>`;
+                html += `<div class="result-item"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${cEaves.toFixed(2)} м</span></div>`;
+                if (cRakes > 0) html += `<div class="result-item"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${cRakes.toFixed(2)} м</span></div>`;
             }
 
-            html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
-            html += `<div class="result-item"><span class="result-label"><b>Карнизы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(eaves * 1.05).toFixed(2)} м</span></div>`;
-
-            if (rakes > 0) {
-                html += `<div class="result-item" style="margin-top: 10px;"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${rakes.toFixed(2)} м</span></div>`;
-                html += `<div class="result-item"><span class="result-label"><b>Торцы с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${(rakes * 1.05).toFixed(2)} м</span></div>`;
-            }
-
-            html += `<div class="spec-section-head">Водосточная система</div>`;
-            html += `<div class="result-item"><span class="result-label">Желоба:</span><span class="result-value">${eaves.toFixed(2)} м</span></div>`;
+            // Добавляем водосток и софиты
+            html += `<div class="spec-section-head">Водосточная система и Свесы</div>`;
+            html += `<div class="result-item"><span class="result-label">Желоба:</span><span class="result-value">${cEaves.toFixed(2)} м</span></div>`;
             if (nOutlets > 0) {
                 html += `<div class="result-item"><span class="result-label">Воронки:</span><span class="result-value">${nOutlets} шт</span></div>`;
                 let pipeLen = (wallHeight - 0.5) * nOutlets;
                 html += `<div class="result-item"><span class="result-label">Трубы водосточные:</span><span class="result-value">${Math.max(0, pipeLen).toFixed(2)} м</span></div>`;
             }
-
             if (soffit > 0) {
-                html += `<div class="spec-section-head">Подшивка свесов</div>`;
-                let soffitArea = eaves * soffit + rakes * soffit;
+                let soffitArea = cEaves * soffit + cRakes * soffit;
                 html += `<div class="result-item"><span class="result-label">Софиты (площадь):</span><span class="result-value">~${soffitArea.toFixed(2)} м²</span></div>`;
-                html += `<div class="result-item"><span class="result-label">J-фаска / Лобовая:</span><span class="result-value">${(eaves + rakes).toFixed(2)} м</span></div>`;
+                html += `<div class="result-item"><span class="result-label">J-фаска / Лобовая:</span><span class="result-value">${(cEaves + cRakes).toFixed(2)} м</span></div>`;
             }
 
             document.getElementById('specContent').innerHTML = html;
 
             let btnContainer = document.getElementById('layoutBtnContainer');
-            if (document.getElementById('materialType').value === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
+            if (matTypeVal === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
                 btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px; width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТОВ (JPG)</button>`;
             } else {
                 btnContainer.innerHTML = '';
@@ -689,10 +785,13 @@
         function exportToExcel() {
             let wb = XLSX.utils.book_new();
             let ws_data = [["Позиция", "Значение"]];
-            let items = document.querySelectorAll('#specContent .result-item, #specContent .spec-section-head');
+            let items = document.querySelectorAll('#specContent .result-item, #specContent .spec-section-head, #specContent h3');
 
             items.forEach(function (item) {
-                if (item.classList.contains('spec-section-head')) {
+                if (item.tagName.toLowerCase() === 'h3') {
+                    ws_data.push([""]);
+                    ws_data.push([item.innerText.toUpperCase(), ""]);
+                } else if (item.classList.contains('spec-section-head')) {
                     ws_data.push([""]);
                     ws_data.push([item.innerText.toUpperCase(), ""]);
                 } else {
@@ -703,7 +802,7 @@
             });
 
             let ws = XLSX.utils.aoa_to_sheet(ws_data);
-            ws['!cols'] = [{ wch: 35 }, { wch: 20 }];
+            ws['!cols'] = [{ wch: 45 }, { wch: 20 }];
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
             XLSX.writeFile(wb, "Спецификация_Кровли.xlsx");
         }
