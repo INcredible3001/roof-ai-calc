@@ -68,6 +68,7 @@ def chat():
         
         formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
 
+        # Инструкция с контекстом
         sys_instruct = f"""
         Ты профессиональный ИИ-консультант в строительном калькуляторе кровли.
         Твоя задача — вежливо, экспертно и кратко отвечать на вопросы клиента.
@@ -88,6 +89,7 @@ def chat():
         return jsonify({"reply": response.text})
         
     except Exception as e:
+        # Если будет сбой API, возвращаем аккуратную JSON ошибку
         return jsonify({"error": f"Внутренняя ошибка сервера: {str(e)}"}), 500
 
 
