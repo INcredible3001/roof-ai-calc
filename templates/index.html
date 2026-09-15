@@ -457,19 +457,21 @@
             <div id="layoutBtnContainer"></div>
         </div>
 
+        <!-- ОБНОВЛЕННЫЙ ЧАТ -->
         <div class="box chat-box" style="margin-top: 30px;">
             <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
                 <input type="text" id="chatInput" placeholder="Спроси про материалы, размеры...">
-                <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
+                <!-- ТЕПЕРЬ КНОПКА СИНЯЯ (АКТИВНАЯ) -->
+                <button class="btn-blue" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
             </div>
         </div>
     </div>
 
     <script>
         let currentRoofColor = 0x3b2821;
-        let conversationHistory = []; // ВОТ ЭТА СТРОЧКА ВЕРНУЛАСЬ ДЛЯ РАБОТЫ ЧАТА!
+        let conversationHistory = [];
 
         const colorDB = {
             metal: [
@@ -857,7 +859,7 @@
                             { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции к строительным конструкциям", qty: butylWall, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции", qty: butylWall, unit: "рул" },
                             { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
@@ -1394,8 +1396,20 @@
             const message = inputField.value.trim();
             if (!message) return;
 
+            const rTypeSelect = document.getElementById('roofType');
+            const roofName = rTypeSelect.options[rTypeSelect.selectedIndex].text;
+            const L = document.getElementById('mEaves').value;
+            const W = document.getElementById('mRakes').value;
+            const P1 = document.getElementById('mPitch').value;
+
             let specHtml = document.getElementById('specContent').innerText;
-            let currentContext = specHtml ? `СПЕЦИФИКАЦИЯ:\n${specHtml}` : "Расчет еще не выполнен.";
+            let currentContext = `--- ТЕКУЩИЕ ПАРАМЕТРЫ ПРОЕКТА ---
+Тип кровли: ${roofName}
+Базовые габариты: ${L} м х ${W} м
+Угол наклона: ${P1} градусов
+
+--- РАССЧИТАННАЯ СПЕЦИФИКАЦИЯ ---
+${specHtml ? specHtml : "Расчет еще не выполнен."}`;
 
             historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
             inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
