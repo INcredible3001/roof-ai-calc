@@ -457,12 +457,11 @@
             <div id="layoutBtnContainer"></div>
         </div>
 
-        <!-- ОБНОВЛЕННЫЙ ЧАТ -->
         <div class="box chat-box" style="margin-top: 30px;">
             <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
-                <input type="text" id="chatInput" placeholder="Спроси про материалы, размеры или количество...">
+                <input type="text" id="chatInput" placeholder="Спроси про материалы, размеры...">
                 <button class="btn-dark" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
             </div>
         </div>
@@ -1199,34 +1198,10 @@
                 } else if (vars.rType === 'gable') {
                     return y0 + (Wr / 2 - Math.abs(z)) * Math.tan(vars.P1 * Math.PI / 180);
                 } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    let isRotated = Lr < Wr && vars.rType === 'hip';
-                    let mainL = isRotated ? Wr : Lr;
-                    let mainW = isRotated ? Lr : Wr;
-
-                    let H_roof, indent;
-                    if (vars.rType === 'tent') {
-                        H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                        indent = mainL / 2;
-                    } else {
-                        let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
-                        let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
-
-                        if (customRidge !== null && customRidge >= 0) {
-                            let r = Math.min(customRidge, mainL);
-                            indent = (mainL - r) / 2;
-                        } else {
-                            indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
-                            if (indent >= mainL / 2) { indent = mainL / 2; H_roof = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
-                        }
-                    }
-
-                    let dMainW = mainW / 2 - Math.abs(isRotated ? x : z);
-                    let dMainL = mainL / 2 - Math.abs(isRotated ? z : x);
-
-                    let yW = y0 + dMainW * (H_roof / (mainW / 2));
-                    let yL = indent === 0 ? (y0 + H_roof) : (y0 + dMainL * (H_roof / indent));
-
-                    return Math.min(yW, yL);
+                    // ФИКС ФАСАДА ДЛЯ ВАЛЬМЫ:
+                    // Вальмовая крыша перекрывает стены горизонтально, 
+                    // поэтому все стены находятся на одном уровне - уровне карниза
+                    return y0;
                 }
                 return y0;
             };
@@ -1312,7 +1287,6 @@
                     indent = mainL / 2;
                 } else {
                     H_roof = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
-
                     let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
                     let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
 
@@ -1415,16 +1389,15 @@
             if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
         }
 
-        // === УМНЫЙ ОТПРАВИТЕЛЬ В ЧАТ ===
+        // --- ВОССТАНОВЛЕННЫЙ ЧАТ С ПЕРЕДАЧЕЙ КОНТЕКСТА ---
         async function sendChatMessage() {
             const inputField = document.getElementById('chatInput');
             const historyBox = document.getElementById('chatHistory');
             const message = inputField.value.trim();
             if (!message) return;
 
-            // Собираем текущие расчеты для ИИ, чтобы он мог умно отвечать
             let specHtml = document.getElementById('specContent').innerText;
-            let currentContext = specHtml ? `ТЕКУЩАЯ СПЕЦИФИКАЦИЯ КЛИЕНТА:\n${specHtml}` : "Клиент еще не нажал кнопку Рассчитать.";
+            let currentContext = specHtml ? `СПЕЦИФИКАЦИЯ:\n${specHtml}` : "Расчет еще не выполнен.";
 
             historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
             inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
@@ -1436,22 +1409,26 @@
                     body: JSON.stringify({
                         message: message,
                         history: conversationHistory,
-                        context: currentContext // <-- Отправляем контекст на сервер
+                        context: currentContext // <-- ТЕПЕРЬ ОН ПЕРЕДАЕТ ДАННЫЕ НА СЕРВЕР
                     })
                 });
+
                 const data = await response.json();
-                if (data.error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`; }
-                else {
+
+                if (data.error) {
+                    historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка:</div><div>${data.error}</div><br>`;
+                } else {
                     historyBox.innerHTML += `<div class="msg-ai">Ассистент:</div><div>${data.reply}</div><br>`;
                     conversationHistory.push({ role: "user", text: message });
                     conversationHistory.push({ role: "model", text: data.reply });
                 }
                 historyBox.scrollTop = historyBox.scrollHeight;
-            } catch (error) { historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи.</div><br>`; }
+            } catch (error) {
+                historyBox.innerHTML += `<div class="msg-ai" style="color: red;">Ошибка связи с сервером. Попробуйте обновить страницу (Ctrl+F5).</div><br>`;
+                console.error("Chat error:", error);
+            }
         }
-
         document.getElementById('chatInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChatMessage(); });
-
     </script>
 </body>
 

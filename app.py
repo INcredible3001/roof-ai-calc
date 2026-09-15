@@ -2,6 +2,7 @@ import os
 import sys
 import math
 
+# --- БРОНЯ ОТ ОШИБОК КОДИРОВКИ WINDOWS ---
 os.environ["PYTHONUTF8"] = "1"
 os.environ["PYTHONIOENCODING"] = "utf-8"
 try:
@@ -17,7 +18,7 @@ from google.genai import types
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
-# ТВОЙ КЛЮЧ (убедись, что он в переменных окружения)
+# ТВОЙ КЛЮЧ
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.route("/")
@@ -49,35 +50,34 @@ def analyze_image():
         return jsonify({"error": str(e)})
 
 
-# --- ОБНОВЛЕННЫЙ УМНЫЙ ЧАТ С ИИ ---
+# --- ОБНОВЛЕННЫЙ И ЗАЩИЩЕННЫЙ ЧАТ ---
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "Пустой запрос"}), 400
+            
         user_message = data.get("message", "")
         chat_history = data.get("history", [])
-        calc_context = data.get("context", "") # Получаем текущие цифры с сайта
+        calc_context = data.get("context", "Клиент еще не сделал расчет.")
 
-        # Собираем историю диалога в правильном формате для Gemini
         formatted_contents = []
         for msg in chat_history:
             formatted_contents.append({"role": msg["role"], "parts": [{"text": msg["text"]}]})
         
-        # Добавляем новый вопрос
         formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
 
-        # Инструкция: говорим ИИ, кто он такой, и скармливаем ему цифры
         sys_instruct = f"""
-        Ты профессиональный инженер-консультант в строительном калькуляторе кровли.
+        Ты профессиональный ИИ-консультант в строительном калькуляторе кровли.
         Твоя задача — вежливо, экспертно и кратко отвечать на вопросы клиента.
         
-        Вот ТЕКУЩИЕ ДАННЫЕ проекта клиента (размеры и рассчитанная спецификация материалов), 
-        которые он видит на экране прямо сейчас:
+        Вот ТЕКУЩИЕ ДАННЫЕ проекта (размеры и рассчитанная спецификация материалов), 
+        которые клиент видит на экране:
         ---
         {calc_context}
         ---
-        Опирайся исключительно на эти данные при ответе на вопросы о количестве, длинах или материалах. 
-        Если клиент спрашивает "сколько нужно X", найди X в спецификации выше и назови точное количество.
+        Опирайся на эти данные при ответе на вопросы о количестве, длинах или материалах. 
         """
         
         response = client.models.generate_content(
@@ -88,7 +88,7 @@ def chat():
         return jsonify({"reply": response.text})
         
     except Exception as e:
-        return jsonify({"error": f"Ошибка ИИ: {str(e)}"}), 500
+        return jsonify({"error": f"Внутренняя ошибка сервера: {str(e)}"}), 500
 
 
 @app.route("/generate_scheme", methods=["POST"])
@@ -194,38 +194,27 @@ def generate_scheme():
     elif roof_type == "multi_gable":
         D = min(w, h) * 0.5
 
-        # 1. Линии контура (Карнизы - зеленые, Торцы - желтые)
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy}" x2="{cx+w/2+D/2}" y2="{cy}" class="rake"/>'
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy}" x2="{cx+w/2-D/2}" y2="{cy+h/2-D/2}" class="eaves"/>'
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy}" x2="{cx+w/2+D/2}" y2="{cy+h/2-D/2}" class="eaves"/>'
-
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2-D/2}" x2="{cx+w}" y2="{cy+h/2-D/2}" class="eaves"/>'
         svg += f'<line x1="{cx+w}" y1="{cy+h/2-D/2}" x2="{cx+w}" y2="{cy+h/2+D/2}" class="rake"/>'
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2+D/2}" x2="{cx+w}" y2="{cy+h/2+D/2}" class="eaves"/>'
-
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2-D/2}" y2="{cy+h}" class="eaves"/>'
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2+D/2}" y2="{cy+h}" class="eaves"/>'
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy+h}" x2="{cx+w/2+D/2}" y2="{cy+h}" class="rake"/>'
-
         svg += f'<line x1="{cx}" y1="{cy+h/2-D/2}" x2="{cx+w/2-D/2}" y2="{cy+h/2-D/2}" class="eaves"/>'
         svg += f'<line x1="{cx}" y1="{cy+h/2-D/2}" x2="{cx}" y2="{cy+h/2+D/2}" class="rake"/>'
         svg += f'<line x1="{cx}" y1="{cy+h/2+D/2}" x2="{cx+w/2-D/2}" y2="{cy+h/2+D/2}" class="eaves"/>'
 
-        # 2. Коньки (Красные)
-        svg += (
-            f'<line x1="{cx+w/2}" y1="{cy}" x2="{cx+w/2}" y2="{cy+h}" class="ridge"/>'
-        )
-        svg += (
-            f'<line x1="{cx}" y1="{cy+h/2}" x2="{cx+w}" y2="{cy+h/2}" class="ridge"/>'
-        )
+        svg += f'<line x1="{cx+w/2}" y1="{cy}" x2="{cx+w/2}" y2="{cy+h}" class="ridge"/>'
+        svg += f'<line x1="{cx}" y1="{cy+h/2}" x2="{cx+w}" y2="{cy+h/2}" class="ridge"/>'
 
-        # 3. Ендовы (Оранжевые)
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy+h/2-D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2-D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
         svg += f'<line x1="{cx+w/2+D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
         svg += f'<line x1="{cx+w/2-D/2}" y1="{cy+h/2+D/2}" x2="{cx+w/2}" y2="{cy+h/2}" class="valley"/>'
 
-        # 4. Стрелки ската воды
         svg += f'<line x1="{cx+w/4}" y1="{cy+h/2-5}" x2="{cx+w/4}" y2="{cy+h/2-D/2+15}" class="water"/>'
         svg += f'<line x1="{cx+w/4}" y1="{cy+h/2+5}" x2="{cx+w/4}" y2="{cy+h/2+D/2-15}" class="water"/>'
         svg += f'<line x1="{cx+w*0.75}" y1="{cy+h/2-5}" x2="{cx+w*0.75}" y2="{cy+h/2-D/2+15}" class="water"/>'
@@ -235,7 +224,6 @@ def generate_scheme():
         svg += f'<line x1="{cx+w/2-5}" y1="{cy+h*0.75}" x2="{cx+w/2-D/2+15}" y2="{cy+h*0.75}" class="water"/>'
         svg += f'<line x1="{cx+w/2+5}" y1="{cy+h*0.75}" x2="{cx+w/2+D/2-15}" y2="{cy+h*0.75}" class="water"/>'
 
-        # 5. Подписи текстом
         svg += f'<text x="{cx-10}" y="{cy+h/2}" text-anchor="middle" transform="rotate(-90,{cx-10},{cy+h/2})" class="txt">Торец</text>'
         svg += f'<text x="{cx+w/2-D/2-25}" y="{cy+h/2-D/2+15}" text-anchor="middle" class="txt">Карниз</text>'
         svg += f'<text x="{cx+w*0.75}" y="{cy+h/2-5}" text-anchor="middle" class="txt-r">Конек</text>'
