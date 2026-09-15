@@ -469,6 +469,7 @@
 
     <script>
         let currentRoofColor = 0x3b2821;
+        let conversationHistory = []; // ВОТ ЭТА СТРОЧКА ВЕРНУЛАСЬ ДЛЯ РАБОТЫ ЧАТА!
 
         const colorDB = {
             metal: [
@@ -792,8 +793,8 @@
                     {
                         title: "Конек/хребет", items: [
                             { name: "Коньковая планка (2м)", qty: ridgePlanks, unit: "шт" },
-                            { name: "Тройник Y - образный (только для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 2 : 0, unit: "шт" },
-                            { name: "Четверник Х - образный (только для полукруглого конька)", qty: 0, unit: "шт" },
+                            { name: "Тройник Y - образный (только для полукруглого конька)", qty: vars.rType === 'hip' ? 2 : 0, unit: "шт" },
+                            { name: "Четверник Х - образный (только для полукруглого конька)", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
                             { name: "Торцевая крышка конька (только для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
                             { name: "Конусная заглушка конька (только для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
                             { name: "Аэроролик конька/хребта (5м)", qty: Math.ceil((cRidges + cHips) / 5), unit: "рул" }
@@ -856,7 +857,7 @@
                             { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции", qty: butylWall, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции к строительным конструкциям", qty: butylWall, unit: "рул" },
                             { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
@@ -1198,7 +1199,7 @@
                 } else if (vars.rType === 'gable') {
                     return y0 + (Wr / 2 - Math.abs(z)) * Math.tan(vars.P1 * Math.PI / 180);
                 } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    return y0; // Исправление фасада вальмы
+                    return y0;
                 }
                 return y0;
             };
@@ -1387,7 +1388,6 @@
             if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
         }
 
-        // --- УМНЫЙ ЧАТ С ЛОГИРОВАНИЕМ ОШИБОК ---
         async function sendChatMessage() {
             const inputField = document.getElementById('chatInput');
             const historyBox = document.getElementById('chatHistory');
@@ -1411,7 +1411,6 @@
                     })
                 });
 
-                // Проверяем, не упал ли сервер жестко (500/502 с HTML-страницей)
                 if (!response.ok) {
                     const errText = await response.text();
                     try {
