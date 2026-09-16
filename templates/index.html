@@ -307,17 +307,6 @@
             margin: 0;
             padding: 10px 20px;
         }
-
-        #container3D {
-            width: 100%;
-            height: 400px;
-            background-color: #87CEEB;
-            border-radius: 4px;
-            margin-top: 15px;
-            display: none;
-            border: 2px solid #bdc3c7;
-            overflow: hidden;
-        }
     </style>
 </head>
 
@@ -330,7 +319,7 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- ПЕРЕМЕЩЕННЫЙ ВВЕРХ И ОБНОВЛЕННЫЙ БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
+        <!-- БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
         <div class="box ai-box"
             style="margin-bottom: 25px; padding: 15px; background: #e8f4f8; border: 2px dashed #3498db; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2980b9; font-size: 15px;">📎 Загрузить чертеж (ИИ)</h3>
@@ -467,7 +456,6 @@
         <div class="final-box" id="finalBox">
             <div class="spec-title">Итоговая спецификация</div>
 
-            <!-- НОВЫЙ БЛОК ДЛЯ УМНЫХ ПОДСКАЗОК (ЗАЩИТА ОТ ДУРАКА) -->
             <div id="smartWarnings"
                 style="display: none; background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-size: 13px; color: #856404; line-height: 1.5;">
             </div>
@@ -578,6 +566,76 @@
         }
 
         window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
+
+        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ЧТЕНИЯ ФАЙЛОВ ДЛЯ ИИ
+        function extractNumber(text, keyword) {
+            let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
+            let match = text.match(regex);
+            if (match) return parseFloat(match[1].replace(',', '.'));
+            return 0;
+        }
+
+        async function analyzeImage() {
+            const fileInput = document.getElementById('roofImage');
+            const resultDiv = document.getElementById('aiResult');
+            const loader = document.getElementById('loader');
+            const historyBox = document.getElementById('chatHistory');
+
+            if (fileInput.files.length === 0) { alert("Сначала выбери файл с чертежом!"); return; }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            loader.style.display = "block";
+            resultDiv.style.display = "none";
+
+            try {
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                loader.style.display = "none";
+                resultDiv.style.display = "block";
+
+                if (data.error) {
+                    resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>";
+                } else {
+                    const aiText = data.result;
+                    resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + aiText;
+
+                    // Умное извлечение с защитой
+                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол наклона') || extractNumber(aiText, 'Угол') || 30;
+                    document.getElementById('mEaves').value = extractNumber(aiText, 'Длина') || extractNumber(aiText, 'Карниз') || 10;
+                    document.getElementById('mRakes').value = extractNumber(aiText, 'Ширина') || extractNumber(aiText, 'Торц') || 8;
+
+                    document.getElementById('mRidges').value = extractNumber(aiText, 'Длина коньков') || extractNumber(aiText, 'Конь');
+                    document.getElementById('mHips').value = extractNumber(aiText, 'Длина хребтов') || extractNumber(aiText, 'Хреб');
+                    document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
+
+                    document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
+                    render3D(); // Сразу перерисовываем 3D!
+
+                    // Обновляем память чата
+                    conversationHistory = [];
+                    conversationHistory.push({
+                        role: "user",
+                        text: "Я загрузил чертеж. Вот текстовые данные, которые ты из него извлек. Запомни их: \n" + aiText
+                    });
+                    conversationHistory.push({
+                        role: "model",
+                        text: "Принято! Я запомнил эти размеры и готов помочь с расчетами."
+                    });
+
+                    if (historyBox) {
+                        historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Я успешно извлек данные с чертежа и подставил их в форму! Проверьте их.</div><br>`;
+                        historyBox.scrollTop = historyBox.scrollHeight;
+                    }
+                }
+            } catch (error) {
+                loader.style.display = "none";
+                alert("Ошибка связи с сервером при отправке файла.");
+                console.error(error);
+            }
+        }
 
         function doMath() {
             const rType = document.getElementById('roofType').value;
@@ -1223,7 +1281,7 @@
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
-            const drainMat = new MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
+            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
 
             let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
             let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
