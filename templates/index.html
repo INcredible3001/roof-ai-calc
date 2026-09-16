@@ -330,7 +330,7 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- ПЕРЕМЕЩЕННЫЙ ВВЕРХ И ОБНОВЛЕННЫЙ БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
+        <!-- БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
         <div class="box ai-box"
             style="margin-bottom: 25px; padding: 15px; background: #e8f4f8; border: 2px dashed #3498db; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2980b9; font-size: 15px;">📎 Загрузить чертеж (ИИ)</h3>
@@ -344,7 +344,8 @@
             <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
         </div>
 
-        <div class="box">
+        <!-- ИСПРАВЛЕНИЕ: ДОБАВЛЕН id="manualBox" -->
+        <div class="box" id="manualBox">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
                 <label>Тип кровли:</label>
@@ -578,7 +579,6 @@
 
         window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
 
-        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ЧТЕНИЯ ФАЙЛОВ ДЛЯ ИИ
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
             let match = text.match(regex);
@@ -598,7 +598,6 @@
             }
 
             const file = fileInput.files[0];
-            // Локальная проверка размера файла (защита от зависаний)
             if (file.size > 20 * 1024 * 1024) {
                 alert("Файл слишком большой! Максимальный размер 20 МБ.");
                 return;
@@ -641,7 +640,10 @@
                     document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
                     document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкан');
 
-                    document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
+                    // ЗАЩИТА: проверяем существование manualBox перед прокруткой
+                    let mBox = document.getElementById('manualBox');
+                    if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
+
                     render3D();
 
                     conversationHistory = [];
