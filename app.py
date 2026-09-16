@@ -17,6 +17,7 @@ from google.genai import types
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024 # Разрешаем загрузку файлов до 25 МБ
 
 # ТВОЙ КЛЮЧ
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -25,32 +26,42 @@ client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 def home():
     return render_template("index.html")
 
+# --- ОБНОВЛЕННЫЙ И ЗАЩИЩЕННЫЙ ПРИЕМ ЧЕРТЕЖЕЙ ---
 @app.route("/analyze", methods=["POST"])
 def analyze_image():
-    if "file" not in request.files:
-        return jsonify({"error": "Файл не найден"})
-    
-    file = request.files["file"]
-    file_bytes = file.read()
-    mime_type = file.mimetype 
-    
-    prompt = """
-    Ты профессиональный расчетчик кровельных материалов.
-    Найди УГОЛ НАКЛОНА, общую площадь и все размеры в плане.
-    Выведи ответ списком и определи тип кровли.
-    """
     try:
+        if "file" not in request.files:
+            return jsonify({"error": "Файл не найден в запросе."})
+        
+        file = request.files["file"]
+        if file.filename == '':
+            return jsonify({"error": "Выбран пустой файл."})
+
+        file_bytes = file.read()
+        mime_type = file.mimetype 
+        
+        # Защита от неопознанных мобильных форматов
+        if not mime_type or mime_type == "application/octet-stream":
+            mime_type = "image/jpeg"
+        
+        prompt = """
+        Ты профессиональный расчетчик кровельных материалов.
+        Найди УГОЛ НАКЛОНА, общую площадь и все размеры в плане.
+        Выведи ответ списком и определи тип кровли.
+        """
+        
         document_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
         response = client.models.generate_content(
             model="gemini-2.5-flash", 
             contents=[prompt, document_part]
         )
         return jsonify({"result": response.text})
+        
     except Exception as e:
-        return jsonify({"error": str(e)})
+        # Теперь сервер отдаст точную ошибку Питона прямо на сайт
+        return jsonify({"error": f"Внутренняя ошибка при анализе: {str(e)}"})
 
 
-# --- ОБНОВЛЕННЫЙ И ЗАЩИЩЕННЫЙ ЧАТ ---
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
@@ -68,7 +79,6 @@ def chat():
         
         formatted_contents.append({"role": "user", "parts": [{"text": user_message}]})
 
-        # Инструкция с контекстом
         sys_instruct = f"""
         Ты профессиональный ИИ-консультант в строительном калькуляторе кровли.
         Твоя задача — вежливо, экспертно и кратко отвечать на вопросы клиента.
@@ -89,7 +99,6 @@ def chat():
         return jsonify({"reply": response.text})
         
     except Exception as e:
-        # Если будет сбой API, возвращаем аккуратную JSON ошибку
         return jsonify({"error": f"Внутренняя ошибка сервера: {str(e)}"}), 500
 
 

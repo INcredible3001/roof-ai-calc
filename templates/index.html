@@ -307,6 +307,17 @@
             margin: 0;
             padding: 10px 20px;
         }
+
+        #container3D {
+            width: 100%;
+            height: 400px;
+            background-color: #87CEEB;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+            border: 2px solid #bdc3c7;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -319,7 +330,7 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
+        <!-- ПЕРЕМЕЩЕННЫЙ ВВЕРХ И ОБНОВЛЕННЫЙ БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
         <div class="box ai-box"
             style="margin-bottom: 25px; padding: 15px; background: #e8f4f8; border: 2px dashed #3498db; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2980b9; font-size: 15px;">📎 Загрузить чертеж (ИИ)</h3>
@@ -581,28 +592,46 @@
             const loader = document.getElementById('loader');
             const historyBox = document.getElementById('chatHistory');
 
-            if (fileInput.files.length === 0) { alert("Сначала выбери файл с чертежом!"); return; }
+            if (fileInput.files.length === 0) {
+                alert("Сначала выбери файл с чертежом!");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            // Локальная проверка размера файла (защита от зависаний)
+            if (file.size > 20 * 1024 * 1024) {
+                alert("Файл слишком большой! Максимальный размер 20 МБ.");
+                return;
+            }
 
             const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
+            formData.append("file", file);
 
             loader.style.display = "block";
             resultDiv.style.display = "none";
 
             try {
-                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Сбой на сервере (${response.status}): ${errText.substring(0, 100)}`);
+                }
+
                 const data = await response.json();
 
                 loader.style.display = "none";
                 resultDiv.style.display = "block";
 
                 if (data.error) {
-                    resultDiv.innerHTML = "<span style='color: red;'>Ошибка: " + data.error + "</span>";
+                    resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${data.error}</span>`;
                 } else {
                     const aiText = data.result;
                     resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + aiText;
 
-                    // Умное извлечение с защитой
                     document.getElementById('mPitch').value = extractNumber(aiText, 'Угол наклона') || extractNumber(aiText, 'Угол') || 30;
                     document.getElementById('mEaves').value = extractNumber(aiText, 'Длина') || extractNumber(aiText, 'Карниз') || 10;
                     document.getElementById('mRakes').value = extractNumber(aiText, 'Ширина') || extractNumber(aiText, 'Торц') || 8;
@@ -610,11 +639,11 @@
                     document.getElementById('mRidges').value = extractNumber(aiText, 'Длина коньков') || extractNumber(aiText, 'Конь');
                     document.getElementById('mHips').value = extractNumber(aiText, 'Длина хребтов') || extractNumber(aiText, 'Хреб');
                     document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
+                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкан');
 
                     document.getElementById('manualBox').scrollIntoView({ behavior: 'smooth' });
-                    render3D(); // Сразу перерисовываем 3D!
+                    render3D();
 
-                    // Обновляем память чата
                     conversationHistory = [];
                     conversationHistory.push({
                         role: "user",
@@ -632,8 +661,9 @@
                 }
             } catch (error) {
                 loader.style.display = "none";
-                alert("Ошибка связи с сервером при отправке файла.");
-                console.error(error);
+                resultDiv.style.display = "block";
+                resultDiv.innerHTML = `<span style='color: red;'><b>Системное уведомление:</b> ${error.message}</span>`;
+                console.error("Ошибка при отправке файла:", error);
             }
         }
 
@@ -1016,7 +1046,6 @@
             } else {
                 warnBox.style.display = "none";
             }
-            // ==========================================
 
             document.getElementById('finalBox').style.display = 'block';
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
