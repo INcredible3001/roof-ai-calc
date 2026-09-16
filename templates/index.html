@@ -330,6 +330,20 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
+        <!-- ПЕРЕМЕЩЕННЫЙ ВВЕРХ И ОБНОВЛЕННЫЙ БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
+        <div class="box ai-box"
+            style="margin-bottom: 25px; padding: 15px; background: #e8f4f8; border: 2px dashed #3498db; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2980b9; font-size: 15px;">📎 Загрузить чертеж (ИИ)</h3>
+            <p style="font-size: 12px; color: #7f8c8d; margin-top: -10px;">Загрузите план (PDF/JPG), и нейросеть сама
+                считает размеры.</p>
+            <input type="file" id="roofImage" accept="image/png, image/jpeg, .pdf, application/pdf"
+                style="font-size: 12px; margin-bottom: 10px;">
+            <button class="btn-blue" style="padding: 10px; font-size: 14px;" onclick="analyzeImage()">Распознать
+                файл</button>
+            <div class="loader" id="loader" style="font-size: 13px;">Изучаю чертеж... Это займет 5-10 секунд ⏳</div>
+            <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
+        </div>
+
         <div class="box">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -452,18 +466,22 @@
 
         <div class="final-box" id="finalBox">
             <div class="spec-title">Итоговая спецификация</div>
+
+            <!-- НОВЫЙ БЛОК ДЛЯ УМНЫХ ПОДСКАЗОК (ЗАЩИТА ОТ ДУРАКА) -->
+            <div id="smartWarnings"
+                style="display: none; background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-size: 13px; color: #856404; line-height: 1.5;">
+            </div>
+
             <div id="specContent"></div>
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
             <div id="layoutBtnContainer"></div>
         </div>
 
-        <!-- ОБНОВЛЕННЫЙ ЧАТ -->
         <div class="box chat-box" style="margin-top: 30px;">
             <h3 style="margin-top: 0; color: #34495e;">Нужна помощь? Спроси ИИ-ассистента</h3>
             <div id="chatHistory"></div>
             <div class="chat-input-group">
                 <input type="text" id="chatInput" placeholder="Спроси про материалы, размеры...">
-                <!-- ТЕПЕРЬ КНОПКА СИНЯЯ (АКТИВНАЯ) -->
                 <button class="btn-blue" id="chatBtn" onclick="sendChatMessage()">Отправить</button>
             </div>
         </div>
@@ -915,6 +933,33 @@
                 btnContainer.innerHTML = '';
             }
 
+            // ==========================================
+            // БЛОК ЭКСПЕРТНЫХ ПРЕДУПРЕЖДЕНИЙ ("ЗАЩИТА ОТ ДУРАКА")
+            // ==========================================
+            let warnings = [];
+
+            if (matTypeVal === 'metal' && vars.P1 > 0 && vars.P1 < 14) {
+                warnings.push("⚠️ <b>Критичный угол наклона:</b> Для металлочерепицы рекомендуется угол от 14°. Ваш угол — " + vars.P1 + "°. Высокий риск протечек в нахлестах! Требуется усиленная гидроизоляция стыков и сплошной настил.");
+            }
+            if (matTypeVal === 'soft' && vars.P1 > 0 && vars.P1 < 12) {
+                warnings.push("⚠️ <b>Пологое основание:</b> Для гибкой черепицы при угле менее 12° требуется обязательная укладка подкладочного ковра по ВСЕЙ площади кровли, а не только по периметру.");
+            }
+            if (vars.rType === 'shed' && vars.P1 > 0 && vars.P1 < 10) {
+                warnings.push("⚠️ <b>Плоская кровля:</b> Угол менее 10°. Убедитесь, что выбранное покрытие подходит. Часто для таких кровель надежнее использовать ПВХ-мембрану или наплавляемую рулонную гидроизоляцию.");
+            }
+            if (insLayers === 0 && insLayers50 === 0) {
+                warnings.push("💡 <b>Совет эксперта:</b> Выбрана конфигурация без утепления (холодный чердак). Если планируется жилая мансарда, добавьте минимум 200 мм утеплителя (Шаг 4), чтобы избежать теплопотерь и конденсата.");
+            }
+
+            let warnBox = document.getElementById('smartWarnings');
+            if (warnings.length > 0) {
+                warnBox.innerHTML = "<h4 style='margin-top:0; color: #d35400; margin-bottom: 10px;'>Экспертный анализ проекта:</h4>" + warnings.join("<br><br>");
+                warnBox.style.display = "block";
+            } else {
+                warnBox.style.display = "none";
+            }
+            // ==========================================
+
             document.getElementById('finalBox').style.display = 'block';
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
@@ -1178,7 +1223,7 @@
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
-            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
+            const drainMat = new MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
 
             let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
             let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
