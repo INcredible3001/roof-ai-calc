@@ -347,7 +347,6 @@
             <h3>1. Параметры здания</h3>
             <div class="form-group">
                 <label>Тип кровли:</label>
-                <!-- При смене типа крыши сбрасываем ручной ввод воронок, чтобы пересчитать заново -->
                 <select id="roofType"
                     onchange="document.getElementById('vOutlets').dataset.manual='false'; toggleRoofFields(); render3D();">
                     <option value="shed">Односкатная (Плоская)</option>
@@ -442,7 +441,6 @@
                     </select>
                 </div>
             </div>
-            <!-- ИЗМЕНЕНИЕ: Добавлен dataset.manual для умного поля -->
             <div class="form-group">
                 <label>Воронки (стояки): <span style="font-size: 11px; font-weight: normal; color: #7f8c8d;">(Авто /
                         Вручную)</span></label>
@@ -646,7 +644,7 @@
                     else if (lowerText.includes('шатровая')) document.getElementById('roofType').value = 'tent';
                     else document.getElementById('roofType').value = 'gable';
 
-                    document.getElementById('vOutlets').dataset.manual = 'false'; // Сбрасываем ручной ввод воронок
+                    document.getElementById('vOutlets').dataset.manual = 'false';
                     toggleRoofFields();
 
                     document.getElementById('mPitch').value = extractNumber(aiText, 'Угол') || 30;
@@ -888,9 +886,6 @@
 
             document.getElementById('mArea').value = area.toFixed(2);
 
-            // ЧИТАЕМ ЗНАЧЕНИЕ ВОРОНОК С УЧЕТОМ РУЧНОГО ВВОДА
-            let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
-
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
 
@@ -1121,7 +1116,8 @@
                 let g_caps = 0;
                 let g_outer_angles = 0;
                 let g_inner_angles = 0;
-                let g_3m_total = 0;
+                // ИСПРАВЛЕНИЕ: Желоба считаются от общей длины карнизов
+                let g_3m_total = smartRound(cEaves / 3);
                 let g_conn_total = 0;
 
                 function calcGutterConn(len) {
@@ -1132,32 +1128,36 @@
                 }
 
                 if (vars.rType === 'shed') {
-                    g_3m_total = Math.ceil(Lr / 3);
                     g_conn_total = calcGutterConn(Lr);
                     g_caps = 2;
                 } else if (vars.rType === 'gable') {
-                    g_3m_total = Math.ceil(Lr / 3) * 2;
                     g_conn_total = calcGutterConn(Lr) * 2;
                     g_caps = 4;
                 } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    g_3m_total = (Math.ceil(Lr / 3) * 2) + (Math.ceil(Wr / 3) * 2);
                     g_conn_total = (calcGutterConn(Lr) * 2) + (calcGutterConn(Wr) * 2);
                     g_caps = 0;
                     g_outer_angles = 4;
                 }
 
                 let angle_conn = g_outer_angles * 2;
-                let brackets = Math.ceil(cEaves / 0.6) + g_outer_angles + g_conn_total;
+                // ИСПРАВЛЕНИЕ: Кронштейны по общей длине через умное округление
+                let brackets = smartRound(cEaves / 0.6) + g_outer_angles + g_conn_total;
+
+                // Читаем количество воронок (авто или ручное)
+                let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
 
                 let pipe_elbows = funnelsCount * 2;
                 let dropH = wallHeight + soffit;
-                let pipe_3m = funnelsCount * Math.ceil(dropH / 3);
+
+                // ИСПРАВЛЕНИЕ: Общая длина всех стояков деленная на 3
+                let totalDropLen = dropH * funnelsCount;
+                let pipe_3m = smartRound(totalDropLen / 3);
+
                 let pipe_1m = 0;
                 let drain_elbows = funnelsCount;
                 let clamps_per_drop = dropH <= 3 ? 3 : Math.ceil(dropH);
                 let clamps_total = funnelsCount * clamps_per_drop;
 
-                // Исправлено: берем areaWithMargin из уже рассчитанного
                 let areaToPaint = (matTypeVal === 'metal') ? slopedArea * 1.15 : slopedArea * 1.05;
                 let paint_corr = Math.ceil(areaToPaint / 300) * 2;
                 if (paint_corr === 0) paint_corr = 2;
@@ -1226,9 +1226,6 @@
                 btnContainer.innerHTML = '';
             }
 
-            // ==========================================
-            // БЛОК ЭКСПЕРТНЫХ ПРЕДУПРЕЖДЕНИЙ ("ЗАЩИТА ОТ ДУРАКА")
-            // ==========================================
             let warnings = [];
 
             if (matTypeVal === 'metal' && vars.P1 > 0 && vars.P1 < 14) {
@@ -1559,18 +1556,7 @@
 
             let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2; let y0 = houseHeight;
 
-            // Умный расчет воронок перед отрисовкой
-            let funnelsAuto = 0;
-            if (vars.rType === 'shed') funnelsAuto = (Lr > 15) ? 3 : 2;
-            else if (vars.rType === 'gable') funnelsAuto = ((Lr > 15) ? 3 : 2) * 2;
-            else if (vars.rType === 'hip' || vars.rType === 'tent') funnelsAuto = 4 + (Lr > 15 ? 2 : 0) + (Wr > 15 ? 2 : 0);
-
-            let vOutletsEl = document.getElementById('vOutlets');
-            // Если менеджер не вводил руками, ставим расчет ИИ
-            if (vOutletsEl.dataset.manual !== 'true') {
-                vOutletsEl.value = funnelsAuto;
-            }
-            let funnelsCount = parseInt(vOutletsEl.value) || 0;
+            let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
 
             buildSmartWall(-vars.L / 2, vars.W / 2, vars.L / 2, vars.W / 2);
             buildSmartWall(vars.L / 2, vars.W / 2, vars.L / 2, -vars.W / 2);
@@ -1723,7 +1709,6 @@
                     let f1 = Math.ceil(funnelsCount / 2);
                     let f2 = Math.floor(funnelsCount / 2);
                     if (vars.rType === 'hip' || vars.rType === 'tent') {
-                        // Для вальмы раскидываем воронки по сторонам равномерно (для 3D)
                         addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, false, false);
                         addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, false, false);
                     } else {
