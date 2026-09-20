@@ -662,7 +662,6 @@
             }
         }
 
-        // Вспомогательная обертка для мгновенного обновления
         function processAndDraw() {
             render3D();
             calculateFinal();
@@ -677,12 +676,28 @@
             return { rType, L, W, P1, P2, cos1, cos2 };
         }
 
+        // =====================================
+        // НОВАЯ ФУНКЦИЯ УМНОГО ОКРУГЛЕНИЯ (ДОБАВЛЯЕТ +1 ПРИ ОСТАТКЕ >= 0.7)
+        // =====================================
+        function smartRound(val) {
+            if (val <= 0) return 0;
+            // Делаем микроокругление для защиты от багов JS (типа 0.7000000001)
+            let roundedVal = Math.round(val * 1000) / 1000;
+            let dec = roundedVal - Math.floor(roundedVal);
+            let res = Math.ceil(roundedVal);
+            if (dec >= 0.7) {
+                res += 1;
+            }
+            return res;
+        }
+
+        // Обновленная логика для планок (тоже порог 0.7)
         function calcPlanks(len) {
             if (len <= 0) return 0;
             let val = len / 1.9;
             let dec = val - Math.floor(val);
             let res = Math.floor(val);
-            if (dec >= 0.5) res += 2;
+            if (dec >= 0.7) res += 2;
             else if (dec > 0) res += 1;
             return res;
         }
@@ -863,22 +878,22 @@
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
 
-            // Базовые компоненты пирога (общие для обоих типов)
-            let sealTape = Math.ceil(slopedArea * 1.83);
+            // Базовые компоненты пирога (ТЕПЕРЬ ИСПОЛЬЗУЮТ smartRound)
+            let sealTape = smartRound(slopedArea * 1.83);
             let slopedValleys = cValleys > 0 ? (cValleys / vars.cos1) : 0;
             let membraneBaseArea = slopedArea + (slopedValleys > 0 ? 1.5 * slopedValleys : 0);
-            let membraneRolls = Math.ceil(membraneBaseArea / 65);
-            let membraneTape = Math.ceil((membraneRolls * 70) / 25);
+            let membraneRolls = smartRound(membraneBaseArea / 65);
+            let membraneTape = smartRound((membraneRolls * 70) / 25);
 
-            let vaporRolls = Math.ceil(slopedArea / 65);
-            let vaporTape = Math.ceil((vaporRolls * 70) / 25);
+            let vaporRolls = smartRound(slopedArea / 65);
+            let vaporTape = smartRound((vaporRolls * 70) / 25);
 
-            let butylWall = Math.ceil((cEaves + cAbutments + cRakes) / 25);
+            let butylWall = smartRound((cEaves + cAbutments + cRakes) / 25);
             let condDropPlanks = calcPlanks(cEaves);
-            let butylDrop = Math.ceil((condDropPlanks * 2) / 25);
+            let butylDrop = smartRound((condDropPlanks * 2) / 25);
 
-            let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
-            let paroc50 = insLayers50 > 0 ? Math.ceil((slopedArea / 11.52) * insLayers50) : 0;
+            let paroc100 = insLayers > 0 ? smartRound((slopedArea / 5.76) * insLayers) : 0;
+            let paroc50 = insLayers50 > 0 ? smartRound((slopedArea / 11.52) * insLayers50) : 0;
 
             let specData = [];
 
@@ -886,7 +901,7 @@
             // СПЕЦИФИКАЦИЯ ДЛЯ МЕТАЛЛОЧЕРЕПИЦЫ
             // =====================================
             if (matTypeVal === 'metal') {
-                let areaWithMargin = slopedArea * 1.15; // 15% запас для металла
+                let areaWithMargin = slopedArea * 1.15;
                 html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
                 let ridgePlanks = calcPlanks(cRidges + cHips);
@@ -898,9 +913,9 @@
                 let abutmentPlanks = calcPlanks(cAbutments);
                 let eavesPlanks = calcPlanks(cEaves);
 
-                let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
+                let screws4835_packs = smartRound((areaWithMargin * 6) / 250);
                 let screws5519_total = (areaWithMargin * 2) + (ridgePlanks * 12) + (valleyTopPlanks * 10) + (rakePlanks * 4) + (abutmentPlanks * 6);
-                let screws5519_packs = Math.ceil(screws5519_total / 250);
+                let screws5519_packs = smartRound(screws5519_total / 250);
 
                 specData = [
                     {
@@ -910,7 +925,7 @@
                             { name: "Четверник Х - образный (для полукруглого конька)", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
                             { name: "Торцевая крышка конька (для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
                             { name: "Конусная заглушка конька (для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
-                            { name: "Аэроролик конька/хребта (5м)", qty: Math.ceil((cRidges + cHips) / 5), unit: "рул" }
+                            { name: "Аэроролик конька/хребта (5м)", qty: smartRound((cRidges + cHips) / 5), unit: "рул" }
                         ]
                     },
                     {
@@ -923,8 +938,8 @@
                         title: "Ендова", items: [
                             { name: "Ендова нижняя (2м)", qty: valleyBottomPlanks, unit: "шт" },
                             { name: "Накладка ендовы (верхняя, 2м)", qty: valleyTopPlanks, unit: "шт" },
-                            { name: "Герметик 310 мл", qty: Math.ceil(valleyBottomPlanks / 11), unit: "тюбик" },
-                            { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(slopedValleys * 2), unit: "шт" }
+                            { name: "Герметик 310 мл", qty: smartRound(valleyBottomPlanks / 11), unit: "тюбик" },
+                            { name: "Универсальный уплотнитель (1м)", qty: smartRound(slopedValleys * 2), unit: "шт" }
                         ]
                     },
                     {
@@ -932,15 +947,15 @@
                             { name: "Планка примыкания (2м)", qty: abutmentPlanks, unit: "шт" },
                             { name: "Планка примыкания внакладку / в штробу (2м)", qty: abutmentPlanks, unit: "шт" },
                             { name: "Гладкий лист 1,25х2,5 м", qty: 0, unit: "лист" },
-                            { name: "Универсальный уплотнитель (1м)", qty: Math.ceil(cAbutments), unit: "шт" },
-                            { name: "Шуруп с дюбелем для прижимной планки", qty: Math.ceil(cAbutments * 4), unit: "шт" },
-                            { name: "Герметик 310 мл", qty: Math.ceil(cAbutments / 7), unit: "тюбик" }
+                            { name: "Универсальный уплотнитель (1м)", qty: smartRound(cAbutments), unit: "шт" },
+                            { name: "Шуруп с дюбелем для прижимной планки", qty: smartRound(cAbutments * 4), unit: "шт" },
+                            { name: "Герметик 310 мл", qty: smartRound(cAbutments / 7), unit: "тюбик" }
                         ]
                     },
                     {
                         title: "Карниз", items: [
                             { name: "Карнизная планка (2м)", qty: eavesPlanks, unit: "шт" },
-                            { name: "Вент сетка ПВХ (5м)", qty: Math.ceil(cEaves / 5), unit: "рул" }
+                            { name: "Вент сетка ПВХ (5м)", qty: smartRound(cEaves / 5), unit: "рул" }
                         ]
                     },
                     {
@@ -952,14 +967,14 @@
                     },
                     {
                         title: "Снегозадержание", items: [
-                            { name: "Снегозадержатель трубчатый 3 м (4 опоры)", qty: Math.ceil(cEaves / 3), unit: "шт" },
+                            { name: "Снегозадержатель трубчатый 3 м (4 опоры)", qty: smartRound(cEaves / 3), unit: "шт" },
                             { name: "Снегозадержатель трубчатый 1 м", qty: 0, unit: "шт" },
                             { name: "Дополнительный кронштейн для снегозадержателя", qty: 0, unit: "шт" }
                         ]
                     },
                     {
                         title: "Вентиляция", items: [
-                            { name: "Штучный аэратор (аэровент, KTV)", qty: Math.ceil(slopedArea / 60), unit: "шт" },
+                            { name: "Штучный аэратор (аэровент, KTV)", qty: smartRound(slopedArea / 60), unit: "шт" },
                             { name: "Коньковый вентиль Vilpe", qty: 0, unit: "шт" }
                         ]
                     },
@@ -980,42 +995,41 @@
                 ];
             }
             // =====================================
-            // СПЕЦИФИКАЦИЯ ДЛЯ ГИБКОЙ ЧЕРЕПИЦЫ (НОВЫЙ РАЗДЕЛ)
+            // СПЕЦИФИКАЦИЯ ДЛЯ ГИБКОЙ ЧЕРЕПИЦЫ
             // =====================================
             else if (matTypeVal === 'soft') {
-                let softPackSize = 3.0; // Базовый размер упаковки (3 кв.м.)
-                let isDoubleLayer = brandVal.includes('twx'); // Двухслойная TW'X
+                let softPackSize = 3.0;
+                let isDoubleLayer = brandVal.includes('twx');
 
-                let areaWithMargin = slopedArea * 1.05; // 5% запас
+                let areaWithMargin = slopedArea * 1.05;
                 html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-                let shinglePacks = Math.ceil(areaWithMargin / softPackSize);
+                let shinglePacks = smartRound(areaWithMargin / softPackSize);
 
-                // Конек/карниз логика
                 let ridgeEavesPacks = 0;
                 if (isDoubleLayer) {
-                    ridgeEavesPacks = Math.ceil((cRidges + cHips) / 10.8);
+                    ridgeEavesPacks = smartRound((cRidges + cHips) / 10.8);
                 } else {
-                    ridgeEavesPacks = Math.ceil((cRidges + cHips) / 10.8 + cEaves / 20);
+                    ridgeEavesPacks = smartRound((cRidges + cHips) / 10.8 + cEaves / 20);
                 }
 
                 let s16Qty = (vars.rType === 'shed') ? calcPlanks(cRidges) : 0;
                 let s23Qty = calcPlanks(cEaves);
                 let s5Qty = calcPlanks(cRakes);
 
-                let valleyRolls = Math.ceil(slopedValleys / 10);
-                let underlayRolls = Math.ceil(slopedArea / 13.5) + 1;
+                let valleyRolls = smartRound(slopedValleys / 10);
+                let underlayRolls = smartRound(slopedArea / 13.5) + 1;
 
-                let sealantTube = Math.ceil(slopedArea / 50);
-                let sealantBucket = Math.ceil((cEaves + cAbutments + cRakes) * 0.1 + (slopedValleys * 0.4));
+                let sealantTube = smartRound(slopedArea / 50);
+                let sealantBucket = smartRound((cEaves + cAbutments + cRakes) * 0.1 + (slopedValleys * 0.4));
 
-                let osbQty = Math.ceil((slopedArea / 3) * 1.05); // ОСП +5%
-                let nailsQty = Math.ceil((slopedArea * 0.12) / 5);
+                let osbQty = smartRound((slopedArea / 3) * 1.05);
+                let nailsQty = smartRound((slopedArea * 0.12) / 5);
 
-                let vilpeRidge = Math.ceil(cRidges / 0.58);
+                let vilpeRidge = smartRound(cRidges / 0.58);
 
                 let snowMult = (slopedArea > 150 && vars.P1 > 35) ? 5 : 4.5;
-                let snowStopQty = Math.ceil(cEaves * snowMult);
+                let snowStopQty = smartRound(cEaves * snowMult);
 
                 specData = [
                     {
@@ -1028,7 +1042,7 @@
                             { name: "Конек/карниз 12/20", qty: ridgeEavesPacks, unit: "уп" },
                             { name: "Фартук обратный капельник S16 (2м)", qty: s16Qty, unit: "шт" },
                             { name: "Фартук капельник S23 (2м)", qty: s23Qty, unit: "шт" },
-                            { name: "Вент сетка ПВХ 5 м/рулон (на карниз)", qty: Math.ceil(cEaves / 5), unit: "рул" }
+                            { name: "Вент сетка ПВХ 5 м/рулон (на карниз)", qty: smartRound(cEaves / 5), unit: "рул" }
                         ]
                     },
                     {
@@ -1050,7 +1064,7 @@
                         title: "Примыкание", items: [
                             { name: "Фартук пристенный S4 (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
                             { name: "Фартук накладной (в штробу) S6 (S7) (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
-                            { name: "Герметик для примыканий 310 мл", qty: Math.ceil(cAbutments / 7), unit: "тюбик" }
+                            { name: "Герметик для примыканий 310 мл", qty: smartRound(cAbutments / 7), unit: "тюбик" }
                         ]
                     },
                     {
@@ -1068,7 +1082,7 @@
                     {
                         title: "Вентиляция", items: [
                             { name: "Вентиляционный конек Vilpe (0,58 м)", qty: vilpeRidge, unit: "шт" },
-                            { name: "Штучный аэратор (аэровент, KTV)", qty: Math.ceil(slopedArea / 60), unit: "шт" }
+                            { name: "Штучный аэратор (аэровент, KTV)", qty: smartRound(slopedArea / 60), unit: "шт" }
                         ]
                     },
                     {
