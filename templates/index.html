@@ -542,7 +542,7 @@
             brandSel.innerHTML = '';
 
             if (matType === 'metal') {
-                brandSel.innerHTML = '<option value="classic">Grand Line Classic</option><option value="megasteel">Мегастил</option>';
+                brandSel.innerHTML = '<option value="megasteel">Мегастил</option>';
             } else {
                 for (let key in softCollections) { brandSel.innerHTML += `<option value="${key}">${softCollections[key].name}</option>`; }
             }
@@ -886,6 +886,8 @@
 
             document.getElementById('mArea').value = area.toFixed(2);
 
+            let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
+
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
 
@@ -1116,7 +1118,7 @@
                 let g_caps = 0;
                 let g_outer_angles = 0;
                 let g_inner_angles = 0;
-                // ИСПРАВЛЕНИЕ: Желоба считаются от общей длины карнизов
+
                 let g_3m_total = smartRound(cEaves / 3);
                 let g_conn_total = 0;
 
@@ -1140,16 +1142,11 @@
                 }
 
                 let angle_conn = g_outer_angles * 2;
-                // ИСПРАВЛЕНИЕ: Кронштейны по общей длине через умное округление
                 let brackets = smartRound(cEaves / 0.6) + g_outer_angles + g_conn_total;
-
-                // Читаем количество воронок (авто или ручное)
-                let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
 
                 let pipe_elbows = funnelsCount * 2;
                 let dropH = wallHeight + soffit;
 
-                // ИСПРАВЛЕНИЕ: Общая длина всех стояков деленная на 3
                 let totalDropLen = dropH * funnelsCount;
                 let pipe_3m = smartRound(totalDropLen / 3);
 
@@ -1556,7 +1553,16 @@
 
             let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2; let y0 = houseHeight;
 
-            let funnelsCount = parseInt(document.getElementById('vOutlets').value) || 0;
+            let funnelsAuto = 0;
+            if (vars.rType === 'shed') funnelsAuto = (Lr > 15) ? 3 : 2;
+            else if (vars.rType === 'gable') funnelsAuto = ((Lr > 15) ? 3 : 2) * 2;
+            else if (vars.rType === 'hip' || vars.rType === 'tent') funnelsAuto = 4 + (Lr > 15 ? 2 : 0) + (Wr > 15 ? 2 : 0);
+
+            let vOutletsEl = document.getElementById('vOutlets');
+            if (vOutletsEl.dataset.manual !== 'true') {
+                vOutletsEl.value = funnelsAuto;
+            }
+            let funnelsCount = parseInt(vOutletsEl.value) || 0;
 
             buildSmartWall(-vars.L / 2, vars.W / 2, vars.L / 2, vars.W / 2);
             buildSmartWall(vars.L / 2, vars.W / 2, vars.L / 2, -vars.W / 2);
@@ -1588,8 +1594,10 @@
                 if (Lr > 0) addLabel(objectsGroup, 'Конёк: ' + Lr.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
 
                 if (Lr > 0) {
-                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, Math.ceil(funnelsCount / 2), drainMat, true, true);
-                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, Math.floor(funnelsCount / 2), drainMat, true, true);
+                    let f1 = Math.ceil(funnelsCount / 2);
+                    let f2 = Math.floor(funnelsCount / 2);
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, true, true);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, true, true);
                 }
 
             } else if (vars.rType === 'shed') {
@@ -1708,13 +1716,8 @@
                 if (Lr > 0) {
                     let f1 = Math.ceil(funnelsCount / 2);
                     let f2 = Math.floor(funnelsCount / 2);
-                    if (vars.rType === 'hip' || vars.rType === 'tent') {
-                        addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, false, false);
-                        addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, false, false);
-                    } else {
-                        addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, true, true);
-                        addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, true, true);
-                    }
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, false, false);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, false, false);
 
                     let gLeft = new THREE.Mesh(createGutter(Wr), drainMat); gLeft.position.set(-Lr / 2, houseHeight - 0.05, 0); gLeft.castShadow = true; objectsGroup.add(gLeft);
                     let gRight = new THREE.Mesh(createGutter(Wr), drainMat); gRight.position.set(Lr / 2, houseHeight - 0.05, 0); gRight.castShadow = true; objectsGroup.add(gRight);
