@@ -330,7 +330,6 @@
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
-        <!-- БЛОК ЗАГРУЗКИ ЧЕРТЕЖА -->
         <div class="box ai-box"
             style="margin-bottom: 25px; padding: 15px; background: #e8f4f8; border: 2px dashed #3498db; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2980b9; font-size: 15px;">📎 Загрузить чертеж (ИИ)</h3>
@@ -344,7 +343,6 @@
             <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
         </div>
 
-        <!-- ИСПРАВЛЕНИЕ: ДОБАВЛЕН id="manualBox" -->
         <div class="box" id="manualBox">
             <h3>1. Параметры здания</h3>
             <div class="form-group">
@@ -615,13 +613,9 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`Сбой на сервере (${response.status}): ${errText.substring(0, 100)}`);
-                }
+                if (!response.ok) throw new Error("Сбой на сервере при чтении файла.");
 
                 const data = await response.json();
-
                 loader.style.display = "none";
                 resultDiv.style.display = "block";
 
@@ -629,44 +623,49 @@
                     resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${data.error}</span>`;
                 } else {
                     const aiText = data.result;
-                    resultDiv.innerHTML = "<strong>Ответ ИИ:</strong><br><br>" + aiText;
+                    resultDiv.innerHTML = "<strong>Распознано:</strong><br><br>" + aiText.replace(/\n/g, "<br>");
 
-                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол наклона') || extractNumber(aiText, 'Угол') || 30;
-                    document.getElementById('mEaves').value = extractNumber(aiText, 'Длина') || extractNumber(aiText, 'Карниз') || 10;
-                    document.getElementById('mRakes').value = extractNumber(aiText, 'Ширина') || extractNumber(aiText, 'Торц') || 8;
+                    let lowerText = aiText.toLowerCase();
+                    if (lowerText.includes('односкатная')) document.getElementById('roofType').value = 'shed';
+                    else if (lowerText.includes('вальмовая')) document.getElementById('roofType').value = 'hip';
+                    else if (lowerText.includes('шатровая')) document.getElementById('roofType').value = 'tent';
+                    else document.getElementById('roofType').value = 'gable';
 
-                    document.getElementById('mRidges').value = extractNumber(aiText, 'Длина коньков') || extractNumber(aiText, 'Конь');
-                    document.getElementById('mHips').value = extractNumber(aiText, 'Длина хребтов') || extractNumber(aiText, 'Хреб');
-                    document.getElementById('mValleys').value = extractNumber(aiText, 'Длина ендов') || extractNumber(aiText, 'Ендов');
-                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкан');
+                    toggleRoofFields();
 
-                    // ЗАЩИТА: проверяем существование manualBox перед прокруткой
+                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол') || 30;
+                    document.getElementById('mEaves').value = extractNumber(aiText, 'Карниз') || 10;
+                    document.getElementById('mRakes').value = extractNumber(aiText, 'Торец') || 8;
+                    document.getElementById('mRidges').value = extractNumber(aiText, 'Коньки') || extractNumber(aiText, 'Конёк') || 0;
+                    document.getElementById('mHips').value = extractNumber(aiText, 'Хребты') || 0;
+                    document.getElementById('mValleys').value = extractNumber(aiText, 'Ендовы') || 0;
+                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкания') || 0;
+
+                    processAndDraw();
+
                     let mBox = document.getElementById('manualBox');
                     if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
 
-                    render3D();
-
                     conversationHistory = [];
-                    conversationHistory.push({
-                        role: "user",
-                        text: "Я загрузил чертеж. Вот текстовые данные, которые ты из него извлек. Запомни их: \n" + aiText
-                    });
-                    conversationHistory.push({
-                        role: "model",
-                        text: "Принято! Я запомнил эти размеры и готов помочь с расчетами."
-                    });
+                    conversationHistory.push({ role: "user", text: "Я загрузил чертеж. Запомни эти размеры: \n" + aiText });
+                    conversationHistory.push({ role: "model", text: "Принято! Я готов." });
 
                     if (historyBox) {
-                        historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Я успешно извлек данные с чертежа и подставил их в форму! Проверьте их.</div><br>`;
+                        historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Чертеж обработан, 3D-модель построена!</div><br>`;
                         historyBox.scrollTop = historyBox.scrollHeight;
                     }
                 }
             } catch (error) {
                 loader.style.display = "none";
                 resultDiv.style.display = "block";
-                resultDiv.innerHTML = `<span style='color: red;'><b>Системное уведомление:</b> ${error.message}</span>`;
-                console.error("Ошибка при отправке файла:", error);
+                resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${error.message}</span>`;
             }
+        }
+
+        // Вспомогательная обертка для мгновенного обновления
+        function processAndDraw() {
+            render3D();
+            calculateFinal();
         }
 
         function doMath() {
@@ -801,6 +800,7 @@
             let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             let matTypeVal = document.getElementById('materialType').value;
             let matType = document.getElementById('materialType').options[document.getElementById('materialType').selectedIndex].text;
+            let brandVal = document.getElementById('roofBrand').value;
             let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
             let nOutlets = parseInt(document.getElementById('vOutlets').value) || 0;
             let wallHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
@@ -859,54 +859,57 @@
             }
 
             document.getElementById('mArea').value = area.toFixed(2);
-            let areaWithMargin = slopedArea * 1.15;
 
             let html = `<div class="result-item"><span class="result-label">Покрытие:</span><span class="result-value">${matType} (${brand})</span></div>`;
             html += `<div class="result-item"><span class="result-label">Чистая площадь скатов:</span><span class="result-value">~${slopedArea.toFixed(2)} м²</span></div>`;
-            html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
+            // Базовые компоненты пирога (общие для обоих типов)
+            let sealTape = Math.ceil(slopedArea * 1.83);
+            let slopedValleys = cValleys > 0 ? (cValleys / vars.cos1) : 0;
+            let membraneBaseArea = slopedArea + (slopedValleys > 0 ? 1.5 * slopedValleys : 0);
+            let membraneRolls = Math.ceil(membraneBaseArea / 65);
+            let membraneTape = Math.ceil((membraneRolls * 70) / 25);
+
+            let vaporRolls = Math.ceil(slopedArea / 65);
+            let vaporTape = Math.ceil((vaporRolls * 70) / 25);
+
+            let butylWall = Math.ceil((cEaves + cAbutments + cRakes) / 25);
+            let condDropPlanks = calcPlanks(cEaves);
+            let butylDrop = Math.ceil((condDropPlanks * 2) / 25);
+
+            let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
+            let paroc50 = insLayers50 > 0 ? Math.ceil((slopedArea / 11.52) * insLayers50) : 0;
+
+            let specData = [];
+
+            // =====================================
+            // СПЕЦИФИКАЦИЯ ДЛЯ МЕТАЛЛОЧЕРЕПИЦЫ
+            // =====================================
             if (matTypeVal === 'metal') {
+                let areaWithMargin = slopedArea * 1.15; // 15% запас для металла
+                html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
+
                 let ridgePlanks = calcPlanks(cRidges + cHips);
                 let rakePlanks = calcPlanks(cRakes);
 
-                let slopedValleys = cValleys > 0 ? (cValleys / vars.cos1) : 0;
                 let valleyBottomPlanks = calcPlanks(slopedValleys);
                 let valleyTopPlanks = calcPlanks(slopedValleys);
 
                 let abutmentPlanks = calcPlanks(cAbutments);
                 let eavesPlanks = calcPlanks(cEaves);
 
-                let sealTape = Math.ceil(slopedArea * 1.83);
-                let membraneBaseArea = slopedArea + (slopedValleys > 0 ? 1.5 * slopedValleys : 0);
-                let membraneRolls = Math.ceil(membraneBaseArea / 65);
-                let membraneTape = Math.ceil((membraneRolls * 70) / 25);
-
-                let vaporRolls = Math.ceil(slopedArea / 65);
-                let vaporTape = Math.ceil((vaporRolls * 70) / 25);
-
-                let butylWall = Math.ceil((cEaves + cAbutments + cRakes) / 25);
-                let condDropPlanks = eavesPlanks;
-                let butylDrop = Math.ceil((condDropPlanks * 2) / 25);
-
-                let paroc100 = insLayers > 0 ? Math.ceil((slopedArea / 5.76) * insLayers) : 0;
-                let paroc50 = insLayers50 > 0 ? Math.ceil((slopedArea / 11.52) * insLayers50) : 0;
-
                 let screws4835_packs = Math.ceil((areaWithMargin * 6) / 250);
-                let screws5519_total = (areaWithMargin * 2)
-                    + (ridgePlanks * 12)
-                    + (valleyTopPlanks * 10)
-                    + (rakePlanks * 4)
-                    + (abutmentPlanks * 6);
+                let screws5519_total = (areaWithMargin * 2) + (ridgePlanks * 12) + (valleyTopPlanks * 10) + (rakePlanks * 4) + (abutmentPlanks * 6);
                 let screws5519_packs = Math.ceil(screws5519_total / 250);
 
-                const specData = [
+                specData = [
                     {
                         title: "Конек/хребет", items: [
                             { name: "Коньковая планка (2м)", qty: ridgePlanks, unit: "шт" },
-                            { name: "Тройник Y - образный (только для полукруглого конька)", qty: vars.rType === 'hip' ? 2 : 0, unit: "шт" },
-                            { name: "Четверник Х - образный (только для полукруглого конька)", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
-                            { name: "Торцевая крышка конька (только для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
-                            { name: "Конусная заглушка конька (только для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
+                            { name: "Тройник Y - образный (для полукруглого конька)", qty: vars.rType === 'hip' ? 2 : 0, unit: "шт" },
+                            { name: "Четверник Х - образный (для полукруглого конька)", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
+                            { name: "Торцевая крышка конька (для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
+                            { name: "Конусная заглушка конька (для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
                             { name: "Аэроролик конька/хребта (5м)", qty: Math.ceil((cRidges + cHips) / 5), unit: "рул" }
                         ]
                     },
@@ -967,41 +970,148 @@
                             { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для приклеивания пароизоляции", qty: butylWall, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для пароизоляции", qty: butylWall, unit: "рул" },
                             { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
-                            { name: "Бутил-каучуковая лента для приклеивания мембраны к капельнику", qty: butylDrop, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для капельника", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
                             { name: "Paroc Extra 50 мм 11,52 кв.м./упак", qty: paroc50, unit: "упак" }
                         ]
                     }
                 ];
+            }
+            // =====================================
+            // СПЕЦИФИКАЦИЯ ДЛЯ ГИБКОЙ ЧЕРЕПИЦЫ (НОВЫЙ РАЗДЕЛ)
+            // =====================================
+            else if (matTypeVal === 'soft') {
+                let softPackSize = 3.0; // Базовый размер упаковки (3 кв.м.)
+                let isDoubleLayer = brandVal.includes('twx'); // Двухслойная TW'X
 
-                html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
-                            <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
-                            <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для металлочерепицы)</p>
-                         </div>`;
+                let areaWithMargin = slopedArea * 1.05; // 5% запас
+                html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
-                specData.forEach(section => {
-                    let hasItems = false;
-                    let sectionHtml = `<div class="spec-section-head" style="background: #fcf3cf; border-left: 4px solid #f1c40f; color: #d35400;">${section.title}</div>`;
+                let shinglePacks = Math.ceil(areaWithMargin / softPackSize);
 
-                    section.items.forEach(item => {
-                        hasItems = true;
-                        let qtyDisplay = item.qty > 0 ? item.qty : `<span style="color:#bdc3c7;">0 (уточнить)</span>`;
-                        sectionHtml += `<div class="result-item"><span class="result-label">${item.name}:</span><span class="result-value">${qtyDisplay} ${item.unit}</span></div>`;
-                    });
+                // Конек/карниз логика
+                let ridgeEavesPacks = 0;
+                if (isDoubleLayer) {
+                    ridgeEavesPacks = Math.ceil((cRidges + cHips) / 10.8);
+                } else {
+                    ridgeEavesPacks = Math.ceil((cRidges + cHips) / 10.8 + cEaves / 20);
+                }
 
-                    if (hasItems) html += sectionHtml;
-                });
-            } else {
-                html += `<div class="spec-section-head">Доборные элементы (База)</div>`;
-                if (cRidges > 0) html += `<div class="result-item"><span class="result-label">Конёк:</span><span class="result-value">${cRidges.toFixed(2)} м</span></div>`;
-                if (cHips > 0) html += `<div class="result-item"><span class="result-label">Хребты (Вальмы):</span><span class="result-value">${cHips.toFixed(2)} м</span></div>`;
-                html += `<div class="result-item"><span class="result-label">Карнизы (капельники):</span><span class="result-value">${cEaves.toFixed(2)} м</span></div>`;
-                if (cRakes > 0) html += `<div class="result-item"><span class="result-label">Торцы (ветровые):</span><span class="result-value">${cRakes.toFixed(2)} м</span></div>`;
+                let s16Qty = (vars.rType === 'shed') ? calcPlanks(cRidges) : 0;
+                let s23Qty = calcPlanks(cEaves);
+                let s5Qty = calcPlanks(cRakes);
+
+                let valleyRolls = Math.ceil(slopedValleys / 10);
+                let underlayRolls = Math.ceil(slopedArea / 13.5) + 1;
+
+                let sealantTube = Math.ceil(slopedArea / 50);
+                let sealantBucket = Math.ceil((cEaves + cAbutments + cRakes) * 0.1 + (slopedValleys * 0.4));
+
+                let osbQty = Math.ceil((slopedArea / 3) * 1.05); // ОСП +5%
+                let nailsQty = Math.ceil((slopedArea * 0.12) / 5);
+
+                let vilpeRidge = Math.ceil(cRidges / 0.58);
+
+                let snowMult = (slopedArea > 150 && vars.P1 > 35) ? 5 : 4.5;
+                let snowStopQty = Math.ceil(cEaves * snowMult);
+
+                specData = [
+                    {
+                        title: "Покрытие", items: [
+                            { name: "Черепица " + brand, qty: shinglePacks, unit: "уп" }
+                        ]
+                    },
+                    {
+                        title: "Конек и карниз", items: [
+                            { name: "Конек/карниз 12/20", qty: ridgeEavesPacks, unit: "уп" },
+                            { name: "Фартук обратный капельник S16 (2м)", qty: s16Qty, unit: "шт" },
+                            { name: "Фартук капельник S23 (2м)", qty: s23Qty, unit: "шт" },
+                            { name: "Вент сетка ПВХ 5 м/рулон (на карниз)", qty: Math.ceil(cEaves / 5), unit: "рул" }
+                        ]
+                    },
+                    {
+                        title: "Ендова", items: [
+                            { name: "Ендова (10 мп)", qty: valleyRolls, unit: "рул" }
+                        ]
+                    },
+                    {
+                        title: "Подкладочный ковер", items: [
+                            { name: "Подкладочный ковер (15 кв.м.)", qty: underlayRolls, unit: "рул" }
+                        ]
+                    },
+                    {
+                        title: "Торец (Фронтон)", items: [
+                            { name: "Фартук S5 (2м)", qty: s5Qty, unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Примыкание", items: [
+                            { name: "Фартук пристенный S4 (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
+                            { name: "Фартук накладной (в штробу) S6 (S7) (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
+                            { name: "Герметик для примыканий 310 мл", qty: Math.ceil(cAbutments / 7), unit: "тюбик" }
+                        ]
+                    },
+                    {
+                        title: "Битумный герметик", items: [
+                            { name: "Битумный герметик 310 мл", qty: sealantTube, unit: "тюбик" },
+                            { name: "Битумный герметик (ведро)", qty: sealantBucket, unit: "кг" }
+                        ]
+                    },
+                    {
+                        title: "ОСП и Крепеж", items: [
+                            { name: "ОСП 1,25х2,5 м", qty: osbQty, unit: "лист" },
+                            { name: "Гвозди кровельные (упаковка 5 кг)", qty: nailsQty, unit: "уп" }
+                        ]
+                    },
+                    {
+                        title: "Вентиляция", items: [
+                            { name: "Вентиляционный конек Vilpe (0,58 м)", qty: vilpeRidge, unit: "шт" },
+                            { name: "Штучный аэратор (аэровент, KTV)", qty: Math.ceil(slopedArea / 60), unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Элементы безопасности", items: [
+                            { name: "Снегостопор", qty: snowStopQty, unit: "шт" }
+                        ]
+                    },
+                    {
+                        title: "Кровельный пирог", items: [
+                            { name: "Уплотнительная лента под контр обрешетку", qty: sealTape, unit: "м.п." },
+                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", qty: membraneRolls, unit: "рул" },
+                            { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
+                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
+                            { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для пароизоляции", qty: butylWall, unit: "рул" },
+                            { name: "Противоконденсатный капельник S1 (2м)", qty: condDropPlanks, unit: "шт" },
+                            { name: "Бутил-каучуковая лента для капельника", qty: butylDrop, unit: "рул" },
+                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
+                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", qty: paroc50, unit: "упак" }
+                        ]
+                    }
+                ];
             }
 
-            html += `<div class="spec-section-head">Водосточная система и Свесы</div>`;
+            html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
+                        <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
+                        <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для ${matTypeVal === 'metal' ? 'металлочерепицы' : 'гибкой черепицы'})</p>
+                     </div>`;
+
+            specData.forEach(section => {
+                let hasItems = false;
+                let sectionHtml = `<div class="spec-section-head" style="background: #fcf3cf; border-left: 4px solid #f1c40f; color: #d35400;">${section.title}</div>`;
+
+                section.items.forEach(item => {
+                    hasItems = true;
+                    let qtyDisplay = item.qty > 0 ? item.qty : `<span style="color:#bdc3c7;">0 (уточнить)</span>`;
+                    sectionHtml += `<div class="result-item"><span class="result-label">${item.name}:</span><span class="result-value">${qtyDisplay} ${item.unit}</span></div>`;
+                });
+
+                if (hasItems) html += sectionHtml;
+            });
+
+            html += `<div class="spec-section-head" style="margin-top: 20px;">Водосточная система и Свесы</div>`;
             html += `<div class="result-item"><span class="result-label">Желоба:</span><span class="result-value">${cEaves.toFixed(2)} м</span></div>`;
             if (nOutlets > 0) {
                 html += `<div class="result-item"><span class="result-label">Воронки:</span><span class="result-value">${nOutlets} шт</span></div>`;
