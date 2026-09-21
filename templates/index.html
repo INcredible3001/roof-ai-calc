@@ -23,7 +23,6 @@
             overflow: hidden;
         }
 
-        /* ЛЕВАЯ ЧАСТЬ ЭКРАНА (ГЛАВНАЯ ЗОНА) */
         #mainArea {
             flex: 1;
             display: flex;
@@ -32,7 +31,6 @@
             background: #ecf0f1;
         }
 
-        /* ПАНЕЛЬ ПЕРЕКЛЮЧЕНИЯ РЕЖИМОВ */
         .mode-toggle {
             display: flex;
             background: #2c3e50;
@@ -72,39 +70,53 @@
             position: relative;
         }
 
-        /* 2D РАБОЧАЯ ЗОНА */
         #layout2D {
             flex: 1;
             display: none;
-            flex-direction: column;
+            flex-direction: row;
+            background: #ecf0f1;
+            overflow: hidden;
+        }
+
+        .layout-sidebar {
+            width: 300px;
             background: #fff;
-            position: relative;
+            border-right: 1px solid #bdc3c7;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            z-index: 10;
         }
 
-        .layout-toolbar {
-            background: #e8f4f8;
-            padding: 15px;
-            border-bottom: 2px solid #bdc3c7;
+        .layout-canvas-container {
+            flex: 1;
+            overflow: auto;
             display: flex;
-            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px;
+        }
+
+        .row-input-group {
+            display: flex;
             align-items: center;
-            flex-wrap: wrap;
+            margin-bottom: 8px;
+            gap: 10px;
         }
 
-        .layout-toolbar select,
-        .layout-toolbar input {
-            padding: 8px;
-            border-radius: 4px;
+        .row-input-group input {
+            width: 80px;
+            padding: 5px;
             border: 1px solid #bdc3c7;
-            font-size: 14px;
-            outline: none;
+            border-radius: 4px;
         }
 
-        .layout-toolbar label {
-            font-weight: bold;
-            font-size: 13px;
-            color: #2c3e50;
-            margin-right: 5px;
+        .row-input-group button {
+            width: 30px;
+            margin: 0;
+            padding: 5px;
+            background: #e74c3c;
+            font-size: 12px;
         }
 
         .instruction-3d {
@@ -119,7 +131,7 @@
             color: #2c3e50;
             pointer-events: none;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 50;
+            z-index: 100;
         }
 
         .label-3d {
@@ -136,7 +148,6 @@
             transition: opacity 0.2s;
         }
 
-        /* ПРАВАЯ ПАНЕЛЬ НАСТРОЕК */
         #sidebar {
             width: 450px;
             min-width: 450px;
@@ -434,7 +445,6 @@
 <body>
 
     <div id="mainArea">
-        <!-- ТУМБЛЕР ПЕРЕКЛЮЧЕНИЯ РЕЖИМОВ -->
         <div class="mode-toggle">
             <button id="btnMode3D" class="mode-btn active-mode" onclick="switchMode('3D')">3D Моделирование
                 (Авто)</button>
@@ -446,42 +456,59 @@
             <div class="instruction-3d">Используйте мышь для вращения. Колесико для масштаба.</div>
         </div>
 
-        <!-- НОВЫЙ БЛОК 2D РАСКЛАДКИ ("КРОВЛЯ ПРОФИ") -->
+        <!-- 2D РАБОЧАЯ ЗОНА -->
         <div id="layout2D">
-            <div class="layout-toolbar">
-                <div>
-                    <label>Форма ската:</label>
-                    <select id="shape2D" onchange="toggle2DInputs(); render2DSlope();">
-                        <option value="rect" selected>Прямоугольный (Двухскатка / Односкатка)</option>
-                        <option value="trap">Трапеция (Вальмовый скат)</option>
-                        <option value="tri">Треугольник (Шатер / Торец вальмы)</option>
+            <div class="layout-sidebar">
+                <h3 style="color: #2980b9; margin-top: 0;">Настройки объекта</h3>
+                <div class="form-group">
+                    <label>Объект отрисовки:</label>
+                    <select id="obj2D" onchange="toggle2DInputs(); render2D();">
+                        <option value="full" selected>Вся кровля (по 3D настройкам)</option>
+                        <option value="single">Одиночный скат (вручную)</option>
                     </select>
                 </div>
-                <div>
-                    <label>Ширина основания (м):</label>
-                    <input type="number" id="wBottom2D" value="9.6" step="0.01" oninput="render2DSlope()"
-                        style="width: 80px;">
+
+                <div id="manualParams2D"
+                    style="display: none; background: #f8f9fa; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>Форма ската:</label>
+                        <select id="shape2D" onchange="toggle2DInputs(); render2D();">
+                            <option value="rect" selected>Прямоугольник</option>
+                            <option value="trap">Трапеция (Вальма)</option>
+                            <option value="tri">Треугольник (Шатер)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Ширина основания (м):</label><input type="number" id="wBottom2D"
+                            value="9.6" step="0.01" oninput="render2D()"></div>
+                    <div class="form-group" id="wTopContainer2D" style="display: none;"><label>Ширина верха
+                            (м):</label><input type="number" id="wTop2D" value="4.0" step="0.01" oninput="render2D()">
+                    </div>
+                    <div class="form-group"><label>Длина ската (высота, м):</label><input type="number" id="hSlope2D"
+                            value="6.85" step="0.01" oninput="render2D()"></div>
                 </div>
-                <div id="wTopContainer2D" style="display: none;">
-                    <label>Ширина верха (м):</label>
-                    <input type="number" id="wTop2D" value="4.0" step="0.01" oninput="render2DSlope()"
-                        style="width: 80px;">
+
+                <div class="form-group">
+                    <label>Горизонтальный сдвиг листов (м):</label>
+                    <input type="number" id="shiftX2D" value="0" step="0.05" oninput="render2D()">
                 </div>
-                <div>
-                    <label>Длина ската (м):</label>
-                    <input type="number" id="hSlope2D" value="6.85" step="0.01" oninput="render2DSlope()"
-                        style="width: 80px;">
-                </div>
-                <div>
-                    <button class="btn-green" style="margin:0; padding: 10px 15px;" onclick="render2DSlope()">Построить
-                        раскладку</button>
-                </div>
+
+                <hr style="border-top: 1px solid #bdc3c7;">
+                <h3 style="color: #27ae60; margin-bottom: 10px;">Высоты рядов металла</h3>
+                <p style="font-size: 11px; color: #7f8c8d; margin-top: -5px;">(Можно менять вручную. Задают длину
+                    листов)</p>
+                <div id="rowsContainer2D"></div>
+
+                <button class="btn-blue" style="margin-bottom: 5px; padding: 8px;" onclick="addRow2D()">+ Добавить
+                    ряд</button>
+                <button class="btn-yellow" style="margin-bottom: 20px; padding: 8px;" onclick="resetRows2D()">Сбросить
+                    на авто-расчет</button>
+
+                <button class="btn-green" onclick="download2DLayout()">СКАЧАТЬ ЧЕРТЕЖ</button>
             </div>
 
-            <div
-                style="flex: 1; display: flex; justify-content: center; align-items: center; background: #f4f7f6; overflow: hidden; padding: 20px;">
-                <canvas id="canvas2D" width="1000" height="700"
-                    style="background: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 8px;"></canvas>
+            <div class="layout-canvas-container">
+                <canvas id="canvas2D"
+                    style="background: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 4px;"></canvas>
             </div>
         </div>
     </div>
@@ -516,7 +543,7 @@
             <div class="form-group">
                 <label>Тип кровли:</label>
                 <select id="roofType"
-                    onchange="document.getElementById('vOutlets').dataset.manual='false'; toggleRoofFields(); render3D();">
+                    onchange="document.getElementById('vOutlets').dataset.manual='false'; toggleRoofFields(); render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
                     <option value="shed">Односкатная (Плоская)</option>
                     <option value="gable" selected>Двухскатная (Классика)</option>
                     <option value="hip">Вальмовая (Сложная)</option>
@@ -526,20 +553,27 @@
 
             <div id="gridGeometry" class="grid-2-col">
                 <div class="form-group"><label id="lblEaves">Длина дома (м):</label><input type="number" id="mEaves"
-                        step="0.01" value="10" oninput="render3D()"></div>
+                        step="0.01" value="10"
+                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                </div>
                 <div class="form-group"><label id="lblRakes">Ширина дома (м):</label><input type="number" id="mRakes"
-                        step="0.01" value="8" oninput="render3D()"></div>
+                        step="0.01" value="8"
+                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                </div>
                 <div class="form-group"><label id="lblPitch">Угол ската (град):</label><input type="number" id="mPitch"
-                        class="highlight-input" step="1" value="30" oninput="render3D()"></div>
+                        class="highlight-input" step="1" value="30"
+                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                </div>
                 <div class="form-group" id="groupPitchHip" style="display: none;"><label>Угол вальмы
                         (град):</label><input type="number" id="mPitchHip" class="highlight-input" step="1" value="30"
-                        oninput="render3D()"></div>
+                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                </div>
             </div>
 
             <div class="form-group" id="groupRidgeHip" style="display: none; margin-top: 10px;">
                 <label>Конёк (м):</label>
                 <input type="number" id="mRidgeHip" class="highlight-input" step="0.01" placeholder="По углу (Авто)"
-                    oninput="render3D()">
+                    oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
             </div>
 
             <div style="display: none;">
@@ -557,8 +591,8 @@
             <h3>3. Внешний вид</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
-                <!-- Обновление 2D при смене материала -->
-                <select id="materialType" onchange="updateBrandMenu(); render2DSlope();">
+                <select id="materialType"
+                    onchange="updateBrandMenu(); if(document.getElementById('layout2D').style.display === 'flex') {render2D();}">
                     <option value="metal" selected>Металлочерепица</option>
                     <option value="soft">Гибкая черепица (Faracs)</option>
                 </select>
@@ -654,7 +688,6 @@
 
             <div id="specContent"></div>
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
-            <div id="layoutBtnContainer"></div>
         </div>
 
         <div class="box chat-box" style="margin-top: 30px;">
@@ -675,6 +708,8 @@
         // ==========================================
         // ЛОГИКА 2D ПЕРЕКЛЮЧАТЕЛЯ И КОНСТРУКТОРА
         // ==========================================
+        let customRows2D = []; // Пользовательские длины рядов листов
+
         function switchMode(mode) {
             if (mode === '3D') {
                 document.getElementById('viewport').style.display = 'block';
@@ -686,122 +721,288 @@
                 document.getElementById('layout2D').style.display = 'flex';
                 document.getElementById('btnMode2D').classList.add('active-mode');
                 document.getElementById('btnMode3D').classList.remove('active-mode');
-                render2DSlope();
+                if (customRows2D.length === 0) resetRows2D();
+                else render2D();
             }
         }
 
         function toggle2DInputs() {
-            const shape = document.getElementById('shape2D').value;
-            if (shape === 'trap') {
-                document.getElementById('wTopContainer2D').style.display = 'block';
+            const obj = document.getElementById('obj2D').value;
+            if (obj === 'full') {
+                document.getElementById('manualParams2D').style.display = 'none';
             } else {
-                document.getElementById('wTopContainer2D').style.display = 'none';
+                document.getElementById('manualParams2D').style.display = 'block';
+                const shape = document.getElementById('shape2D').value;
+                if (shape === 'trap') {
+                    document.getElementById('wTopContainer2D').style.display = 'block';
+                } else {
+                    document.getElementById('wTopContainer2D').style.display = 'none';
+                }
             }
         }
 
-        function render2DSlope() {
-            const canvas = document.getElementById('canvas2D');
-            const ctx = canvas.getContext('2d');
-            const shape = document.getElementById('shape2D').value;
-            const wb = parseFloat(document.getElementById('wBottom2D').value) || 0;
-            const wt = parseFloat(document.getElementById('wTop2D').value) || 0;
-            const h = parseFloat(document.getElementById('hSlope2D').value) || 0;
-            const matType = document.getElementById('materialType').value;
+        function getSlopesData() {
+            const obj = document.getElementById('obj2D').value;
+            let slopes = [];
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (wb <= 0 || h <= 0) return;
+            if (obj === 'single') {
+                const shape = document.getElementById('shape2D').value;
+                const wb = parseFloat(document.getElementById('wBottom2D').value) || 0;
+                const wt = parseFloat(document.getElementById('wTop2D').value) || 0;
+                const h = parseFloat(document.getElementById('hSlope2D').value) || 0;
+                slopes.push({ type: shape, wb: wb, wt: wt, h: h, label: 'Одиночный скат' });
+            } else {
+                // Извлекаем геометрию из 3D настроек
+                let vars = doMath();
+                let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
+                let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
+                let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
 
-            const margin = 80;
-            const wMax = shape === 'trap' ? Math.max(wb, wt) : wb;
+                if (vars.rType === 'shed') {
+                    let h1 = Math.round((Wr / vars.cos1) * 100) / 100;
+                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат (Основной)' });
+                } else if (vars.rType === 'gable') {
+                    let h1 = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
+                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат 1' });
+                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат 2' });
+                } else if (vars.rType === 'hip' || vars.rType === 'tent') {
+                    let isRotated = Lr < Wr && vars.rType === 'hip';
+                    let mainL = isRotated ? Wr : Lr;
+                    let mainW = isRotated ? Lr : Wr;
 
-            // Масштабирование чтобы влезло в холст
-            const scale = Math.min((canvas.width - margin * 2) / wMax, (canvas.height - margin * 2) / h);
+                    let h1 = (vars.rType === 'tent') ? (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180) : (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    let indent = 0;
+                    if (vars.rType === 'tent') {
+                        indent = mainL / 2;
+                    } else {
+                        let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
+                        let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
+                        if (customRidge !== null && customRidge >= 0) {
+                            let r = Math.min(customRidge, mainL);
+                            indent = (mainL - r) / 2;
+                        } else {
+                            indent = h1 / Math.tan(vars.P2 * Math.PI / 180);
+                            if (indent >= mainL / 2) { indent = mainL / 2; h1 = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
+                        }
+                    }
+                    let r_indent = Math.round(indent * 100) / 100;
+                    let cRidges = Math.max(0, mainL - r_indent * 2);
+                    let s_side = Math.round(Math.sqrt(Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
+                    let s_end = Math.round(Math.sqrt(Math.pow(r_indent, 2) + Math.pow(h1, 2)) * 100) / 100;
 
-            ctx.save();
-            // Сдвигаем центр в середину холста снизу
-            ctx.translate(canvas.width / 2, canvas.height - margin);
-            ctx.scale(1, -1); // Инвертируем Y, чтобы рисовать снизу вверх
-
-            // 1. Создаем контур ската
-            ctx.beginPath();
-            if (shape === 'rect') {
-                ctx.moveTo(-wb / 2 * scale, 0);
-                ctx.lineTo(wb / 2 * scale, 0);
-                ctx.lineTo(wb / 2 * scale, h * scale);
-                ctx.lineTo(-wb / 2 * scale, h * scale);
-            } else if (shape === 'trap') {
-                ctx.moveTo(-wb / 2 * scale, 0);
-                ctx.lineTo(wb / 2 * scale, 0);
-                ctx.lineTo(wt / 2 * scale, h * scale);
-                ctx.lineTo(-wt / 2 * scale, h * scale);
-            } else if (shape === 'tri') {
-                ctx.moveTo(-wb / 2 * scale, 0);
-                ctx.lineTo(wb / 2 * scale, 0);
-                ctx.lineTo(0, h * scale);
-            }
-            ctx.closePath();
-
-            // Рисуем границы ската
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#e74c3c';
-            ctx.stroke();
-
-            // 2. Раскладка металла или заливка мягкой кровлей
-            if (matType === 'metal') {
-                ctx.clip(); // Обрезаем все, что выходит за пределы ската
-
-                let startX = -wb / 2;
-                let cols = Math.ceil(wMax / 1.10);
-                let sheetsH = splitSheetHeight(h);
-
-                for (let c = 0; c < cols; c++) {
-                    let currentY = 0;
-                    for (let r = 0; r < sheetsH.length; r++) {
-                        let sheetH = sheetsH[r];
-                        let sheetW = 1.189; // полная ширина листа
-
-                        // Рисуем лист
-                        ctx.strokeStyle = '#34495e';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect((startX + c * 1.10) * scale, currentY * scale, sheetW * scale, sheetH * scale);
-
-                        // Пишем длину листа внутри
-                        ctx.save();
-                        ctx.scale(1, -1); // возвращаем текст в нормальное положение
-                        ctx.fillStyle = '#2980b9';
-                        ctx.font = 'bold 14px sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(sheetH.toFixed(2), (startX + c * 1.10 + 1.10 / 2) * scale, -(currentY + sheetH / 2) * scale);
-                        ctx.restore();
-
-                        currentY += (sheetH - 0.15); // Нахлест
+                    if (vars.rType === 'tent') {
+                        slopes.push({ type: 'tri', wb: Lr, wt: 0, h: s_side, label: 'Скат 1' });
+                        slopes.push({ type: 'tri', wb: Lr, wt: 0, h: s_side, label: 'Скат 2' });
+                        slopes.push({ type: 'tri', wb: Wr, wt: 0, h: s_end, label: 'Скат 3' });
+                        slopes.push({ type: 'tri', wb: Wr, wt: 0, h: s_end, label: 'Скат 4' });
+                    } else {
+                        slopes.push({ type: 'trap', wb: mainL, wt: cRidges, h: s_side, label: 'Скат (Трапеция) 1' });
+                        slopes.push({ type: 'trap', wb: mainL, wt: cRidges, h: s_side, label: 'Скат (Трапеция) 2' });
+                        slopes.push({ type: 'tri', wb: mainW, wt: 0, h: s_end, label: 'Скат (Вальма) 1' });
+                        slopes.push({ type: 'tri', wb: mainW, wt: 0, h: s_end, label: 'Скат (Вальма) 2' });
                     }
                 }
-            } else {
-                // Если мягкая кровля - просто заливаем серым цветом (ОСП) с прозрачностью
-                ctx.fillStyle = 'rgba(149, 165, 166, 0.4)';
-                ctx.fill();
             }
+            return slopes;
+        }
 
-            ctx.restore();
+        function resetRows2D() {
+            let slopes = getSlopesData();
+            if (slopes.length === 0) return;
+            let maxH = Math.max(...slopes.map(s => s.h));
+            customRows2D = splitSheetHeight(maxH);
+            buildRowsUI();
+            render2D();
+        }
 
-            // Текстовые подписи размеров вне ската (без инверсии)
-            ctx.fillStyle = '#2c3e50';
-            ctx.font = 'bold 16px sans-serif';
-            ctx.textAlign = 'center';
-            // Подпись основания
-            ctx.fillText(`Основание: ${wb.toFixed(2)} м`, canvas.width / 2, canvas.height - margin + 25);
-            // Подпись высоты сбоку
-            ctx.save();
-            ctx.translate(canvas.width / 2 - (wMax / 2 * scale) - 30, canvas.height - margin - (h / 2 * scale));
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText(`Скат: ${h.toFixed(2)} м`, 0, 0);
-            ctx.restore();
-            // Подпись верха (для трапеции)
-            if (shape === 'trap') {
-                ctx.fillText(`Верх: ${wt.toFixed(2)} м`, canvas.width / 2, canvas.height - margin - (h * scale) - 15);
+        function buildRowsUI() {
+            let container = document.getElementById('rowsContainer2D');
+            container.innerHTML = '';
+            for (let i = 0; i < customRows2D.length; i++) {
+                container.innerHTML += `
+                    <div class="row-input-group">
+                        <span style="width: 50px; font-size: 13px;">Ряд ${i + 1}:</span>
+                        <input type="number" value="${customRows2D[i].toFixed(2)}" step="0.05" min="0.5" onchange="updateRowVal(${i}, this.value)">
+                        <button onclick="deleteRow(${i})" title="Удалить ряд">X</button>
+                    </div>`;
             }
         }
+
+        function updateRowVal(idx, val) {
+            customRows2D[idx] = parseFloat(val) || 0;
+            render2D();
+        }
+
+        function addRow2D() {
+            customRows2D.push(3.0);
+            buildRowsUI();
+            render2D();
+        }
+
+        function deleteRow(idx) {
+            customRows2D.splice(idx, 1);
+            buildRowsUI();
+            render2D();
+        }
+
+        function getMaxPolyY(x1, x2, type, wb, wt, h) {
+            function yAt(x) {
+                if (type === 'rect') return (x >= -wb / 2 && x <= wb / 2) ? h : -1;
+                if (type === 'tri') return (x >= -wb / 2 && x <= wb / 2) ? h - (2 * h / wb) * Math.abs(x) : -1;
+                if (type === 'trap') {
+                    if (x < -wb / 2 || x > wb / 2) return -1;
+                    if (Math.abs(x) <= wt / 2) return h;
+                    return h - (h / ((wb - wt) / 2)) * (Math.abs(x) - wt / 2);
+                }
+                return -1;
+            }
+            let pts = [x1, x2];
+            if (x1 < 0 && x2 > 0) pts.push(0);
+            if (type === 'trap') {
+                if (x1 < -wt / 2 && x2 > -wt / 2) pts.push(-wt / 2);
+                if (x1 < wt / 2 && x2 > wt / 2) pts.push(wt / 2);
+            }
+            let max_y = -1;
+            for (let px of pts) {
+                let py = yAt(px);
+                if (py > max_y) max_y = py;
+            }
+            return max_y;
+        }
+
+        function render2D() {
+            let slopes = getSlopesData();
+            if (slopes.length === 0) return;
+
+            const canvas = document.getElementById('canvas2D');
+            const ctx = canvas.getContext('2d');
+            const matType = document.getElementById('materialType').value;
+            const shiftX = parseFloat(document.getElementById('shiftX2D').value) || 0;
+
+            const scale = 100; // 100 pixels per meter
+            const margin = 100;
+
+            let totalH_m = 0;
+            let maxW_m = 0;
+            slopes.forEach(s => {
+                totalH_m += s.h;
+                let w = (s.type === 'trap') ? Math.max(s.wb, s.wt) : s.wb;
+                if (w > maxW_m) maxW_m = w;
+            });
+
+            canvas.width = Math.max(800, maxW_m * scale + margin * 2);
+            canvas.height = Math.max(600, totalH_m * scale + margin * (slopes.length + 1));
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let currentY_px = margin; // Рисуем сверху вниз по холсту, но скаты ориентируем основанием вниз
+
+            for (let i = 0; i < slopes.length; i++) {
+                let s = slopes[i];
+                let wMax = (s.type === 'trap') ? Math.max(s.wb, s.wt) : s.wb;
+                let h_px = s.h * scale;
+
+                ctx.save();
+                // Ставим центр ската: по X в середину холста, по Y - в базовую линию текущего ската
+                ctx.translate(canvas.width / 2, currentY_px + h_px);
+                ctx.scale(1, -1); // Инвертируем Y, чтобы рисовать снизу вверх (основание на 0, верх на h)
+
+                // 1. Создаем контур
+                ctx.beginPath();
+                if (s.type === 'rect') {
+                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
+                    ctx.lineTo(s.wb / 2 * scale, s.h * scale); ctx.lineTo(-s.wb / 2 * scale, s.h * scale);
+                } else if (s.type === 'trap') {
+                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
+                    ctx.lineTo(s.wt / 2 * scale, s.h * scale); ctx.lineTo(-s.wt / 2 * scale, s.h * scale);
+                } else if (s.type === 'tri') {
+                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
+                    ctx.lineTo(0, s.h * scale);
+                }
+                ctx.closePath();
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.stroke();
+
+                // 2. Раскладка листов
+                if (matType === 'metal') {
+                    ctx.clip(); // Обрезаем все, что выходит за контур
+
+                    let startSearchX = -wMax / 2 + shiftX;
+                    let colIndex = Math.floor((-s.wb / 2 - startSearchX) / 1.10);
+                    let currentX = startSearchX + colIndex * 1.10;
+
+                    while (currentX < s.wb / 2) {
+                        let rowStart = 0;
+                        for (let r = 0; r < customRows2D.length; r++) {
+                            let rowH = customRows2D[r];
+                            if (rowH <= 0) continue;
+                            let rowEnd = rowStart + rowH;
+
+                            let polyMaxY = getMaxPolyY(currentX, currentX + 1.189, s.type, s.wb, s.wt, s.h);
+
+                            if (polyMaxY > rowStart) {
+                                let actualH = rowH;
+                                if (polyMaxY < rowEnd) actualH = polyMaxY - rowStart;
+
+                                ctx.strokeStyle = '#34495e';
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(currentX * scale, rowStart * scale, 1.189 * scale, actualH * scale);
+
+                                // Подписи на обрезанных и целых листах
+                                if (actualH > 0.3) {
+                                    ctx.save();
+                                    ctx.scale(1, -1);
+                                    ctx.fillStyle = '#2980b9';
+                                    ctx.font = 'bold 12px sans-serif';
+                                    ctx.textAlign = 'center';
+                                    ctx.fillText(actualH.toFixed(2), (currentX + 1.10 / 2) * scale, -(rowStart + actualH / 2) * scale);
+                                    ctx.restore();
+                                }
+                            }
+                            rowStart += (rowH - 0.15); // Нахлест
+                        }
+                        currentX += 1.10;
+                    }
+                } else {
+                    ctx.fillStyle = 'rgba(149, 165, 166, 0.4)';
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // Подписи снаружи ската
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${s.label}. Основание: ${s.wb.toFixed(2)} м`, canvas.width / 2, currentY_px + h_px + 25);
+
+                ctx.save();
+                ctx.translate(canvas.width / 2 - (wMax / 2 * scale) - 30, currentY_px + h_px / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(`Скат: ${s.h.toFixed(2)} м`, 0, 0);
+                ctx.restore();
+
+                if (s.type === 'trap') {
+                    ctx.fillText(`Верх: ${s.wt.toFixed(2)} м`, canvas.width / 2, currentY_px - 10);
+                }
+
+                currentY_px += h_px + margin;
+            }
+        }
+
+        window.download2DLayout = function () {
+            let canvas = document.getElementById('canvas2D');
+            let link = document.createElement('a');
+            link.download = 'Раскладка_Конструктор.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 1.0);
+            link.click();
+        };
+
+        // ==========================================
+        // БАЗОВЫЕ ФУНКЦИИ И 3D
         // ==========================================
 
         const colorDB = {
@@ -836,7 +1037,7 @@
                 renderer.setSize(vp.clientWidth, vp.clientHeight);
                 labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
             }
-            render2DSlope(); // Перерисовываем 2D при ресайзе
+            if (document.getElementById('layout2D').style.display === 'flex') render2D();
         });
 
         function updateBrandMenu() {
@@ -924,11 +1125,7 @@
             resultDiv.style.display = "none";
 
             try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error("Сбой на сервере при чтении файла.");
 
                 const data = await response.json();
@@ -958,7 +1155,9 @@
                     document.getElementById('mValleys').value = extractNumber(aiText, 'Ендовы') || 0;
                     document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкания') || 0;
 
-                    processAndDraw();
+                    render3D();
+                    calculateFinal();
+                    if (document.getElementById('layout2D').style.display === 'flex') resetRows2D();
 
                     let mBox = document.getElementById('manualBox');
                     if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
@@ -979,11 +1178,6 @@
             }
         }
 
-        function processAndDraw() {
-            render3D();
-            calculateFinal();
-        }
-
         function doMath() {
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
@@ -998,9 +1192,7 @@
             let roundedVal = Math.round(val * 1000) / 1000;
             let dec = roundedVal - Math.floor(roundedVal);
             let res = Math.ceil(roundedVal);
-            if (dec >= 0.7) {
-                res += 1;
-            }
+            if (dec >= 0.7) res += 1;
             return res;
         }
 
@@ -1048,75 +1240,6 @@
             }
             return sheets;
         }
-
-        window.downloadLayout = function () {
-            let vars = doMath();
-            let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
-            let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
-            let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
-            let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
-
-            let W_roof = Lr;
-            let H_roof = (vars.rType === 'shed') ? Math.round((Wr / vars.cos1) * 100) / 100 : Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
-
-            let numSlopes = (vars.rType === 'gable') ? 2 : 1;
-            let cols = Math.ceil((W_roof - 1.189) / 1.10) + 1;
-            if (W_roof <= 1.189) cols = 1;
-            let sheetsH = splitSheetHeight(H_roof);
-
-            let totalW = W_roof * numSlopes;
-            let scale = Math.min(1200 / totalW, 800 / H_roof);
-            let margin = 80;
-
-            let canvas = document.createElement('canvas');
-            canvas.width = (W_roof * scale) * numSlopes + margin * (numSlopes + 1) + 100;
-            canvas.height = H_roof * scale + margin * 3 + 60;
-            let ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = '#000000'; ctx.font = 'bold 20px sans-serif';
-            ctx.fillText(`Схема раскладки листов (Металлочерепица ${brand})`, margin, 40);
-            ctx.font = '16px sans-serif';
-            ctx.fillText(`Размер ската: ${W_roof.toFixed(2)} м (ширина) х ${H_roof.toFixed(2)} м (высота)`, margin, 65);
-
-            ctx.save(); ctx.translate(margin, canvas.height - margin - 80); ctx.scale(1, -1);
-
-            for (let slopeIdx = 0; slopeIdx < numSlopes; slopeIdx++) {
-                let offsetX = slopeIdx * (W_roof * scale + margin);
-
-                ctx.save(); ctx.scale(1, -1); ctx.fillStyle = '#000'; ctx.font = 'bold 16px sans-serif';
-                ctx.fillText(`Скат №${slopeIdx + 1}`, offsetX, -(H_roof * scale + 15)); ctx.restore();
-
-                ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 3; ctx.strokeRect(offsetX, 0, W_roof * scale, H_roof * scale);
-                ctx.lineWidth = 1; let currentY = 0;
-                for (let r = 0; r < sheetsH.length; r++) {
-                    let h = sheetsH[r]; let currentX = 0;
-                    for (let c = 0; c < cols; c++) {
-                        let w = 1.189; ctx.strokeStyle = '#34495e';
-                        ctx.strokeRect(offsetX + currentX * scale, currentY * scale, w * scale, h * scale);
-
-                        ctx.save(); ctx.scale(1, -1); ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#2980b9'; ctx.textAlign = 'center';
-                        let textX = offsetX + (currentX + 1.10 / 2) * scale; let textY = -(currentY + h / 2) * scale;
-                        ctx.fillText(h.toFixed(3), textX, textY); ctx.restore();
-
-                        currentX += 1.10;
-                    }
-                    currentY += (h - 0.15);
-                }
-            }
-            ctx.restore();
-
-            ctx.fillStyle = '#333'; ctx.textAlign = 'left'; ctx.font = '14px sans-serif';
-            let totalSheetsPerSlope = cols * sheetsH.length;
-            ctx.fillText(`Параметры листа: Полная ширина 1.189 м | Полезная 1.1 м | Нахлест 0.15 м`, margin, canvas.height - 70);
-            ctx.fillText(`На 1 скат: ${cols} шт. по ширине, рядов: ${sheetsH.length}. Всего на 1 скат: ${totalSheetsPerSlope} листов.`, margin, canvas.height - 45);
-            ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#27ae60';
-            ctx.fillText(`ИТОГО НА КРОВЛЮ (${numSlopes} скат.): ${totalSheetsPerSlope * numSlopes} листов.`, margin, canvas.height - 20);
-
-            let link = document.createElement('a'); link.download = 'Раскладка_Кровли.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
-        };
 
         function calculateFinal() {
             let vars = doMath();
@@ -1539,14 +1662,6 @@
             }
 
             document.getElementById('specContent').innerHTML = html;
-
-            let btnContainer = document.getElementById('layoutBtnContainer');
-            if (matTypeVal === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
-                btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px; width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТОВ (JPG)</button>`;
-            } else {
-                btnContainer.innerHTML = '';
-            }
-
             let warnBox = document.getElementById('smartWarnings');
             warnBox.style.display = "none";
             document.getElementById('finalBox').style.display = 'block';
@@ -1842,275 +1957,6 @@
                     }
                 }
             }
-        }
-
-        let scene, camera, renderer, labelRenderer, controls;
-        let objectsGroup = new THREE.Group();
-        let useLabels = false;
-
-        function init3D() {
-            const container = document.getElementById('viewport');
-            if (!scene) {
-                scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
-                camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                container.appendChild(renderer.domElement);
-
-                if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
-                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
-
-                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
-
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
-                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
-                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
-
-                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
-                scene.add(objectsGroup); animate();
-            }
-        }
-
-        function animate() { requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) { renderer.render(scene, camera); if (useLabels && labelRenderer) labelRenderer.render(scene, camera); } }
-        function addLabel(parent, text, x, y, z) { if (!useLabels) return; const div = document.createElement('div'); div.className = 'label-3d'; div.textContent = text; const label = new THREE.CSS2DObject(div); label.position.set(x, y, z); parent.add(label); }
-
-        function render3D() {
-            init3D(); let vars = doMath(); if (vars.L === 0 || vars.W === 0) return;
-            document.querySelectorAll('.label-3d').forEach(el => el.remove());
-            while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
-
-            const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
-            const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
-            const matType = document.getElementById('materialType').value;
-
-            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-            const roofMat = createRoofMaterial();
-            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
-
-            let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
-            let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
-            soffitMat.userData = { tileW: 0.3, tileH: 0.3 };
-
-            const createWallQuad = (v1, v2, v3, v4) => {
-                const geo = new THREE.BufferGeometry();
-                geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...v1, ...v2, ...v3, ...v1, ...v3, ...v4]), 3));
-                geo.computeVertexNormals();
-                let mesh = new THREE.Mesh(geo, wallMat); mesh.castShadow = true; mesh.receiveShadow = true; objectsGroup.add(mesh);
-            };
-
-            const getRoofHeight = (x, z) => {
-                let Lr = vars.L + soffit * 2;
-                let Wr = vars.W + soffit * 2;
-                let y0 = houseHeight;
-
-                if (vars.rType === 'shed') {
-                    return y0 + (Wr / 2 - z) * Math.tan(vars.P1 * Math.PI / 180);
-                } else if (vars.rType === 'gable') {
-                    return y0 + (Wr / 2 - Math.abs(z)) * Math.tan(vars.P1 * Math.PI / 180);
-                } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    return y0;
-                }
-                return y0;
-            };
-
-            const buildSmartWall = (x1, z1, x2, z2) => {
-                let segments = 20;
-                for (let i = 0; i < segments; i++) {
-                    let cx1 = x1 + (x2 - x1) * (i / segments);
-                    let cz1 = z1 + (z2 - z1) * (i / segments);
-                    let cx2 = x1 + (x2 - x1) * ((i + 1) / segments);
-                    let cz2 = z1 + (z2 - z1) * ((i + 1) / segments);
-
-                    let y1 = getRoofHeight(cx1, cz1);
-                    let y2 = getRoofHeight(cx2, cz2);
-
-                    createWallQuad([cx1, 0, cz1], [cx2, 0, cz2], [cx2, y2 - 0.015, cz2], [cx1, y1 - 0.015, cz1]);
-                }
-            };
-
-            let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2; let y0 = houseHeight;
-
-            let funnelsAuto = 0;
-            if (vars.rType === 'shed') funnelsAuto = (Lr > 15) ? 3 : 2;
-            else if (vars.rType === 'gable') funnelsAuto = ((Lr > 15) ? 3 : 2) * 2;
-            else if (vars.rType === 'hip' || vars.rType === 'tent') funnelsAuto = 4 + (Lr > 15 ? 2 : 0) + (Wr > 15 ? 2 : 0);
-
-            let vOutletsEl = document.getElementById('vOutlets');
-            if (vOutletsEl.dataset.manual !== 'true') {
-                vOutletsEl.value = funnelsAuto;
-            }
-            let funnelsCount = parseInt(vOutletsEl.value) || 0;
-
-            buildSmartWall(-vars.L / 2, vars.W / 2, vars.L / 2, vars.W / 2);
-            buildSmartWall(vars.L / 2, vars.W / 2, vars.L / 2, -vars.W / 2);
-            buildSmartWall(vars.L / 2, -vars.W / 2, -vars.L / 2, -vars.W / 2);
-            buildSmartWall(-vars.L / 2, -vars.W / 2, -vars.L / 2, vars.W / 2);
-
-            if (vars.rType === 'gable') {
-                let h = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
-
-                let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2], p3 = [Lr / 2, y0 + h, 0], p4 = [-Lr / 2, y0 + h, 0];
-                objectsGroup.add(createRoofQuad(p1, p2, p3, p4, roofMat));
-                if (soffit > 0) {
-                    let s1 = [...p1], s2 = [...p2], s3 = [...p3], s4 = [...p4];
-                    s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
-                    objectsGroup.add(createRoofQuad(s1, s2, s3, s4, soffitMat));
-                }
-
-                let p5 = [Lr / 2, y0, -Wr / 2], p6 = [-Lr / 2, y0, -Wr / 2];
-                objectsGroup.add(createRoofQuad(p5, p6, p4, p3, roofMat));
-                if (soffit > 0) {
-                    let s5 = [...p5], s6 = [...p6], s3 = [...p3], s4 = [...p4];
-                    s5[1] -= 0.03; s6[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
-                    objectsGroup.add(createRoofQuad(s5, s6, s4, s3, soffitMat));
-                }
-
-                let s1_label = (Wr / 2) / Math.cos(vars.P1 * Math.PI / 180);
-                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
-                addLabel(objectsGroup, 'Скат (Торец): ' + s1_label.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, vars.W / 4);
-                if (Lr > 0) addLabel(objectsGroup, 'Конёк: ' + Lr.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
-
-                if (Lr > 0) {
-                    let f1 = Math.ceil(funnelsCount / 2);
-                    let f2 = Math.floor(funnelsCount / 2);
-                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, true, true);
-                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, true, true);
-                }
-
-            } else if (vars.rType === 'shed') {
-                let h = Wr * Math.tan(vars.P1 * Math.PI / 180);
-                let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2], p3 = [Lr / 2, y0 + h, -Wr / 2], p4 = [-Lr / 2, y0 + h, -Wr / 2];
-                objectsGroup.add(createRoofQuad(p1, p2, p3, p4, roofMat));
-                if (soffit > 0) {
-                    let s1 = [...p1], s2 = [...p2], s3 = [...p3], s4 = [...p4];
-                    s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
-                    objectsGroup.add(createRoofQuad(s1, s2, s3, s4, soffitMat));
-                }
-
-                let s1_label = Wr / Math.cos(vars.P1 * Math.PI / 180);
-                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
-                addLabel(objectsGroup, 'Конёк / Примык.: ' + Lr.toFixed(2) + ' м', 0, houseHeight + h + 0.5, -Wr / 2 - 0.1);
-                addLabel(objectsGroup, 'Скат: ' + s1_label.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, 0);
-
-                if (Lr > 0) {
-                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, funnelsCount, drainMat, true, true);
-                }
-
-            } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                let isRotated = Lr < Wr && vars.rType === 'hip';
-                let mainL = isRotated ? Wr : Lr;
-                let mainW = isRotated ? Lr : Wr;
-
-                let H_roof, indent;
-                if (vars.rType === 'tent') {
-                    H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                    indent = mainL / 2;
-                } else {
-                    H_roof = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
-
-                    let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
-                    let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
-
-                    if (customRidge !== null && customRidge >= 0) {
-                        let r = Math.min(customRidge, mainL);
-                        indent = (mainL - r) / 2;
-                    } else {
-                        indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
-                        if (indent >= mainL / 2) { indent = mainL / 2; H_roof = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
-                    }
-                }
-
-                let p_FL = [-Lr / 2, y0, Wr / 2]; let p_FR = [Lr / 2, y0, Wr / 2];
-                let p_BR = [Lr / 2, y0, -Wr / 2]; let p_BL = [-Lr / 2, y0, -Wr / 2];
-
-                let ridgeStart, ridgeEnd;
-                if (vars.rType === 'tent') {
-                    ridgeStart = [0, y0 + H_roof, 0]; ridgeEnd = [0, y0 + H_roof, 0];
-                } else if (isRotated) {
-                    ridgeStart = [0, y0 + H_roof, Wr / 2 - indent]; ridgeEnd = [0, y0 + H_roof, -Wr / 2 + indent];
-                } else {
-                    ridgeStart = [-Lr / 2 + indent, y0 + H_roof, 0]; ridgeEnd = [Lr / 2 - indent, y0 + H_roof, 0];
-                }
-
-                if (isRotated) {
-                    objectsGroup.add(createRoofTri(p_FL, p_FR, ridgeStart, roofMat));
-                    objectsGroup.add(createRoofTri(p_BR, p_BL, ridgeEnd, roofMat));
-                    if (indent > 0) {
-                        objectsGroup.add(createRoofQuad(p_FR, p_BR, ridgeEnd, ridgeStart, roofMat));
-                        objectsGroup.add(createRoofQuad(p_BL, p_FL, ridgeStart, ridgeEnd, roofMat));
-                    }
-
-                    if (soffit > 0) {
-                        let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sRS = [...ridgeStart], sRE = [...ridgeEnd];
-                        sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sRS[1] -= 0.03; sRE[1] -= 0.03;
-                        objectsGroup.add(createRoofTri(sFL, sFR, sRS, soffitMat));
-                        objectsGroup.add(createRoofTri(sBR, sBL, sRE, soffitMat));
-                        if (indent > 0) {
-                            objectsGroup.add(createRoofQuad(sFR, sBR, sRE, sRS, soffitMat));
-                            objectsGroup.add(createRoofQuad(sBL, sFL, sRS, sRE, soffitMat));
-                        }
-                    }
-                } else {
-                    let p_TL = ridgeStart; let p_TR = ridgeEnd;
-
-                    if (indent < mainL / 2) {
-                        objectsGroup.add(createRoofQuad(p_FL, p_FR, p_TR, p_TL, roofMat));
-                        objectsGroup.add(createRoofQuad(p_BR, p_BL, p_TL, p_TR, roofMat));
-                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
-                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TR, roofMat));
-                        if (soffit > 0) {
-                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL], sTR = [...p_TR];
-                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03; sTR[1] -= 0.03;
-                            objectsGroup.add(createRoofQuad(sFL, sFR, sTR, sTL, soffitMat));
-                            objectsGroup.add(createRoofQuad(sBR, sBL, sTL, sTR, soffitMat));
-                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
-                            objectsGroup.add(createRoofTri(sFR, sBR, sTR, soffitMat));
-                        }
-                    } else {
-                        objectsGroup.add(createRoofTri(p_FL, p_FR, p_TL, roofMat));
-                        objectsGroup.add(createRoofTri(p_BR, p_BL, p_TL, roofMat));
-                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
-                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TL, roofMat));
-                        if (soffit > 0) {
-                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL];
-                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03;
-                            objectsGroup.add(createRoofTri(sFL, sFR, sTL, soffitMat));
-                            objectsGroup.add(createRoofTri(sBR, sBL, sTL, soffitMat));
-                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
-                            objectsGroup.add(createRoofTri(sFR, sBR, sTL, soffitMat));
-                        }
-                    }
-                }
-
-                let ridge_label = Math.max(0, mainL - indent * 2);
-                let hipLen_label = Math.sqrt(Math.pow(indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(H_roof, 2));
-
-                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
-                addLabel(objectsGroup, 'Карниз: ' + Wr.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight, 0);
-                if (ridge_label > 0 && vars.rType !== 'tent') addLabel(objectsGroup, 'Конёк: ' + ridge_label.toFixed(2) + ' м', 0, houseHeight + H_roof + 0.5, 0);
-                if (hipLen_label > 0) addLabel(objectsGroup, 'Хребет: ' + hipLen_label.toFixed(2) + ' м', -Lr / 4, houseHeight + H_roof / 2 + 0.5, Wr / 4);
-
-                if (Lr > 0) {
-                    let f1 = Math.ceil(funnelsCount / 2);
-                    let f2 = Math.floor(funnelsCount / 2);
-                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, false, false);
-                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, false, false);
-
-                    let gLeft = new THREE.Mesh(createGutter(Wr), drainMat); gLeft.position.set(-Lr / 2, houseHeight - 0.05, 0); gLeft.castShadow = true; objectsGroup.add(gLeft);
-                    let gRight = new THREE.Mesh(createGutter(Wr), drainMat); gRight.position.set(Lr / 2, houseHeight - 0.05, 0); gRight.castShadow = true; objectsGroup.add(gRight);
-
-                    const addCorner = (x, z) => {
-                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
-                        corner.position.set(x, houseHeight - 0.05 - 0.0375, z);
-                        corner.castShadow = true;
-                        objectsGroup.add(corner);
-                    };
-                    addCorner(-Lr / 2, Wr / 2); addCorner(Lr / 2, Wr / 2); addCorner(-Lr / 2, -Wr / 2); addCorner(Lr / 2, -Wr / 2);
-                }
-            }
-
-            if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
         }
 
         async function sendChatMessage() {
