@@ -524,7 +524,6 @@
             </div>
 
             <div id="specContent"></div>
-            <!-- ИЗМЕНЕНИЕ: Убрана приписка (С ДИЗАЙНОМ) -->
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
             <div id="layoutBtnContainer"></div>
         </div>
@@ -974,7 +973,8 @@
                             { name: "Четверник Х - образный (для полукруглого конька)", raw: "-", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
                             { name: "Торцевая крышка конька (для полукруглого конька)", raw: "-", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
                             { name: "Конусная заглушка конька (для полукруглого конька)", raw: "-", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
-                            { name: "Аэроролик конька/хребта (5м)", raw: (cRidges + cHips).toFixed(2) + " м", qty: smartRound((cRidges + cHips) / 5), unit: "рул" }
+                            { name: "Аэроролик конька/хребта (5м)", raw: (cRidges + cHips).toFixed(2) + " м", qty: smartRound((cRidges + cHips) / 5), unit: "рул" },
+                            { name: "Универсальный уплотнитель (1м)", raw: (cRidges + cHips).toFixed(2) + " м", qty: smartRound(cRidges + cHips), unit: "шт" }
                         ]
                     },
                     {
@@ -1226,7 +1226,6 @@
 
             specData.push(gutterData);
 
-            // Сохраняем глобальные данные для красивого Excel-экспорта
             let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
             windowCalcData = {
                 clientName: document.getElementById('clientName').value || 'Не указан',
@@ -1244,7 +1243,6 @@
                         <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для ${matTypeVal === 'metal' ? 'металлочерепицы' : 'гибкой черепицы'})</p>
                      </div>`;
 
-            // Заголовок столбцов в интерфейсе
             html += `<div class="spec-row" style="border-bottom: 2px solid #bdc3c7; margin-bottom: 10px; font-weight: bold; color: #34495e;">
                         <span class="spec-label">Наименование</span>
                         <span class="spec-raw" style="background: none;">Базовый размер</span>
@@ -1293,16 +1291,12 @@
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // =====================================
-        // ИСПРАВЛЕНИЕ: КРАСИВЫЙ ЭКСПОРТ В EXCEL
-        // =====================================
         function exportToExcel() {
             if (!windowCalcData) {
                 alert("Сначала нажмите 'Рассчитать спецификацию'");
                 return;
             }
 
-            // Получаем и увеличиваем порядковый номер расчета
             let orderNum = localStorage.getItem('calcOrderNum');
             orderNum = orderNum ? parseInt(orderNum) + 1 : 1;
             localStorage.setItem('calcOrderNum', orderNum);
@@ -1311,7 +1305,6 @@
             let now = new Date();
             let dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
 
-            // Стили
             const styleTitle = { font: { bold: true, sz: 14, color: { rgb: "2c3e50" } }, alignment: { horizontal: "center" } };
             const styleHeader = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "16a085" } }, alignment: { horizontal: "center" }, border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } } };
             const styleSection = { font: { bold: true, color: { rgb: "d35400" } }, fill: { fgColor: { rgb: "fcf3cf" } }, border: { top: { style: "thin" }, bottom: { style: "thin" } } };
@@ -1324,7 +1317,6 @@
             let ws_data = [];
             let merges = [];
 
-            // Шапка
             ws_data.push([{ v: "Спецификация кровельных материалов", s: styleTitle }, null, null, null, null]);
             merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
@@ -1332,7 +1324,6 @@
             ws_data.push([{ v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }, null, null, null]);
             ws_data.push([]);
 
-            // Блок 1: Входные параметры
             let rIdx = ws_data.length;
             ws_data.push([{ v: "1. ВХОДНЫЕ ПАРАМЕТРЫ ПРОЕКТА", s: styleGroup }, null, null, null, null]);
             merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
@@ -1343,7 +1334,6 @@
             ws_data.push([{ v: "Угол ската:" }, { v: d.P1 + "°" }, null, null, null]);
             ws_data.push([]);
 
-            // Блок 2: Сводка размеров
             rIdx = ws_data.length;
             ws_data.push([{ v: "2. ИТОГОВЫЕ РАЗМЕРЫ И ПЛОЩАДИ (СВОДКА)", s: styleGroup }, null, null, null, null]);
             merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
@@ -1359,7 +1349,6 @@
             ws_data.push([{ v: "Общая длина примыканий:" }, { v: d.cAbutments.toFixed(2) + " м" }, null, null, null]);
             ws_data.push([]);
 
-            // Блок 3: Таблица
             rIdx = ws_data.length;
             ws_data.push([{ v: "3. РАЗВЕРНУТАЯ СПЕЦИФИКАЦИЯ ЭЛЕМЕНТОВ", s: styleHeader }, null, null, null, null]);
             merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
@@ -1374,14 +1363,14 @@
 
             d.specData.forEach(section => {
                 let hasItems = section.items.some(i => i.qty > 0);
-                if (!hasItems) return; // Пропускаем пустые разделы
+                if (!hasItems) return;
 
                 rIdx = ws_data.length;
                 ws_data.push([{ v: section.title, s: styleSection }, null, null, null, null]);
                 merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
 
                 section.items.forEach(item => {
-                    if (item.qty === 0) return; // Убираем нули для чистоты сметы
+                    if (item.qty === 0) return;
                     ws_data.push([
                         { v: item.name, s: styleBorder },
                         { v: item.raw || "-", s: styleCenter },
