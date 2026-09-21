@@ -413,7 +413,7 @@
                 <label>Тип водосточной системы:</label>
                 <select id="gutterType" onchange="calculateFinal()">
                     <option value="metal" selected>Металлическая система</option>
-                    <option value="pvc">ПВХ система (в разработке)</option>
+                    <option value="pvc">ПВХ система</option>
                 </select>
             </div>
 
@@ -1114,46 +1114,44 @@
             }
 
             let gutterData = [];
+
+            let g_caps = 0;
+            let g_outer_angles = 0;
+            let g_inner_angles = 0;
+            let g_3m_total = smartRound(cEaves / 3);
+            let g_conn_total = 0;
+
+            function calcGutterConn(len) {
+                if (len <= 3) return 0;
+                let c = Math.floor(len / 3);
+                if (len % 3 === 0) c--;
+                return c;
+            }
+
+            if (vars.rType === 'shed') {
+                g_conn_total = calcGutterConn(Lr);
+                g_caps = 2;
+            } else if (vars.rType === 'gable') {
+                g_conn_total = calcGutterConn(Lr) * 2;
+                g_caps = 4;
+            } else if (vars.rType === 'hip' || vars.rType === 'tent') {
+                g_conn_total = (calcGutterConn(Lr) * 2) + (calcGutterConn(Wr) * 2);
+                g_caps = 0;
+                g_outer_angles = 4;
+            }
+
+            let dropH = wallHeight + soffit;
+            let totalDropLen = dropH * funnelsCount;
+            let pipe_3m = smartRound(totalDropLen / 3);
+            let pipe_elbows = funnelsCount * 2;
+            let drain_elbows = funnelsCount;
+            let clamps_per_drop = dropH <= 3 ? 3 : Math.ceil(dropH);
+            let clamps_total = funnelsCount * clamps_per_drop;
+
             if (gutterType === 'metal') {
-                let g_caps = 0;
-                let g_outer_angles = 0;
-                let g_inner_angles = 0;
-
-                let g_3m_total = smartRound(cEaves / 3);
-                let g_conn_total = 0;
-
-                function calcGutterConn(len) {
-                    if (len <= 3) return 0;
-                    let c = Math.floor(len / 3);
-                    if (len % 3 === 0) c--;
-                    return c;
-                }
-
-                if (vars.rType === 'shed') {
-                    g_conn_total = calcGutterConn(Lr);
-                    g_caps = 2;
-                } else if (vars.rType === 'gable') {
-                    g_conn_total = calcGutterConn(Lr) * 2;
-                    g_caps = 4;
-                } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    g_conn_total = (calcGutterConn(Lr) * 2) + (calcGutterConn(Wr) * 2);
-                    g_caps = 0;
-                    g_outer_angles = 4;
-                }
-
                 let angle_conn = g_outer_angles * 2;
                 let brackets = smartRound(cEaves / 0.6) + g_outer_angles + g_conn_total;
-
-                let pipe_elbows = funnelsCount * 2;
-                let dropH = wallHeight + soffit;
-
-                let totalDropLen = dropH * funnelsCount;
-                let pipe_3m = smartRound(totalDropLen / 3);
-
                 let pipe_1m = 0;
-                let drain_elbows = funnelsCount;
-                let clamps_per_drop = dropH <= 3 ? 3 : Math.ceil(dropH);
-                let clamps_total = funnelsCount * clamps_per_drop;
 
                 let areaToPaint = (matTypeVal === 'metal') ? slopedArea * 1.15 : slopedArea * 1.05;
                 let paint_corr = Math.ceil(areaToPaint / 300) * 2;
@@ -1177,10 +1175,26 @@
                         { name: "Краска-корректор", qty: paint_corr, unit: "шт" }
                     ]
                 };
-            } else {
+            } else if (gutterType === 'pvc') {
+                let brackets = smartRound(cEaves / 0.6) + g_outer_angles + funnelsCount + g_conn_total;
+
+                let pipes_per_drop = Math.ceil(dropH / 3);
+                let sleeves_total = pipes_per_drop > 1 ? (pipes_per_drop - 1) * funnelsCount : 0;
+
                 gutterData = {
                     title: "Водосточная система (ПВХ)", items: [
-                        { name: "Ожидается загрузка логики ПВХ", qty: 0, unit: "-" }
+                        { name: "Желоб водосточный 3м", qty: g_3m_total, unit: "шт" },
+                        { name: "Кронштейн желоба", qty: brackets, unit: "шт" },
+                        { name: "Заглушка желоба", qty: g_caps, unit: "шт" },
+                        { name: "Воронка желоба", qty: funnelsCount, unit: "шт" },
+                        { name: "Угол желоба внешний 90 град", qty: g_outer_angles, unit: "шт" },
+                        { name: "Угол желоба внутренний 90 град", qty: g_inner_angles, unit: "шт" },
+                        { name: "Соединитель желоба", qty: g_conn_total, unit: "шт" },
+                        { name: "Колено трубы", qty: pipe_elbows, unit: "шт" },
+                        { name: "Труба без раструба 3 м", qty: pipe_3m, unit: "шт" },
+                        { name: "Муфта трубы", qty: sleeves_total, unit: "шт" },
+                        { name: "Колено стока (Слив)", qty: drain_elbows, unit: "шт" },
+                        { name: "Хомут трубы", qty: clamps_total, unit: "шт" }
                     ]
                 };
             }
