@@ -68,8 +68,9 @@
         #viewport {
             flex: 1;
             position: relative;
-            display: block;
+            background: #ecf0f1;
             overflow: hidden;
+            display: block;
         }
 
         #layout2D {
@@ -430,17 +431,6 @@
             margin: 0;
             padding: 10px 20px;
         }
-
-        #container3D {
-            width: 100%;
-            height: 400px;
-            background-color: #87CEEB;
-            border-radius: 4px;
-            margin-top: 15px;
-            display: none;
-            border: 2px solid #bdc3c7;
-            overflow: hidden;
-        }
     </style>
 </head>
 
@@ -724,8 +714,8 @@
                 document.getElementById('layout2D').style.display = 'none';
                 document.getElementById('btnMode3D').classList.add('active-mode');
                 document.getElementById('btnMode2D').classList.remove('active-mode');
-                // Принудительное обновление размера контейнера, чтобы 3D модель вернулась
-                setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 10);
+                // Принудительно вызываем ресайз чтобы 3D канвас отрисовался после скрытия
+                if (typeof render3D === 'function') render3D();
             } else {
                 document.getElementById('viewport').style.display = 'none';
                 document.getElementById('layout2D').style.display = 'flex';
@@ -918,7 +908,6 @@
                 ctx.translate(canvas.width / 2, currentY_px + h_px);
                 ctx.scale(1, -1);
 
-                // 1. Создаем контур
                 ctx.beginPath();
                 if (s.type === 'rect') {
                     ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
@@ -936,7 +925,6 @@
                 ctx.strokeStyle = '#e74c3c';
                 ctx.stroke();
 
-                // 2. Раскладка листов
                 if (matType === 'metal') {
                     ctx.clip();
 
@@ -1070,30 +1058,6 @@
             'lite_tetra': { name: 'Classic LITE - TETRA', colors: ['soft_anthracite', 'soft_mocca'] }
         };
 
-        // ИСПРАВЛЕНИЕ: Бронебойный ResizeObserver для 3D
-        const resizeObserver = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                if (entry.target.id === 'viewport') {
-                    if (typeof camera !== 'undefined' && camera && typeof renderer !== 'undefined' && renderer) {
-                        const w = entry.contentRect.width;
-                        const h = entry.contentRect.height;
-                        if (w > 0 && h > 0) {
-                            camera.aspect = w / h;
-                            camera.updateProjectionMatrix();
-                            renderer.setSize(w, h);
-                            if (typeof labelRenderer !== 'undefined' && labelRenderer) {
-                                labelRenderer.setSize(w, h);
-                            }
-                        }
-                    }
-                } else if (entry.target.id === 'layout2D') {
-                    if (document.getElementById('layout2D').style.display === 'flex') {
-                        if (typeof render2D === 'function') render2D();
-                    }
-                }
-            }
-        });
-
         function updateBrandMenu() {
             const matType = document.getElementById('materialType').value;
             const brandSel = document.getElementById('roofBrand');
@@ -1150,9 +1114,6 @@
             toggleRoofFields();
             updateBrandMenu();
             init3D();
-            // Запуск слежения за размерами блоков (Решает баг с невидимым 3D канвасом)
-            resizeObserver.observe(document.getElementById('viewport'));
-            resizeObserver.observe(document.getElementById('layout2D'));
         };
 
         function extractNumber(text, keyword) {
@@ -1832,6 +1793,33 @@
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
         }
+
+        function init3DAnimationLoop() {
+            requestAnimationFrame(init3DAnimationLoop);
+            if (controls) controls.update();
+
+            // ИСПРАВЛЕНИЕ: Авто-ресайз прямо в цикле рендера (решает проблему невидимого холста 3D)
+            const vp = document.getElementById('viewport');
+            if (renderer && vp && vp.style.display !== 'none') {
+                const w = vp.clientWidth;
+                const h = vp.clientHeight;
+                const canvas = renderer.domElement;
+                if (w > 0 && h > 0 && (canvas.clientWidth !== w || canvas.clientHeight !== h)) {
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(w, h);
+                    if (useLabels && labelRenderer) labelRenderer.setSize(w, h);
+                }
+            }
+
+            if (renderer && scene && camera && vp.style.display !== 'none') {
+                renderer.render(scene, camera);
+                if (useLabels && labelRenderer) labelRenderer.render(scene, camera);
+            }
+        }
+
+        // Запускаем цикл анимации один раз при старте
+        init3DAnimationLoop();
 
         async function sendChatMessage() {
             const inputField = document.getElementById('chatInput');
