@@ -9,8 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
-
-    <!-- ИСПРАВЛЕНИЕ: Заменили обычный xlsx на версию с поддержкой дизайна и стилей -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
@@ -246,6 +244,38 @@
             text-align: right;
         }
 
+        /* НОВЫЕ СТИЛИ ДЛЯ ТАБЛИЦЫ С ТРЕМЯ КОЛОНКАМИ */
+        .spec-row {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 1.2fr;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-bottom: 1px dashed #bdc3c7;
+            padding-bottom: 3px;
+            align-items: center;
+        }
+
+        .spec-label {
+            font-weight: normal;
+            color: #333;
+        }
+
+        .spec-raw {
+            color: #7f8c8d;
+            text-align: center;
+            font-size: 12px;
+            background: #f8f9fa;
+            border-radius: 3px;
+            padding: 2px 0;
+        }
+
+        .spec-qty {
+            font-weight: bold;
+            color: #c0392b;
+            text-align: right;
+        }
+
         input[type="color"] {
             width: 34px;
             height: 34px;
@@ -345,7 +375,6 @@
             <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
         </div>
 
-        <!-- ИСПРАВЛЕНИЕ: НОВЫЙ БЛОК ДЛЯ ИНФОРМАЦИИ О КЛИЕНТЕ -->
         <div class="box"
             style="border-left: 4px solid #f1c40f; padding-left: 15px; background-color: #fff9e6; padding: 10px; border-radius: 4px;">
             <h3 style="margin-bottom: 10px; color: #d35400;">1. Информация о клиенте</h3>
@@ -941,74 +970,74 @@
                 specData = [
                     {
                         title: "Конек/хребет", items: [
-                            { name: "Коньковая планка (2м)", qty: ridgePlanks, unit: "шт" },
-                            { name: "Тройник Y - образный (для полукруглого конька)", qty: vars.rType === 'hip' ? 2 : 0, unit: "шт" },
-                            { name: "Четверник Х - образный (для полукруглого конька)", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
-                            { name: "Торцевая крышка конька (для полукруглого конька)", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
-                            { name: "Конусная заглушка конька (для полукруглого конька)", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
-                            { name: "Аэроролик конька/хребта (5м)", qty: smartRound((cRidges + cHips) / 5), unit: "рул" }
+                            { name: "Коньковая планка (2м)", raw: (cRidges + cHips).toFixed(2) + " м", qty: ridgePlanks, unit: "шт" },
+                            { name: "Тройник Y - образный (для полукруглого конька)", raw: "-", qty: vars.rType === 'hip' ? 2 : 0, unit: "шт" },
+                            { name: "Четверник Х - образный (для полукруглого конька)", raw: "-", qty: vars.rType === 'tent' ? 1 : 0, unit: "шт" },
+                            { name: "Торцевая крышка конька (для полукруглого конька)", raw: "-", qty: vars.rType === 'gable' ? 2 : 0, unit: "шт" },
+                            { name: "Конусная заглушка конька (для полукруглого конька)", raw: "-", qty: (vars.rType === 'hip' || vars.rType === 'tent') ? 4 : 0, unit: "шт" },
+                            { name: "Аэроролик конька/хребта (5м)", raw: (cRidges + cHips).toFixed(2) + " м", qty: smartRound((cRidges + cHips) / 5), unit: "рул" }
                         ]
                     },
                     {
                         title: "Торец", items: [
-                            { name: "Торцевая планка (2м)", qty: rakePlanks, unit: "шт" },
-                            { name: "Торцевая страховочная планка (2м)", qty: rakePlanks, unit: "шт" }
+                            { name: "Торцевая планка (2м)", raw: cRakes.toFixed(2) + " м", qty: rakePlanks, unit: "шт" },
+                            { name: "Торцевая страховочная планка (2м)", raw: cRakes.toFixed(2) + " м", qty: rakePlanks, unit: "шт" }
                         ]
                     },
                     {
                         title: "Ендова", items: [
-                            { name: "Ендова нижняя (2м)", qty: valleyBottomPlanks, unit: "шт" },
-                            { name: "Накладка ендовы (верхняя, 2м)", qty: valleyTopPlanks, unit: "шт" },
-                            { name: "Герметик 310 мл", qty: smartRound(valleyBottomPlanks / 11), unit: "тюбик" },
-                            { name: "Универсальный уплотнитель (1м)", qty: smartRound(slopedValleys * 2), unit: "шт" }
+                            { name: "Ендова нижняя (2м)", raw: slopedValleys.toFixed(2) + " м", qty: valleyBottomPlanks, unit: "шт" },
+                            { name: "Накладка ендовы (верхняя, 2м)", raw: slopedValleys.toFixed(2) + " м", qty: valleyTopPlanks, unit: "шт" },
+                            { name: "Герметик 310 мл", raw: slopedValleys.toFixed(2) + " м", qty: smartRound(valleyBottomPlanks / 11), unit: "тюбик" },
+                            { name: "Универсальный уплотнитель (1м)", raw: slopedValleys.toFixed(2) + " м", qty: smartRound(slopedValleys * 2), unit: "шт" }
                         ]
                     },
                     {
                         title: "Примыкание", items: [
-                            { name: "Планка примыкания (2м)", qty: abutmentPlanks, unit: "шт" },
-                            { name: "Планка примыкания внакладку / в штробу (2м)", qty: abutmentPlanks, unit: "шт" },
-                            { name: "Универсальный уплотнитель (1м)", qty: smartRound(cAbutments), unit: "шт" },
-                            { name: "Шуруп с дюбелем для прижимной планки", qty: smartRound(cAbutments * 4), unit: "шт" },
-                            { name: "Герметик 310 мл", qty: smartRound(cAbutments / 7), unit: "тюбик" }
+                            { name: "Планка примыкания (2м)", raw: cAbutments.toFixed(2) + " м", qty: abutmentPlanks, unit: "шт" },
+                            { name: "Планка примыкания внакладку / в штробу (2м)", raw: cAbutments.toFixed(2) + " м", qty: abutmentPlanks, unit: "шт" },
+                            { name: "Универсальный уплотнитель (1м)", raw: cAbutments.toFixed(2) + " м", qty: smartRound(cAbutments), unit: "шт" },
+                            { name: "Шуруп с дюбелем для прижимной планки", raw: cAbutments.toFixed(2) + " м", qty: smartRound(cAbutments * 4), unit: "шт" },
+                            { name: "Герметик 310 мл", raw: cAbutments.toFixed(2) + " м", qty: smartRound(cAbutments / 7), unit: "тюбик" }
                         ]
                     },
                     {
                         title: "Карниз", items: [
-                            { name: "Карнизная планка (2м)", qty: eavesPlanks, unit: "шт" },
-                            { name: "Вент сетка ПВХ (5м)", qty: smartRound(cEaves / 5), unit: "рул" }
+                            { name: "Карнизная планка (2м)", raw: cEaves.toFixed(2) + " м", qty: eavesPlanks, unit: "шт" },
+                            { name: "Вент сетка ПВХ (5м)", raw: cEaves.toFixed(2) + " м", qty: smartRound(cEaves / 5), unit: "рул" }
                         ]
                     },
                     {
                         title: "Крепеж", items: [
-                            { name: "Корректор для ремонта царапин", qty: 1, unit: "шт" },
-                            { name: "Саморезы 4,8х35 мм (4,8х29)", qty: screws4835_packs, unit: "уп" },
-                            { name: "Саморезы 5,5х19 мм", qty: screws5519_packs > 0 ? screws5519_packs : 1, unit: "уп" }
+                            { name: "Корректор для ремонта царапин", raw: areaWithMargin.toFixed(2) + " м²", qty: 1, unit: "шт" },
+                            { name: "Саморезы 4,8х35 мм (4,8х29)", raw: areaWithMargin.toFixed(2) + " м²", qty: screws4835_packs, unit: "уп" },
+                            { name: "Саморезы 5,5х19 мм", raw: areaWithMargin.toFixed(2) + " м²", qty: screws5519_packs > 0 ? screws5519_packs : 1, unit: "уп" }
                         ]
                     },
                     {
                         title: "Снегозадержание", items: [
-                            { name: "Снегозадержатель трубчатый 3 м (4 опоры)", qty: smartRound(cEaves / 3), unit: "шт" },
-                            { name: "Дополнительный кронштейн для снегозадержателя", qty: 0, unit: "шт" }
+                            { name: "Снегозадержатель трубчатый 3 м (4 опоры)", raw: cEaves.toFixed(2) + " м", qty: smartRound(cEaves / 3), unit: "шт" },
+                            { name: "Дополнительный кронштейн для снегозадержателя", raw: "-", qty: 0, unit: "шт" }
                         ]
                     },
                     {
                         title: "Вентиляция", items: [
-                            { name: "Штучный аэратор (аэровент, KTV)", qty: smartRound(slopedArea / 60), unit: "шт" },
-                            { name: "Коньковый вентиль Vilpe", qty: 0, unit: "шт" }
+                            { name: "Штучный аэратор (аэровент, KTV)", raw: slopedArea.toFixed(2) + " м²", qty: smartRound(slopedArea / 60), unit: "шт" },
+                            { name: "Коньковый вентиль Vilpe", raw: "-", qty: 0, unit: "шт" }
                         ]
                     },
                     {
                         title: "Кровельный пирог", items: [
-                            { name: "Уплотнительная лента под контр обрешетку", qty: sealTape, unit: "м.п." },
-                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", qty: membraneRolls, unit: "рул" },
-                            { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
-                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
-                            { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для пароизоляции", qty: butylWall, unit: "рул" },
-                            { name: "Капельник конденсата", qty: condDropPlanks, unit: "шт" },
-                            { name: "Бутил-каучуковая лента для капельника", qty: butylDrop, unit: "рул" },
-                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
-                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", qty: paroc50, unit: "упак" }
+                            { name: "Уплотнительная лента под контр обрешетку", raw: slopedArea.toFixed(2) + " м²", qty: sealTape, unit: "м.п." },
+                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", raw: membraneBaseArea.toFixed(2) + " м²", qty: membraneRolls, unit: "рул" },
+                            { name: "Скотч для диффузионной мембраны", raw: membraneBaseArea.toFixed(2) + " м²", qty: membraneTape, unit: "рул" },
+                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", raw: slopedArea.toFixed(2) + " м²", qty: vaporRolls, unit: "рул" },
+                            { name: "Скотч для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: vaporTape, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: butylWall, unit: "рул" },
+                            { name: "Капельник конденсата", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
+                            { name: "Бутил-каучуковая лента для капельника", raw: cEaves.toFixed(2) + " м", qty: butylDrop, unit: "рул" },
+                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc100, unit: "упак" },
+                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc50, unit: "упак" }
                         ]
                     }
                 ];
@@ -1020,7 +1049,9 @@
                 html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
                 let shinglePacks = smartRound(areaWithMargin / softPackSize);
-                let ridgeEavesPacks = isDoubleLayer ? smartRound((cRidges + cHips) / 10.8) : smartRound((cRidges + cHips) / 10.8 + cEaves / 20);
+                let ridgeEavesRaw = (cRidges + cHips + (isDoubleLayer ? 0 : cEaves));
+                let ridgeEavesPacks = smartRound(ridgeEavesRaw / 10.8);
+
                 let s16Qty = (vars.rType === 'shed') ? calcPlanks(cRidges) : 0;
                 let s23Qty = calcPlanks(cEaves);
                 let s5Qty = calcPlanks(cRakes);
@@ -1037,74 +1068,74 @@
                 specData = [
                     {
                         title: "Покрытие", items: [
-                            { name: "Черепица " + brand, qty: shinglePacks, unit: "уп" }
+                            { name: "Черепица " + brand, raw: areaWithMargin.toFixed(2) + " м²", qty: shinglePacks, unit: "уп" }
                         ]
                     },
                     {
                         title: "Конек и карниз", items: [
-                            { name: "Конек/карниз 12/20", qty: ridgeEavesPacks, unit: "уп" },
-                            { name: "Фартук обратный капельник S16 (2м)", qty: s16Qty, unit: "шт" },
-                            { name: "Фартук капельник S23 (2м)", qty: s23Qty, unit: "шт" },
-                            { name: "Вент сетка ПВХ 5 м/рулон (на карниз)", qty: smartRound(cEaves / 5), unit: "рул" }
+                            { name: "Конек/карниз 12/20", raw: ridgeEavesRaw.toFixed(2) + " м", qty: ridgeEavesPacks, unit: "уп" },
+                            { name: "Фартук обратный капельник S16 (2м)", raw: cRidges.toFixed(2) + " м", qty: s16Qty, unit: "шт" },
+                            { name: "Фартук капельник S23 (2м)", raw: cEaves.toFixed(2) + " м", qty: s23Qty, unit: "шт" },
+                            { name: "Вент сетка ПВХ 5 м/рулон (на карниз)", raw: cEaves.toFixed(2) + " м", qty: smartRound(cEaves / 5), unit: "рул" }
                         ]
                     },
                     {
                         title: "Ендова", items: [
-                            { name: "Ендова (10 мп)", qty: valleyRolls, unit: "рул" }
+                            { name: "Ендова (10 мп)", raw: slopedValleys.toFixed(2) + " м", qty: valleyRolls, unit: "рул" }
                         ]
                     },
                     {
                         title: "Подкладочный ковер", items: [
-                            { name: "Подкладочный ковер (15 кв.м.)", qty: underlayRolls, unit: "рул" }
+                            { name: "Подкладочный ковер (15 кв.м.)", raw: slopedArea.toFixed(2) + " м²", qty: underlayRolls, unit: "рул" }
                         ]
                     },
                     {
                         title: "Торец (Фронтон)", items: [
-                            { name: "Фартук S5 (2м)", qty: s5Qty, unit: "шт" }
+                            { name: "Фартук S5 (2м)", raw: cRakes.toFixed(2) + " м", qty: s5Qty, unit: "шт" }
                         ]
                     },
                     {
                         title: "Примыкание", items: [
-                            { name: "Фартук пристенный S4 (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
-                            { name: "Фартук накладной (в штробу) S6 (S7) (2м)", qty: calcPlanks(cAbutments), unit: "шт" },
-                            { name: "Герметик для примыканий 310 мл", qty: smartRound(cAbutments / 7), unit: "тюбик" }
+                            { name: "Фартук пристенный S4 (2м)", raw: cAbutments.toFixed(2) + " м", qty: calcPlanks(cAbutments), unit: "шт" },
+                            { name: "Фартук накладной (в штробу) S6 (S7) (2м)", raw: cAbutments.toFixed(2) + " м", qty: calcPlanks(cAbutments), unit: "шт" },
+                            { name: "Герметик для примыканий 310 мл", raw: cAbutments.toFixed(2) + " м", qty: smartRound(cAbutments / 7), unit: "тюбик" }
                         ]
                     },
                     {
                         title: "Битумный герметик", items: [
-                            { name: "Битумный герметик 310 мл", qty: sealantTube, unit: "тюбик" },
-                            { name: "Битумный герметик (ведро)", qty: sealantBucket, unit: "кг" }
+                            { name: "Битумный герметик 310 мл", raw: slopedArea.toFixed(2) + " м²", qty: sealantTube, unit: "тюбик" },
+                            { name: "Битумный герметик (ведро)", raw: (cEaves + cAbutments + cRakes + slopedValleys).toFixed(2) + " м", qty: sealantBucket, unit: "кг" }
                         ]
                     },
                     {
                         title: "ОСП и Крепеж", items: [
-                            { name: "ОСП 1,25х2,5 м", qty: osbQty, unit: "лист" },
-                            { name: "Гвозди кровельные (упаковка 5 кг)", qty: nailsQty, unit: "уп" }
+                            { name: "ОСП 1,25х2,5 м", raw: slopedArea.toFixed(2) + " м²", qty: osbQty, unit: "лист" },
+                            { name: "Гвозди кровельные (упаковка 5 кг)", raw: slopedArea.toFixed(2) + " м²", qty: nailsQty, unit: "уп" }
                         ]
                     },
                     {
                         title: "Вентиляция", items: [
-                            { name: "Вентиляционный конек Vilpe (0,58 м)", qty: vilpeRidge, unit: "шт" },
-                            { name: "Штучный аэратор (аэровент, KTV)", qty: smartRound(slopedArea / 60), unit: "шт" }
+                            { name: "Вентиляционный конек Vilpe (0,58 м)", raw: cRidges.toFixed(2) + " м", qty: vilpeRidge, unit: "шт" },
+                            { name: "Штучный аэратор (аэровент, KTV)", raw: slopedArea.toFixed(2) + " м²", qty: smartRound(slopedArea / 60), unit: "шт" }
                         ]
                     },
                     {
                         title: "Элементы безопасности", items: [
-                            { name: "Снегостопор", qty: snowStopQty, unit: "шт" }
+                            { name: "Снегостопор", raw: cEaves.toFixed(2) + " м", qty: snowStopQty, unit: "шт" }
                         ]
                     },
                     {
                         title: "Кровельный пирог", items: [
-                            { name: "Уплотнительная лента под контр обрешетку", qty: sealTape, unit: "м.п." },
-                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", qty: membraneRolls, unit: "рул" },
-                            { name: "Скотч для диффузионной мембраны", qty: membraneTape, unit: "рул" },
-                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", qty: vaporRolls, unit: "рул" },
-                            { name: "Скотч для пароизоляции", qty: vaporTape, unit: "рул" },
-                            { name: "Бутил-каучуковая лента для пароизоляции", qty: butylWall, unit: "рул" },
-                            { name: "Противоконденсатный капельник S1 (2м)", qty: condDropPlanks, unit: "шт" },
-                            { name: "Бутил-каучуковая лента для капельника", qty: butylDrop, unit: "рул" },
-                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", qty: paroc100, unit: "упак" },
-                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", qty: paroc50, unit: "упак" }
+                            { name: "Уплотнительная лента под контр обрешетку", raw: slopedArea.toFixed(2) + " м²", qty: sealTape, unit: "м.п." },
+                            { name: "Диффузионная мембрана 1,5*46,6 м.п. 70 кв.м.", raw: membraneBaseArea.toFixed(2) + " м²", qty: membraneRolls, unit: "рул" },
+                            { name: "Скотч для диффузионной мембраны", raw: membraneBaseArea.toFixed(2) + " м²", qty: membraneTape, unit: "рул" },
+                            { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", raw: slopedArea.toFixed(2) + " м²", qty: vaporRolls, unit: "рул" },
+                            { name: "Скотч для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: vaporTape, unit: "рул" },
+                            { name: "Бутил-каучуковая лента для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: butylWall, unit: "рул" },
+                            { name: "Противоконденсатный капельник S1 (2м)", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
+                            { name: "Бутил-каучуковая лента для капельника", raw: cEaves.toFixed(2) + " м", qty: butylDrop, unit: "рул" },
+                            { name: "Paroc Extra 100 мм 5,76 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc100, unit: "упак" },
+                            { name: "Paroc Extra 50 мм 11,52 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc50, unit: "упак" }
                         ]
                     }
                 ];
@@ -1155,20 +1186,20 @@
 
                 gutterData = {
                     title: "Водосточная система (Металл)", items: [
-                        { name: "Желоб водосточный 3м", qty: g_3m_total, unit: "шт" },
-                        { name: "Кронштейн желоба", qty: brackets, unit: "шт" },
-                        { name: "Заглушка желоба", qty: g_caps, unit: "шт" },
-                        { name: "Воронка желоба", qty: funnelsCount, unit: "шт" },
-                        { name: "Угол желоба внешний 90 град", qty: g_outer_angles, unit: "шт" },
-                        { name: "Угол желоба внутренний 90 град", qty: g_inner_angles, unit: "шт" },
-                        { name: "Соединитель желоба", qty: g_conn_total, unit: "шт" },
-                        { name: "Соединитель углов", qty: angle_conn, unit: "шт" },
-                        { name: "Колено трубы", qty: pipe_elbows, unit: "шт" },
-                        { name: "Труба 3 м", qty: pipe_3m, unit: "шт" },
-                        { name: "Труба 1 м", qty: pipe_1m, unit: "шт" },
-                        { name: "Колено стока", qty: drain_elbows, unit: "шт" },
-                        { name: "Хомут трубы", qty: clamps_total, unit: "шт" },
-                        { name: "Краска-корректор", qty: paint_corr, unit: "шт" }
+                        { name: "Желоб водосточный 3м", raw: cEaves.toFixed(2) + " м", qty: g_3m_total, unit: "шт" },
+                        { name: "Кронштейн желоба", raw: cEaves.toFixed(2) + " м", qty: brackets, unit: "шт" },
+                        { name: "Заглушка желоба", raw: "-", qty: g_caps, unit: "шт" },
+                        { name: "Воронка желоба", raw: "-", qty: funnelsCount, unit: "шт" },
+                        { name: "Угол желоба внешний 90 град", raw: "-", qty: g_outer_angles, unit: "шт" },
+                        { name: "Угол желоба внутренний 90 град", raw: "-", qty: g_inner_angles, unit: "шт" },
+                        { name: "Соединитель желоба", raw: "-", qty: g_conn_total, unit: "шт" },
+                        { name: "Соединитель углов", raw: "-", qty: angle_conn, unit: "шт" },
+                        { name: "Колено трубы", raw: "-", qty: pipe_elbows, unit: "шт" },
+                        { name: "Труба 3 м", raw: totalDropLen.toFixed(2) + " м", qty: pipe_3m, unit: "шт" },
+                        { name: "Труба 1 м", raw: "-", qty: pipe_1m, unit: "шт" },
+                        { name: "Колено стока", raw: "-", qty: drain_elbows, unit: "шт" },
+                        { name: "Хомут трубы", raw: totalDropLen.toFixed(2) + " м", qty: clamps_total, unit: "шт" },
+                        { name: "Краска-корректор", raw: areaToPaint.toFixed(2) + " м²", qty: paint_corr, unit: "шт" }
                     ]
                 };
             } else if (gutterType === 'pvc') {
@@ -1178,18 +1209,18 @@
 
                 gutterData = {
                     title: "Водосточная система (ПВХ)", items: [
-                        { name: "Желоб водосточный 3м", qty: g_3m_total, unit: "шт" },
-                        { name: "Кронштейн желоба", qty: brackets, unit: "шт" },
-                        { name: "Заглушка желоба", qty: g_caps, unit: "шт" },
-                        { name: "Воронка желоба", qty: funnelsCount, unit: "шт" },
-                        { name: "Угол желоба внешний 90 град", qty: g_outer_angles, unit: "шт" },
-                        { name: "Угол желоба внутренний 90 град", qty: g_inner_angles, unit: "шт" },
-                        { name: "Соединитель желоба", qty: g_conn_total, unit: "шт" },
-                        { name: "Колено трубы", qty: pipe_elbows, unit: "шт" },
-                        { name: "Труба без раструба 3 м", qty: pipe_3m, unit: "шт" },
-                        { name: "Муфта трубы", qty: sleeves_total, unit: "шт" },
-                        { name: "Колено стока (Слив)", qty: drain_elbows, unit: "шт" },
-                        { name: "Хомут трубы", qty: clamps_total, unit: "шт" }
+                        { name: "Желоб водосточный 3м", raw: cEaves.toFixed(2) + " м", qty: g_3m_total, unit: "шт" },
+                        { name: "Кронштейн желоба", raw: cEaves.toFixed(2) + " м", qty: brackets, unit: "шт" },
+                        { name: "Заглушка желоба", raw: "-", qty: g_caps, unit: "шт" },
+                        { name: "Воронка желоба", raw: "-", qty: funnelsCount, unit: "шт" },
+                        { name: "Угол желоба внешний 90 град", raw: "-", qty: g_outer_angles, unit: "шт" },
+                        { name: "Угол желоба внутренний 90 град", raw: "-", qty: g_inner_angles, unit: "шт" },
+                        { name: "Соединитель желоба", raw: "-", qty: g_conn_total, unit: "шт" },
+                        { name: "Колено трубы", raw: "-", qty: pipe_elbows, unit: "шт" },
+                        { name: "Труба без раструба 3 м", raw: totalDropLen.toFixed(2) + " м", qty: pipe_3m, unit: "шт" },
+                        { name: "Муфта трубы", raw: totalDropLen.toFixed(2) + " м", qty: sleeves_total, unit: "шт" },
+                        { name: "Колено стока (Слив)", raw: "-", qty: drain_elbows, unit: "шт" },
+                        { name: "Хомут трубы", raw: totalDropLen.toFixed(2) + " м", qty: clamps_total, unit: "шт" }
                     ]
                 };
             }
@@ -1214,14 +1245,26 @@
                         <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для ${matTypeVal === 'metal' ? 'металлочерепицы' : 'гибкой черепицы'})</p>
                      </div>`;
 
+            // Заголовок столбцов в интерфейсе
+            html += `<div class="spec-row" style="border-bottom: 2px solid #bdc3c7; margin-bottom: 10px; font-weight: bold; color: #34495e;">
+                        <span class="spec-label">Наименование</span>
+                        <span class="spec-raw" style="background: none;">Базовый размер</span>
+                        <span class="spec-qty" style="color: #34495e;">Кол-во</span>
+                     </div>`;
+
             specData.forEach(section => {
                 let hasItems = false;
                 let sectionHtml = `<div class="spec-section-head" style="background: #fcf3cf; border-left: 4px solid #f1c40f; color: #d35400;">${section.title}</div>`;
 
                 section.items.forEach(item => {
                     hasItems = true;
-                    let qtyDisplay = item.qty > 0 ? item.qty : `<span style="color:#bdc3c7;">0 (уточнить)</span>`;
-                    sectionHtml += `<div class="result-item"><span class="result-label">${item.name}:</span><span class="result-value">${qtyDisplay} ${item.unit}</span></div>`;
+                    let qtyDisplay = item.qty > 0 ? item.qty : `<span style="color:#bdc3c7;">0</span>`;
+                    let rawDisplay = item.raw || "-";
+                    sectionHtml += `<div class="spec-row">
+                                        <span class="spec-label">${item.name}</span>
+                                        <span class="spec-raw">${rawDisplay}</span>
+                                        <span class="spec-qty">${qtyDisplay} <span style="font-weight:normal; font-size:11px;">${item.unit}</span></span>
+                                    </div>`;
                 });
 
                 if (hasItems) html += sectionHtml;
@@ -1230,10 +1273,10 @@
             html += `<div class="spec-section-head" style="margin-top: 20px;">Подшивка свесов (Софиты)</div>`;
             if (soffit > 0) {
                 let soffitArea = cEaves * soffit + cRakes * soffit;
-                html += `<div class="result-item"><span class="result-label">Софиты (площадь):</span><span class="result-value">~${soffitArea.toFixed(2)} м²</span></div>`;
-                html += `<div class="result-item"><span class="result-label">J-фаска / Лобовая:</span><span class="result-value">${(cEaves + cRakes).toFixed(2)} м</span></div>`;
+                html += `<div class="spec-row"><span class="spec-label">Софиты (площадь)</span><span class="spec-raw">-</span><span class="spec-qty">~${soffitArea.toFixed(2)} м²</span></div>`;
+                html += `<div class="spec-row"><span class="spec-label">J-фаска / Лобовая</span><span class="spec-raw">-</span><span class="spec-qty">${(cEaves + cRakes).toFixed(2)} м</span></div>`;
             } else {
-                html += `<div class="result-item"><span class="result-label">Софиты:</span><span class="result-value">Свес не задан</span></div>`;
+                html += `<div class="spec-row"><span class="spec-label">Софиты</span><span class="spec-raw">-</span><span class="spec-qty" style="color:#7f8c8d;">Свес не задан</span></div>`;
             }
 
             document.getElementById('specContent').innerHTML = html;
@@ -1251,9 +1294,6 @@
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // =====================================
-        // ИСПРАВЛЕНИЕ: КРАСИВЫЙ ЭКСПОРТ В EXCEL
-        // =====================================
         function exportToExcel() {
             if (!windowCalcData) {
                 alert("Сначала нажмите 'Рассчитать спецификацию'");
@@ -1283,47 +1323,48 @@
             let merges = [];
 
             // Шапка
-            ws_data.push([{ v: "Спецификация кровельных материалов", s: styleTitle }, null, null, null]);
-            merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } });
+            ws_data.push([{ v: "Спецификация кровельных материалов", s: styleTitle }, null, null, null, null]);
+            merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
-            ws_data.push([{ v: "Контрагент:", s: styleBold }, { v: d.clientName }, { v: "Дата и время:", s: styleBold }, { v: dateStr }]);
-            ws_data.push([{ v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }, null, null]);
+            ws_data.push([{ v: "Контрагент:", s: styleBold }, { v: d.clientName }, null, { v: "Дата и время:", s: styleBold }, { v: dateStr }]);
+            ws_data.push([{ v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }, null, null, null]);
             ws_data.push([]);
 
             // Блок 1: Входные параметры
             let rIdx = ws_data.length;
-            ws_data.push([{ v: "1. ВХОДНЫЕ ПАРАМЕТРЫ ПРОЕКТА", s: styleGroup }, null, null, null]);
-            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+            ws_data.push([{ v: "1. ВХОДНЫЕ ПАРАМЕТРЫ ПРОЕКТА", s: styleGroup }, null, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
 
-            ws_data.push([{ v: "Тип кровли:" }, { v: d.roofType }]);
-            ws_data.push([{ v: "Длина дома (по карнизу):" }, { v: d.L + " м" }]);
-            ws_data.push([{ v: "Ширина дома (по торцу):" }, { v: d.W + " м" }]);
-            ws_data.push([{ v: "Угол ската:" }, { v: d.P1 + "°" }]);
+            ws_data.push([{ v: "Тип кровли:" }, { v: d.roofType }, null, null, null]);
+            ws_data.push([{ v: "Длина дома (по карнизу):" }, { v: d.L + " м" }, null, null, null]);
+            ws_data.push([{ v: "Ширина дома (по торцу):" }, { v: d.W + " м" }, null, null, null]);
+            ws_data.push([{ v: "Угол ската:" }, { v: d.P1 + "°" }, null, null, null]);
             ws_data.push([]);
 
             // Блок 2: Сводка размеров
             rIdx = ws_data.length;
-            ws_data.push([{ v: "2. ИТОГОВЫЕ РАЗМЕРЫ И ПЛОЩАДИ (СВОДКА)", s: styleGroup }, null, null, null]);
-            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+            ws_data.push([{ v: "2. ИТОГОВЫЕ РАЗМЕРЫ И ПЛОЩАДИ (СВОДКА)", s: styleGroup }, null, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
 
-            ws_data.push([{ v: "Выбранное покрытие:" }, { v: d.matTypeStr }]);
-            ws_data.push([{ v: "Чистая площадь скатов:" }, { v: d.slopedArea.toFixed(2) + " м²", s: styleBold }]);
-            ws_data.push([{ v: "Площадь с учетом запаса:" }, { v: d.areaWithMargin.toFixed(2) + " м²", s: styleBold }]);
-            ws_data.push([{ v: "Общая длина карнизов:" }, { v: d.cEaves.toFixed(2) + " м" }]);
-            ws_data.push([{ v: "Общая длина торцов:" }, { v: d.cRakes.toFixed(2) + " м" }]);
-            ws_data.push([{ v: "Общая длина коньков:" }, { v: d.cRidges.toFixed(2) + " м" }]);
-            ws_data.push([{ v: "Общая длина хребтов (вальм):" }, { v: d.cHips.toFixed(2) + " м" }]);
-            ws_data.push([{ v: "Общая длина ендов:" }, { v: d.cValleys.toFixed(2) + " м" }]);
-            ws_data.push([{ v: "Общая длина примыканий:" }, { v: d.cAbutments.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Выбранное покрытие:" }, { v: d.matTypeStr }, null, null, null]);
+            ws_data.push([{ v: "Чистая площадь скатов:" }, { v: d.slopedArea.toFixed(2) + " м²", s: styleBold }, null, null, null]);
+            ws_data.push([{ v: "Площадь с учетом запаса:" }, { v: d.areaWithMargin.toFixed(2) + " м²", s: styleBold }, null, null, null]);
+            ws_data.push([{ v: "Общая длина карнизов:" }, { v: d.cEaves.toFixed(2) + " м" }, null, null, null]);
+            ws_data.push([{ v: "Общая длина торцов:" }, { v: d.cRakes.toFixed(2) + " м" }, null, null, null]);
+            ws_data.push([{ v: "Общая длина коньков:" }, { v: d.cRidges.toFixed(2) + " м" }, null, null, null]);
+            ws_data.push([{ v: "Общая длина хребтов (вальм):" }, { v: d.cHips.toFixed(2) + " м" }, null, null, null]);
+            ws_data.push([{ v: "Общая длина ендов:" }, { v: d.cValleys.toFixed(2) + " м" }, null, null, null]);
+            ws_data.push([{ v: "Общая длина примыканий:" }, { v: d.cAbutments.toFixed(2) + " м" }, null, null, null]);
             ws_data.push([]);
 
             // Блок 3: Таблица
             rIdx = ws_data.length;
-            ws_data.push([{ v: "3. РАЗВЕРНУТАЯ СПЕЦИФИКАЦИЯ ЭЛЕМЕНТОВ", s: styleHeader }, null, null, null]);
-            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+            ws_data.push([{ v: "3. РАЗВЕРНУТАЯ СПЕЦИФИКАЦИЯ ЭЛЕМЕНТОВ", s: styleHeader }, null, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
 
             ws_data.push([
                 { v: "Наименование материала / работ", s: styleHeader },
+                { v: "Расчетный размер", s: styleHeader },
                 { v: "Кол-во", s: styleHeader },
                 { v: "Ед. изм.", s: styleHeader },
                 { v: "Примечание", s: styleHeader }
@@ -1334,13 +1375,14 @@
                 if (!hasItems) return; // Пропускаем пустые разделы
 
                 rIdx = ws_data.length;
-                ws_data.push([{ v: section.title, s: styleSection }, null, null, null]);
-                merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+                ws_data.push([{ v: section.title, s: styleSection }, null, null, null, null]);
+                merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 4 } });
 
                 section.items.forEach(item => {
                     if (item.qty === 0) return; // Убираем нули для чистоты сметы
                     ws_data.push([
                         { v: item.name, s: styleBorder },
+                        { v: item.raw || "-", s: styleCenter },
                         { v: item.qty, s: styleCenterBold },
                         { v: item.unit, s: styleCenter },
                         { v: "", s: styleBorder }
@@ -1352,7 +1394,7 @@
             let ws = XLSX.utils.aoa_to_sheet(ws_data);
 
             ws["!merges"] = merges;
-            ws['!cols'] = [{ wch: 65 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+            ws['!cols'] = [{ wch: 60 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
 
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
@@ -1830,14 +1872,10 @@
             const W = document.getElementById('mRakes').value;
             const P1 = document.getElementById('mPitch').value;
 
-            let specHtml = document.getElementById('specContent').innerText;
             let currentContext = `--- ТЕКУЩИЕ ПАРАМЕТРЫ ПРОЕКТА ---
 Тип кровли: ${roofName}
 Базовые габариты: ${L} м х ${W} м
-Угол наклона: ${P1} градусов
-
---- РАССЧИТАННАЯ СПЕЦИФИКАЦИЯ ---
-${specHtml ? specHtml : "Расчет еще не выполнен."}`;
+Угол наклона: ${P1} градусов`;
 
             historyBox.innerHTML += `<div class="msg-user">Вы:</div><div>${message}</div>`;
             inputField.value = ''; historyBox.scrollTop = historyBox.scrollHeight;
