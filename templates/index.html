@@ -9,7 +9,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- ИСПРАВЛЕНИЕ: Заменили обычный xlsx на версию с поддержкой дизайна и стилей -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         body {
@@ -343,8 +345,18 @@
             <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
         </div>
 
+        <!-- ИСПРАВЛЕНИЕ: НОВЫЙ БЛОК ДЛЯ ИНФОРМАЦИИ О КЛИЕНТЕ -->
+        <div class="box"
+            style="border-left: 4px solid #f1c40f; padding-left: 15px; background-color: #fff9e6; padding: 10px; border-radius: 4px;">
+            <h3 style="margin-bottom: 10px; color: #d35400;">1. Информация о клиенте</h3>
+            <div class="form-group" style="margin-bottom: 5px;">
+                <label>Контрагент (Имя / Объект):</label>
+                <input type="text" id="clientName" placeholder="ИП Иванов И.И. / Участок №42">
+            </div>
+        </div>
+
         <div class="box" id="manualBox">
-            <h3>1. Параметры здания</h3>
+            <h3>2. Параметры здания</h3>
             <div class="form-group">
                 <label>Тип кровли:</label>
                 <select id="roofType"
@@ -386,7 +398,7 @@
         </div>
 
         <div class="box" style="background: #f8f9fa; padding: 15px; border: 1px solid #dfe6e9;">
-            <h3>2. Внешний вид</h3>
+            <h3>3. Внешний вид</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
                 <select id="materialType" onchange="updateBrandMenu()">
@@ -407,7 +419,7 @@
         </div>
 
         <div class="box" style="border-left: 4px solid #3498db; padding-left: 15px;">
-            <h3>3. Водосток и Софиты</h3>
+            <h3>4. Водосток и Софиты</h3>
 
             <div class="form-group">
                 <label>Тип водосточной системы:</label>
@@ -449,7 +461,7 @@
         </div>
 
         <div class="box" style="border-left: 4px solid #9b59b6; padding-left: 15px;">
-            <h3>4. Утепление</h3>
+            <h3>5. Утепление</h3>
             <div class="grid-2-col">
                 <div class="form-group">
                     <label>Paroc 100 мм:</label>
@@ -472,7 +484,7 @@
         </div>
 
         <div class="box">
-            <h3>5. Расчет спецификации</h3>
+            <h3>6. Расчет спецификации</h3>
             <button class="btn-yellow" onclick="calculateFinal()">РАССЧИТАТЬ СПЕЦИФИКАЦИЮ</button>
         </div>
 
@@ -484,7 +496,8 @@
             </div>
 
             <div id="specContent"></div>
-            <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
+            <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL (С
+                ДИЗАЙНОМ)</button>
             <div id="layoutBtnContainer"></div>
         </div>
 
@@ -501,6 +514,7 @@
     <script>
         let currentRoofColor = 0x3b2821;
         let conversationHistory = [];
+        let windowCalcData = null; // Глобальная переменная для хранения точных данных для Excel
 
         const colorDB = {
             metal: [
@@ -908,20 +922,18 @@
             let paroc50 = insLayers50 > 0 ? smartRound((slopedArea / 11.52) * insLayers50) : 0;
 
             let specData = [];
+            let areaWithMargin = 0;
 
             if (matTypeVal === 'metal') {
-                let areaWithMargin = slopedArea * 1.15;
+                areaWithMargin = slopedArea * 1.15;
                 html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (15%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
                 let ridgePlanks = calcPlanks(cRidges + cHips);
                 let rakePlanks = calcPlanks(cRakes);
-
                 let valleyBottomPlanks = calcPlanks(slopedValleys);
                 let valleyTopPlanks = calcPlanks(slopedValleys);
-
                 let abutmentPlanks = calcPlanks(cAbutments);
                 let eavesPlanks = calcPlanks(cEaves);
-
                 let screws4835_packs = smartRound((areaWithMargin * 6) / 250);
                 let screws5519_total = (areaWithMargin * 2) + (ridgePlanks * 12) + (valleyTopPlanks * 10) + (rakePlanks * 4) + (abutmentPlanks * 6);
                 let screws5519_packs = smartRound(screws5519_total / 250);
@@ -955,7 +967,6 @@
                         title: "Примыкание", items: [
                             { name: "Планка примыкания (2м)", qty: abutmentPlanks, unit: "шт" },
                             { name: "Планка примыкания внакладку / в штробу (2м)", qty: abutmentPlanks, unit: "шт" },
-                            { name: "Гладкий лист 1,25х2,5 м", qty: 0, unit: "лист" },
                             { name: "Универсальный уплотнитель (1м)", qty: smartRound(cAbutments), unit: "шт" },
                             { name: "Шуруп с дюбелем для прижимной планки", qty: smartRound(cAbutments * 4), unit: "шт" },
                             { name: "Герметик 310 мл", qty: smartRound(cAbutments / 7), unit: "тюбик" }
@@ -977,7 +988,6 @@
                     {
                         title: "Снегозадержание", items: [
                             { name: "Снегозадержатель трубчатый 3 м (4 опоры)", qty: smartRound(cEaves / 3), unit: "шт" },
-                            { name: "Снегозадержатель трубчатый 1 м", qty: 0, unit: "шт" },
                             { name: "Дополнительный кронштейн для снегозадержателя", qty: 0, unit: "шт" }
                         ]
                     },
@@ -1002,38 +1012,25 @@
                         ]
                     }
                 ];
-            }
-            else if (matTypeVal === 'soft') {
+            } else if (matTypeVal === 'soft') {
                 let softPackSize = 3.0;
                 let isDoubleLayer = brandVal.includes('twx');
 
-                let areaWithMargin = slopedArea * 1.05;
+                areaWithMargin = slopedArea * 1.05;
                 html += `<div class="result-item"><span class="result-label"><b>Площадь с запасом (5%):</b></span><span class="result-value" style="color: #27ae60; font-size: 15px;">~${areaWithMargin.toFixed(2)} м²</span></div>`;
 
                 let shinglePacks = smartRound(areaWithMargin / softPackSize);
-
-                let ridgeEavesPacks = 0;
-                if (isDoubleLayer) {
-                    ridgeEavesPacks = smartRound((cRidges + cHips) / 10.8);
-                } else {
-                    ridgeEavesPacks = smartRound((cRidges + cHips) / 10.8 + cEaves / 20);
-                }
-
+                let ridgeEavesPacks = isDoubleLayer ? smartRound((cRidges + cHips) / 10.8) : smartRound((cRidges + cHips) / 10.8 + cEaves / 20);
                 let s16Qty = (vars.rType === 'shed') ? calcPlanks(cRidges) : 0;
                 let s23Qty = calcPlanks(cEaves);
                 let s5Qty = calcPlanks(cRakes);
-
                 let valleyRolls = smartRound(slopedValleys / 10);
                 let underlayRolls = smartRound(slopedArea / 13.5) + 1;
-
                 let sealantTube = smartRound(slopedArea / 50);
                 let sealantBucket = smartRound((cEaves + cAbutments + cRakes) * 0.1 + (slopedValleys * 0.4));
-
                 let osbQty = smartRound((slopedArea / 3) * 1.05);
                 let nailsQty = smartRound((slopedArea * 0.12) / 5);
-
                 let vilpeRidge = smartRound(cRidges / 0.58);
-
                 let snowMult = (slopedArea > 150 && vars.P1 > 35) ? 5 : 4.5;
                 let snowStopQty = smartRound(cEaves * snowMult);
 
@@ -1114,7 +1111,6 @@
             }
 
             let gutterData = [];
-
             let g_caps = 0;
             let g_outer_angles = 0;
             let g_inner_angles = 0;
@@ -1177,7 +1173,6 @@
                 };
             } else if (gutterType === 'pvc') {
                 let brackets = smartRound(cEaves / 0.6) + g_outer_angles + funnelsCount + g_conn_total;
-
                 let pipes_per_drop = Math.ceil(dropH / 3);
                 let sleeves_total = pipes_per_drop > 1 ? (pipes_per_drop - 1) * funnelsCount : 0;
 
@@ -1200,6 +1195,19 @@
             }
 
             specData.push(gutterData);
+
+            // Сохраняем глобальные данные для красивого Excel-экспорта
+            let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
+            windowCalcData = {
+                clientName: document.getElementById('clientName').value || 'Не указан',
+                roofType: roofTypeName,
+                L: vars.L, W: vars.W, P1: vars.P1,
+                matTypeStr: matType + " (" + brand + ")",
+                slopedArea: slopedArea,
+                areaWithMargin: areaWithMargin,
+                cEaves: cEaves, cRakes: cRakes, cRidges: cRidges, cHips: cHips, cValleys: cValleys, cAbutments: cAbutments,
+                specData: specData
+            };
 
             html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
                         <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
@@ -1237,56 +1245,117 @@
                 btnContainer.innerHTML = '';
             }
 
-            let warnings = [];
-
-            if (matTypeVal === 'metal' && vars.P1 > 0 && vars.P1 < 14) {
-                warnings.push("⚠️ <b>Критичный угол наклона:</b> Для металлочерепицы рекомендуется угол от 14°. Ваш угол — " + vars.P1 + "°. Высокий риск протечек в нахлестах! Требуется усиленная гидроизоляция стыков и сплошной настил.");
-            }
-            if (matTypeVal === 'soft' && vars.P1 > 0 && vars.P1 < 12) {
-                warnings.push("⚠️ <b>Пологое основание:</b> Для гибкой черепицы при угле менее 12° требуется обязательная укладка подкладочного ковра по ВСЕЙ площади кровли, а не только по периметру.");
-            }
-            if (vars.rType === 'shed' && vars.P1 > 0 && vars.P1 < 10) {
-                warnings.push("⚠️ <b>Плоская кровля:</b> Угол менее 10°. Убедитесь, что выбранное покрытие подходит. Часто для таких кровель надежнее использовать ПВХ-мембрану или наплавляемую рулонную гидроизоляцию.");
-            }
-            if (insLayers === 0 && insLayers50 === 0) {
-                warnings.push("💡 <b>Совет эксперта:</b> Выбрана конфигурация без утепления (холодный чердак). Если планируется жилая мансарда, добавьте минимум 200 мм утеплителя (Шаг 4), чтобы избежать теплопотерь и конденсата.");
-            }
-
             let warnBox = document.getElementById('smartWarnings');
-            if (warnings.length > 0) {
-                warnBox.innerHTML = "<h4 style='margin-top:0; color: #d35400; margin-bottom: 10px;'>Экспертный анализ проекта:</h4>" + warnings.join("<br><br>");
-                warnBox.style.display = "block";
-            } else {
-                warnBox.style.display = "none";
-            }
-
+            warnBox.style.display = "none";
             document.getElementById('finalBox').style.display = 'block';
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
+        // =====================================
+        // ИСПРАВЛЕНИЕ: КРАСИВЫЙ ЭКСПОРТ В EXCEL
+        // =====================================
         function exportToExcel() {
-            let wb = XLSX.utils.book_new();
-            let ws_data = [["Позиция", "Значение"]];
-            let items = document.querySelectorAll('#specContent .result-item, #specContent .spec-section-head, #specContent h3');
+            if (!windowCalcData) {
+                alert("Сначала нажмите 'Рассчитать спецификацию'");
+                return;
+            }
 
-            items.forEach(function (item) {
-                if (item.tagName.toLowerCase() === 'h3') {
-                    ws_data.push([""]);
-                    ws_data.push([item.innerText.toUpperCase(), ""]);
-                } else if (item.classList.contains('spec-section-head')) {
-                    ws_data.push([""]);
-                    ws_data.push([item.innerText.toUpperCase(), ""]);
-                } else {
-                    let label = item.querySelector('.result-label').innerText.replace(':', '').trim();
-                    let value = item.querySelector('.result-value').innerText.replace('~', '').trim();
-                    ws_data.push([label, value]);
-                }
+            // Получаем и увеличиваем порядковый номер расчета
+            let orderNum = localStorage.getItem('calcOrderNum');
+            orderNum = orderNum ? parseInt(orderNum) + 1 : 1;
+            localStorage.setItem('calcOrderNum', orderNum);
+
+            let d = windowCalcData;
+            let now = new Date();
+            let dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
+
+            // Стили
+            const styleTitle = { font: { bold: true, sz: 14, color: { rgb: "2c3e50" } }, alignment: { horizontal: "center" } };
+            const styleHeader = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "16a085" } }, alignment: { horizontal: "center" }, border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } } };
+            const styleSection = { font: { bold: true, color: { rgb: "d35400" } }, fill: { fgColor: { rgb: "fcf3cf" } }, border: { top: { style: "thin" }, bottom: { style: "thin" } } };
+            const styleGroup = { font: { bold: true, color: { rgb: "34495e" } }, fill: { fgColor: { rgb: "ecf0f1" } }, border: { top: { style: "thin" }, bottom: { style: "thin" } } };
+            const styleBold = { font: { bold: true } };
+            const styleBorder = { border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } } };
+            const styleCenter = { alignment: { horizontal: "center" }, border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } } };
+            const styleCenterBold = { font: { bold: true }, alignment: { horizontal: "center" }, border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } } };
+
+            let ws_data = [];
+            let merges = [];
+
+            // Шапка
+            ws_data.push([{ v: "Спецификация кровельных материалов", s: styleTitle }, null, null, null]);
+            merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } });
+
+            ws_data.push([{ v: "Контрагент:", s: styleBold }, { v: d.clientName }, { v: "Дата и время:", s: styleBold }, { v: dateStr }]);
+            ws_data.push([{ v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }, null, null]);
+            ws_data.push([]);
+
+            // Блок 1: Входные параметры
+            let rIdx = ws_data.length;
+            ws_data.push([{ v: "1. ВХОДНЫЕ ПАРАМЕТРЫ ПРОЕКТА", s: styleGroup }, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+
+            ws_data.push([{ v: "Тип кровли:" }, { v: d.roofType }]);
+            ws_data.push([{ v: "Длина дома (по карнизу):" }, { v: d.L + " м" }]);
+            ws_data.push([{ v: "Ширина дома (по торцу):" }, { v: d.W + " м" }]);
+            ws_data.push([{ v: "Угол ската:" }, { v: d.P1 + "°" }]);
+            ws_data.push([]);
+
+            // Блок 2: Сводка размеров
+            rIdx = ws_data.length;
+            ws_data.push([{ v: "2. ИТОГОВЫЕ РАЗМЕРЫ И ПЛОЩАДИ (СВОДКА)", s: styleGroup }, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+
+            ws_data.push([{ v: "Выбранное покрытие:" }, { v: d.matTypeStr }]);
+            ws_data.push([{ v: "Чистая площадь скатов:" }, { v: d.slopedArea.toFixed(2) + " м²", s: styleBold }]);
+            ws_data.push([{ v: "Площадь с учетом запаса:" }, { v: d.areaWithMargin.toFixed(2) + " м²", s: styleBold }]);
+            ws_data.push([{ v: "Общая длина карнизов:" }, { v: d.cEaves.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Общая длина торцов:" }, { v: d.cRakes.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Общая длина коньков:" }, { v: d.cRidges.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Общая длина хребтов (вальм):" }, { v: d.cHips.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Общая длина ендов:" }, { v: d.cValleys.toFixed(2) + " м" }]);
+            ws_data.push([{ v: "Общая длина примыканий:" }, { v: d.cAbutments.toFixed(2) + " м" }]);
+            ws_data.push([]);
+
+            // Блок 3: Таблица
+            rIdx = ws_data.length;
+            ws_data.push([{ v: "3. РАЗВЕРНУТАЯ СПЕЦИФИКАЦИЯ ЭЛЕМЕНТОВ", s: styleHeader }, null, null, null]);
+            merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+
+            ws_data.push([
+                { v: "Наименование материала / работ", s: styleHeader },
+                { v: "Кол-во", s: styleHeader },
+                { v: "Ед. изм.", s: styleHeader },
+                { v: "Примечание", s: styleHeader }
+            ]);
+
+            d.specData.forEach(section => {
+                let hasItems = section.items.some(i => i.qty > 0);
+                if (!hasItems) return; // Пропускаем пустые разделы
+
+                rIdx = ws_data.length;
+                ws_data.push([{ v: section.title, s: styleSection }, null, null, null]);
+                merges.push({ s: { r: rIdx, c: 0 }, e: { r: rIdx, c: 3 } });
+
+                section.items.forEach(item => {
+                    if (item.qty === 0) return; // Убираем нули для чистоты сметы
+                    ws_data.push([
+                        { v: item.name, s: styleBorder },
+                        { v: item.qty, s: styleCenterBold },
+                        { v: item.unit, s: styleCenter },
+                        { v: "", s: styleBorder }
+                    ]);
+                });
             });
 
+            let wb = XLSX.utils.book_new();
             let ws = XLSX.utils.aoa_to_sheet(ws_data);
-            ws['!cols'] = [{ wch: 55 }, { wch: 20 }];
+
+            ws["!merges"] = merges;
+            ws['!cols'] = [{ wch: 65 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
-            XLSX.writeFile(wb, "Спецификация_Кровли.xlsx");
+            XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
         }
 
         function createRoofMaterial() {
