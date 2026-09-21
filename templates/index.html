@@ -244,7 +244,6 @@
             text-align: right;
         }
 
-        /* НОВЫЕ СТИЛИ ДЛЯ ТАБЛИЦЫ С ТРЕМЯ КОЛОНКАМИ */
         .spec-row {
             display: grid;
             grid-template-columns: 2.5fr 1fr 1.2fr;
@@ -525,8 +524,8 @@
             </div>
 
             <div id="specContent"></div>
-            <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL (С
-                ДИЗАЙНОМ)</button>
+            <!-- ИЗМЕНЕНИЕ: Убрана приписка (С ДИЗАЙНОМ) -->
+            <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
             <div id="layoutBtnContainer"></div>
         </div>
 
@@ -543,7 +542,7 @@
     <script>
         let currentRoofColor = 0x3b2821;
         let conversationHistory = [];
-        let windowCalcData = null; // Глобальная переменная для хранения точных данных для Excel
+        let windowCalcData = null;
 
         const colorDB = {
             metal: [
@@ -1294,6 +1293,9 @@
             document.getElementById('finalBox').scrollIntoView({ behavior: 'smooth' });
         }
 
+        // =====================================
+        // ИСПРАВЛЕНИЕ: КРАСИВЫЙ ЭКСПОРТ В EXCEL
+        // =====================================
         function exportToExcel() {
             if (!windowCalcData) {
                 alert("Сначала нажмите 'Рассчитать спецификацию'");
