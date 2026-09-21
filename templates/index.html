@@ -68,6 +68,7 @@
         #viewport {
             flex: 1;
             position: relative;
+            background: #ecf0f1;
         }
 
         #layout2D {
@@ -487,9 +488,15 @@
                             value="6.85" step="0.01" oninput="render2D()"></div>
                 </div>
 
-                <div class="form-group">
-                    <label>Горизонтальный сдвиг листов (м):</label>
-                    <input type="number" id="shiftX2D" value="0" step="0.05" oninput="render2D()">
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label>Сдвиг гориз. (м):</label>
+                        <input type="number" id="shiftX2D" value="0" step="0.05" oninput="render2D()">
+                    </div>
+                    <div class="form-group">
+                        <label>Сдвиг верт. (м):</label>
+                        <input type="number" id="shiftY2D" value="0" step="0.05" oninput="render2D()">
+                    </div>
                 </div>
 
                 <hr style="border-top: 1px solid #bdc3c7;">
@@ -591,6 +598,7 @@
             <h3>3. Внешний вид</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
+                <!-- Обновление 2D при смене материала -->
                 <select id="materialType"
                     onchange="updateBrandMenu(); if(document.getElementById('layout2D').style.display === 'flex') {render2D();}">
                     <option value="metal" selected>Металлочерепица</option>
@@ -644,6 +652,7 @@
                     </select>
                 </div>
             </div>
+            <!-- ИЗМЕНЕНИЕ: Добавлен dataset.manual для умного поля -->
             <div class="form-group">
                 <label>Воронки (стояки): <span style="font-size: 11px; font-weight: normal; color: #7f8c8d;">(Авто /
                         Вручную)</span></label>
@@ -688,6 +697,7 @@
 
             <div id="specContent"></div>
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
+            <div id="layoutBtnContainer"></div>
         </div>
 
         <div class="box chat-box" style="margin-top: 30px;">
@@ -716,6 +726,10 @@
                 document.getElementById('layout2D').style.display = 'none';
                 document.getElementById('btnMode3D').classList.add('active-mode');
                 document.getElementById('btnMode2D').classList.remove('active-mode');
+
+                // Принудительное обновление размера для Three.js
+                window.dispatchEvent(new Event('resize'));
+                render3D();
             } else {
                 document.getElementById('viewport').style.display = 'none';
                 document.getElementById('layout2D').style.display = 'flex';
@@ -878,6 +892,7 @@
             const ctx = canvas.getContext('2d');
             const matType = document.getElementById('materialType').value;
             const shiftX = parseFloat(document.getElementById('shiftX2D').value) || 0;
+            const shiftY = parseFloat(document.getElementById('shiftY2D').value) || 0;
 
             const scale = 100; // 100 pixels per meter
             const margin = 100;
@@ -897,7 +912,7 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let currentY_px = margin; // Рисуем сверху вниз по холсту, но скаты ориентируем основанием вниз
+            let currentY_px = margin;
 
             for (let i = 0; i < slopes.length; i++) {
                 let s = slopes[i];
@@ -905,9 +920,8 @@
                 let h_px = s.h * scale;
 
                 ctx.save();
-                // Ставим центр ската: по X в середину холста, по Y - в базовую линию текущего ската
                 ctx.translate(canvas.width / 2, currentY_px + h_px);
-                ctx.scale(1, -1); // Инвертируем Y, чтобы рисовать снизу вверх (основание на 0, верх на h)
+                ctx.scale(1, -1);
 
                 // 1. Создаем контур
                 ctx.beginPath();
@@ -929,41 +943,74 @@
 
                 // 2. Раскладка листов
                 if (matType === 'metal') {
-                    ctx.clip(); // Обрезаем все, что выходит за контур
+                    ctx.clip();
 
                     let startSearchX = -wMax / 2 + shiftX;
                     let colIndex = Math.floor((-s.wb / 2 - startSearchX) / 1.10);
+                    if (s.type === 'trap') {
+                        colIndex = Math.floor((-wMax / 2 - startSearchX) / 1.10);
+                    }
                     let currentX = startSearchX + colIndex * 1.10;
 
-                    while (currentX < s.wb / 2) {
-                        let rowStart = 0;
-                        for (let r = 0; r < customRows2D.length; r++) {
-                            let rowH = customRows2D[r];
+                    while (currentX < wMax / 2) {
+                        let rowStart = shiftY;
+
+                        let virtualRows = [];
+                        let firstH = customRows2D[0] || 3;
+                        if (rowStart > 0) {
+                            let tempY = rowStart;
+                            while (tempY > 0) {
+                                tempY -= (firstH - 0.15);
+                                virtualRows.unshift(firstH);
+                            }
+                            rowStart = tempY;
+                        }
+
+                        let combinedRows = virtualRows.concat(customRows2D);
+                        let tempSum = rowStart;
+                        for (let hr of combinedRows) tempSum += (hr - 0.15);
+
+                        let lastH = customRows2D[customRows2D.length - 1] || 3;
+                        while (tempSum < s.h) {
+                            combinedRows.push(lastH);
+                            tempSum += (lastH - 0.15);
+                        }
+
+                        for (let r = 0; r < combinedRows.length; r++) {
+                            let rowH = combinedRows[r];
                             if (rowH <= 0) continue;
                             let rowEnd = rowStart + rowH;
 
                             let polyMaxY = getMaxPolyY(currentX, currentX + 1.189, s.type, s.wb, s.wt, s.h);
 
-                            if (polyMaxY > rowStart) {
-                                let actualH = rowH;
-                                if (polyMaxY < rowEnd) actualH = polyMaxY - rowStart;
-
+                            if (polyMaxY > 0 && rowStart < polyMaxY && rowEnd > 0) {
                                 ctx.strokeStyle = '#34495e';
                                 ctx.lineWidth = 1;
-                                ctx.strokeRect(currentX * scale, rowStart * scale, 1.189 * scale, actualH * scale);
+                                ctx.strokeRect(currentX * scale, rowStart * scale, 1.189 * scale, rowH * scale);
 
-                                // Подписи на обрезанных и целых листах
-                                if (actualH > 0.3) {
+                                let visibleStart = Math.max(0, rowStart);
+                                let visibleEnd = Math.min(polyMaxY, rowEnd);
+                                let visibleH = visibleEnd - visibleStart;
+
+                                if (visibleH > 0.4) {
                                     ctx.save();
                                     ctx.scale(1, -1);
                                     ctx.fillStyle = '#2980b9';
                                     ctx.font = 'bold 12px sans-serif';
                                     ctx.textAlign = 'center';
-                                    ctx.fillText(actualH.toFixed(2), (currentX + 1.10 / 2) * scale, -(rowStart + actualH / 2) * scale);
+
+                                    let textY = -(rowStart + rowH / 2) * scale;
+                                    if (rowStart + rowH / 2 > polyMaxY) {
+                                        textY = -(polyMaxY - 0.2) * scale;
+                                    } else if (rowStart + rowH / 2 < 0) {
+                                        textY = -0.2 * scale;
+                                    }
+
+                                    ctx.fillText(rowH.toFixed(2), (currentX + 1.10 / 2) * scale, textY);
                                     ctx.restore();
                                 }
                             }
-                            rowStart += (rowH - 0.15); // Нахлест
+                            rowStart += (rowH - 0.15);
                         }
                         currentX += 1.10;
                     }
@@ -1005,240 +1052,286 @@
         // БАЗОВЫЕ ФУНКЦИИ И 3D
         // ==========================================
 
-        const colorDB = {
-            metal: [
-                { name: 'RAL 8017 (Шоколад)', hex: '#3b2821' },
-                { name: 'RAL 7004 (Сигнальный серый)', hex: '#9ea0a1' },
-                { name: 'RAL 7024 (Графит)', hex: '#474a51' },
-                { name: 'RAL 3005 (Красное вино)', hex: '#5e2028' },
-                { name: 'RAL 6005 (Зеленый мох)', hex: '#2a3a32' }
-            ],
-            soft_anthracite: { name: 'Антрацит', hex: '#2b2c2f' },
-            soft_mocca: { name: 'Мокка', hex: '#4a3525' },
-            soft_chestnut: { name: 'Каштан', hex: '#5c3126' },
-            soft_granite: { name: 'Гранит', hex: '#5e6063' },
-            soft_terracotta: { name: 'Терракота', hex: '#8c422b' }
-        };
+        function init3D() {
+            const container = document.getElementById('viewport');
+            if (!scene) {
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
+                camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
 
-        const softCollections = {
-            'vision': { name: 'Elite - VISION (Сланец)', colors: ['soft_anthracite', 'soft_mocca'] },
-            'twx': { name: 'Premium - TW\'X (Двухслойная)', colors: ['soft_anthracite', 'soft_mocca', 'soft_chestnut', 'soft_granite'] },
-            'hexa': { name: 'Classic - HEXA (Соты)', colors: ['soft_anthracite', 'soft_mocca', 'soft_terracotta'] },
-            'tetra': { name: 'Classic - TETRA (Кирпичики)', colors: ['soft_anthracite', 'soft_mocca', 'soft_granite'] },
-            'lite_hexa': { name: 'Classic LITE - HEXA', colors: ['soft_anthracite', 'soft_mocca'] },
-            'lite_tetra': { name: 'Classic LITE - TETRA', colors: ['soft_anthracite', 'soft_mocca'] }
-        };
+                if (typeof THREE.CSS2DRenderer !== 'undefined') {
+                    useLabels = true;
+                    labelRenderer = new THREE.CSS2DRenderer();
+                    labelRenderer.setSize(container.clientWidth, container.clientHeight);
+                    labelRenderer.domElement.style.position = 'absolute';
+                    labelRenderer.domElement.style.top = '0px';
+                    labelRenderer.domElement.style.pointerEvents = 'none';
+                    container.appendChild(labelRenderer.domElement);
+                }
+                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
-        window.addEventListener('resize', () => {
-            const vp = document.getElementById('viewport');
-            if (camera && renderer && labelRenderer) {
-                camera.aspect = vp.clientWidth / vp.clientHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(vp.clientWidth, vp.clientHeight);
-                labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
-            }
-            if (document.getElementById('layout2D').style.display === 'flex') render2D();
-        });
+                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
 
-        function updateBrandMenu() {
-            const matType = document.getElementById('materialType').value;
-            const brandSel = document.getElementById('roofBrand');
-            brandSel.innerHTML = '';
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
+                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
 
-            if (matType === 'metal') {
-                brandSel.innerHTML = '<option value="megasteel">Мегастил</option>';
+                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
+                scene.add(objectsGroup);
+                animate();
             } else {
-                for (let key in softCollections) { brandSel.innerHTML += `<option value="${key}">${softCollections[key].name}</option>`; }
+                if (container.clientWidth > 0 && container.clientHeight > 0) {
+                    camera.aspect = container.clientWidth / container.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    if (useLabels && labelRenderer) labelRenderer.setSize(container.clientWidth, container.clientHeight);
+                }
             }
-            updateColorMenu();
         }
 
-        function updateColorMenu() {
+        function animate() { requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) { renderer.render(scene, camera); if (useLabels && labelRenderer) labelRenderer.render(scene, camera); } }
+        function addLabel(parent, text, x, y, z) { if (!useLabels) return; const div = document.createElement('div'); div.className = 'label-3d'; div.textContent = text; const label = new THREE.CSS2DObject(div); label.position.set(x, y, z); parent.add(label); }
+
+        function render3D() {
+            init3D(); let vars = doMath(); if (vars.L === 0 || vars.W === 0) return;
+            document.querySelectorAll('.label-3d').forEach(el => el.remove());
+            while (objectsGroup.children.length > 0) { objectsGroup.remove(objectsGroup.children[0]); }
+
+            const houseHeight = parseFloat(document.getElementById('mWallHeight').value) || 3.5;
+            const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
             const matType = document.getElementById('materialType').value;
-            const brand = document.getElementById('roofBrand').value;
-            const palette = document.getElementById('colorPalette');
-            palette.innerHTML = '';
 
-            let activeColors = [];
-            if (matType === 'metal') { activeColors = colorDB.metal; }
-            else { if (softCollections[brand]) activeColors = softCollections[brand].colors.map(c => colorDB[c]); }
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+            const roofMat = createRoofMaterial();
+            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
 
-            activeColors.forEach((c) => {
-                palette.innerHTML += `<div class="color-swatch" style="background-color: ${c.hex};" onclick="changeColor('${c.hex}')" title="${c.name}"></div>`;
-            });
-            if (matType === 'metal') palette.innerHTML += `<input type="color" id="customColor" value="${activeColors[0].hex}" oninput="changeColor(this.value)" title="Свой цвет">`;
-            if (activeColors.length > 0) changeColor(activeColors[0].hex); else render3D();
-        }
+            let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
+            let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
+            soffitMat.userData = { tileW: 0.3, tileH: 0.3 };
 
-        function changeColor(colorValue) {
-            currentRoofColor = (typeof colorValue === 'string') ? parseInt(colorValue.replace('#', '0x')) : colorValue;
-            render3D();
-        }
+            const createWallQuad = (v1, v2, v3, v4) => {
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...v1, ...v2, ...v3, ...v1, ...v3, ...v4]), 3));
+                geo.computeVertexNormals();
+                let mesh = new THREE.Mesh(geo, wallMat); mesh.castShadow = true; mesh.receiveShadow = true; objectsGroup.add(mesh);
+            };
 
-        function toggleRoofFields() {
-            const rType = document.getElementById('roofType').value;
-            const groupPitchHip = document.getElementById('groupPitchHip');
-            const groupRidgeHip = document.getElementById('groupRidgeHip');
-            if (rType === 'hip') {
-                document.getElementById('lblEaves').innerText = "Длина дома (м):";
-                document.getElementById('lblRakes').innerText = "Ширина дома (м):";
-                groupPitchHip.style.display = "block";
-                if (groupRidgeHip) groupRidgeHip.style.display = "block";
-            } else {
-                document.getElementById('lblEaves').innerText = "Длина дома (м):";
-                document.getElementById('lblRakes').innerText = "Ширина дома (м):";
-                groupPitchHip.style.display = "none";
-                if (groupRidgeHip) groupRidgeHip.style.display = "none";
+            const getRoofHeight = (x, z) => {
+                let Lr = vars.L + soffit * 2;
+                let Wr = vars.W + soffit * 2;
+                let y0 = houseHeight;
+
+                if (vars.rType === 'shed') {
+                    return y0 + (Wr / 2 - z) * Math.tan(vars.P1 * Math.PI / 180);
+                } else if (vars.rType === 'gable') {
+                    return y0 + (Wr / 2 - Math.abs(z)) * Math.tan(vars.P1 * Math.PI / 180);
+                } else if (vars.rType === 'hip' || vars.rType === 'tent') {
+                    return y0;
+                }
+                return y0;
+            };
+
+            const buildSmartWall = (x1, z1, x2, z2) => {
+                let segments = 20;
+                for (let i = 0; i < segments; i++) {
+                    let cx1 = x1 + (x2 - x1) * (i / segments);
+                    let cz1 = z1 + (z2 - z1) * (i / segments);
+                    let cx2 = x1 + (x2 - x1) * ((i + 1) / segments);
+                    let cz2 = z1 + (z2 - z1) * ((i + 1) / segments);
+
+                    let y1 = getRoofHeight(cx1, cz1);
+                    let y2 = getRoofHeight(cx2, cz2);
+
+                    createWallQuad([cx1, 0, cz1], [cx2, 0, cz2], [cx2, y2 - 0.015, cz2], [cx1, y1 - 0.015, cz1]);
+                }
+            };
+
+            let Lr = vars.L + soffit * 2; let Wr = vars.W + soffit * 2; let y0 = houseHeight;
+
+            let funnelsAuto = 0;
+            if (vars.rType === 'shed') funnelsAuto = (Lr > 15) ? 3 : 2;
+            else if (vars.rType === 'gable') funnelsAuto = ((Lr > 15) ? 3 : 2) * 2;
+            else if (vars.rType === 'hip' || vars.rType === 'tent') funnelsAuto = 4 + (Lr > 15 ? 2 : 0) + (Wr > 15 ? 2 : 0);
+
+            let vOutletsEl = document.getElementById('vOutlets');
+            if (vOutletsEl.dataset.manual !== 'true') {
+                vOutletsEl.value = funnelsAuto;
             }
-        }
+            let funnelsCount = parseInt(vOutletsEl.value) || 0;
 
-        window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
+            buildSmartWall(-vars.L / 2, vars.W / 2, vars.L / 2, vars.W / 2);
+            buildSmartWall(vars.L / 2, vars.W / 2, vars.L / 2, -vars.W / 2);
+            buildSmartWall(vars.L / 2, -vars.W / 2, -vars.L / 2, -vars.W / 2);
+            buildSmartWall(-vars.L / 2, -vars.W / 2, -vars.L / 2, vars.W / 2);
 
-        function extractNumber(text, keyword) {
-            let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
-            let match = text.match(regex);
-            if (match) return parseFloat(match[1].replace(',', '.'));
-            return 0;
-        }
+            if (vars.rType === 'gable') {
+                let h = (Wr / 2) * Math.tan(vars.P1 * Math.PI / 180);
 
-        async function analyzeImage() {
-            const fileInput = document.getElementById('roofImage');
-            const resultDiv = document.getElementById('aiResult');
-            const loader = document.getElementById('loader');
-            const historyBox = document.getElementById('chatHistory');
+                let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2], p3 = [Lr / 2, y0 + h, 0], p4 = [-Lr / 2, y0 + h, 0];
+                objectsGroup.add(createRoofQuad(p1, p2, p3, p4, roofMat));
+                if (soffit > 0) {
+                    let s1 = [...p1], s2 = [...p2], s3 = [...p3], s4 = [...p4];
+                    s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
+                    objectsGroup.add(createRoofQuad(s1, s2, s3, s4, soffitMat));
+                }
 
-            if (fileInput.files.length === 0) {
-                alert("Сначала выбери файл с чертежом!");
-                return;
-            }
+                let p5 = [Lr / 2, y0, -Wr / 2], p6 = [-Lr / 2, y0, -Wr / 2];
+                objectsGroup.add(createRoofQuad(p5, p6, p4, p3, roofMat));
+                if (soffit > 0) {
+                    let s5 = [...p5], s6 = [...p6], s3 = [...p3], s4 = [...p4];
+                    s5[1] -= 0.03; s6[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
+                    objectsGroup.add(createRoofQuad(s5, s6, s4, s3, soffitMat));
+                }
 
-            const file = fileInput.files[0];
-            if (file.size > 20 * 1024 * 1024) {
-                alert("Файл слишком большой! Максимальный размер 20 МБ.");
-                return;
-            }
+                let s1_label = (Wr / 2) / Math.cos(vars.P1 * Math.PI / 180);
+                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
+                addLabel(objectsGroup, 'Скат (Торец): ' + s1_label.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, vars.W / 4);
+                if (Lr > 0) addLabel(objectsGroup, 'Конёк: ' + Lr.toFixed(2) + ' м', 0, houseHeight + h + 0.5, 0);
 
-            const formData = new FormData();
-            formData.append("file", file);
+                if (Lr > 0) {
+                    let f1 = Math.ceil(funnelsCount / 2);
+                    let f2 = Math.floor(funnelsCount / 2);
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, true, true);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, true, true);
+                }
 
-            loader.style.display = "block";
-            resultDiv.style.display = "none";
+            } else if (vars.rType === 'shed') {
+                let h = Wr * Math.tan(vars.P1 * Math.PI / 180);
+                let p1 = [-Lr / 2, y0, Wr / 2], p2 = [Lr / 2, y0, Wr / 2], p3 = [Lr / 2, y0 + h, -Wr / 2], p4 = [-Lr / 2, y0 + h, -Wr / 2];
+                objectsGroup.add(createRoofQuad(p1, p2, p3, p4, roofMat));
+                if (soffit > 0) {
+                    let s1 = [...p1], s2 = [...p2], s3 = [...p3], s4 = [...p4];
+                    s1[1] -= 0.03; s2[1] -= 0.03; s3[1] -= 0.03; s4[1] -= 0.03;
+                    objectsGroup.add(createRoofQuad(s1, s2, s3, s4, soffitMat));
+                }
 
-            try {
-                const response = await fetch('/analyze', { method: 'POST', body: formData });
-                if (!response.ok) throw new Error("Сбой на сервере при чтении файла.");
+                let s1_label = Wr / Math.cos(vars.P1 * Math.PI / 180);
+                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
+                addLabel(objectsGroup, 'Конёк / Примык.: ' + Lr.toFixed(2) + ' м', 0, houseHeight + h + 0.5, -Wr / 2 - 0.1);
+                addLabel(objectsGroup, 'Скат: ' + s1_label.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight + h / 2, 0);
 
-                const data = await response.json();
-                loader.style.display = "none";
-                resultDiv.style.display = "block";
+                if (Lr > 0) {
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, funnelsCount, drainMat, true, true);
+                }
 
-                if (data.error) {
-                    resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${data.error}</span>`;
+            } else if (vars.rType === 'hip' || vars.rType === 'tent') {
+                let isRotated = Lr < Wr && vars.rType === 'hip';
+                let mainL = isRotated ? Wr : Lr;
+                let mainW = isRotated ? Lr : Wr;
+
+                let H_roof, indent;
+                if (vars.rType === 'tent') {
+                    H_roof = (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180);
+                    indent = mainL / 2;
                 } else {
-                    const aiText = data.result;
-                    resultDiv.innerHTML = "<strong>Распознано:</strong><br><br>" + aiText.replace(/\n/g, "<br>");
+                    H_roof = (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
 
-                    let lowerText = aiText.toLowerCase();
-                    if (lowerText.includes('односкатная')) document.getElementById('roofType').value = 'shed';
-                    else if (lowerText.includes('вальмовая')) document.getElementById('roofType').value = 'hip';
-                    else if (lowerText.includes('шатровая')) document.getElementById('roofType').value = 'tent';
-                    else document.getElementById('roofType').value = 'gable';
+                    let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
+                    let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
 
-                    document.getElementById('vOutlets').dataset.manual = 'false';
-                    toggleRoofFields();
-
-                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол') || 30;
-                    document.getElementById('mEaves').value = extractNumber(aiText, 'Длина') || extractNumber(aiText, 'Карниз') || 10;
-                    document.getElementById('mRakes').value = extractNumber(aiText, 'Ширина') || extractNumber(aiText, 'Торец') || 8;
-                    document.getElementById('mRidges').value = extractNumber(aiText, 'Коньки') || extractNumber(aiText, 'Конёк') || 0;
-                    document.getElementById('mHips').value = extractNumber(aiText, 'Хребты') || 0;
-                    document.getElementById('mValleys').value = extractNumber(aiText, 'Ендовы') || 0;
-                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкания') || 0;
-
-                    render3D();
-                    calculateFinal();
-                    if (document.getElementById('layout2D').style.display === 'flex') resetRows2D();
-
-                    let mBox = document.getElementById('manualBox');
-                    if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
-
-                    conversationHistory = [];
-                    conversationHistory.push({ role: "user", text: "Я загрузил чертеж. Запомни эти размеры: \n" + aiText });
-                    conversationHistory.push({ role: "model", text: "Принято! Я готов." });
-
-                    if (historyBox) {
-                        historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Чертеж обработан, 3D-модель построена!</div><br>`;
-                        historyBox.scrollTop = historyBox.scrollHeight;
+                    if (customRidge !== null && customRidge >= 0) {
+                        let r = Math.min(customRidge, mainL);
+                        indent = (mainL - r) / 2;
+                    } else {
+                        indent = H_roof / Math.tan(vars.P2 * Math.PI / 180);
+                        if (indent >= mainL / 2) { indent = mainL / 2; H_roof = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
                     }
                 }
-            } catch (error) {
-                loader.style.display = "none";
-                resultDiv.style.display = "block";
-                resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${error.message}</span>`;
-            }
-        }
 
-        function doMath() {
-            const rType = document.getElementById('roofType').value;
-            let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
-            let P1 = parseFloat(document.getElementById('mPitch').value) || 0; let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
-            if (P2 === 0) P2 = P1;
-            let cos1 = (P1 > 0 && P1 < 89) ? Math.cos(P1 * Math.PI / 180) : 1; let cos2 = (P2 > 0 && P2 < 89) ? Math.cos(P2 * Math.PI / 180) : 1;
-            return { rType, L, W, P1, P2, cos1, cos2 };
-        }
+                let p_FL = [-Lr / 2, y0, Wr / 2]; let p_FR = [Lr / 2, y0, Wr / 2];
+                let p_BR = [Lr / 2, y0, -Wr / 2]; let p_BL = [-Lr / 2, y0, -Wr / 2];
 
-        function smartRound(val) {
-            if (val <= 0) return 0;
-            let roundedVal = Math.round(val * 1000) / 1000;
-            let dec = roundedVal - Math.floor(roundedVal);
-            let res = Math.ceil(roundedVal);
-            if (dec >= 0.7) res += 1;
-            return res;
-        }
+                let ridgeStart, ridgeEnd;
+                if (vars.rType === 'tent') {
+                    ridgeStart = [0, y0 + H_roof, 0]; ridgeEnd = [0, y0 + H_roof, 0];
+                } else if (isRotated) {
+                    ridgeStart = [0, y0 + H_roof, Wr / 2 - indent]; ridgeEnd = [0, y0 + H_roof, -Wr / 2 + indent];
+                } else {
+                    ridgeStart = [-Lr / 2 + indent, y0 + H_roof, 0]; ridgeEnd = [Lr / 2 - indent, y0 + H_roof, 0];
+                }
 
-        function calcPlanks(len) {
-            if (len <= 0) return 0;
-            let val = len / 1.9;
-            let dec = val - Math.floor(val);
-            let res = Math.floor(val);
-            if (dec >= 0.7) res += 2;
-            else if (dec > 0) res += 1;
-            return res;
-        }
+                if (isRotated) {
+                    objectsGroup.add(createRoofTri(p_FL, p_FR, ridgeStart, roofMat));
+                    objectsGroup.add(createRoofTri(p_BR, p_BL, ridgeEnd, roofMat));
+                    if (indent > 0) {
+                        objectsGroup.add(createRoofQuad(p_FR, p_BR, ridgeEnd, ridgeStart, roofMat));
+                        objectsGroup.add(createRoofQuad(p_BL, p_FL, ridgeStart, ridgeEnd, roofMat));
+                    }
 
-        function isForbiddenLength(L) {
-            if (L < 0.56) return true;
-            let baseMin = 0.69; let baseMax = 0.81; let step = 0.35;
-            for (let i = 0; i <= 25; i++) {
-                let min = baseMin + step * i;
-                let max = baseMax + step * i;
-                if (L >= min - 0.005 && L <= max + 0.005) return true;
-            }
-            return false;
-        }
+                    if (soffit > 0) {
+                        let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sRS = [...ridgeStart], sRE = [...ridgeEnd];
+                        sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sRS[1] -= 0.03; sRE[1] -= 0.03;
+                        objectsGroup.add(createRoofTri(sFL, sFR, sRS, soffitMat));
+                        objectsGroup.add(createRoofTri(sBR, sBL, sRE, soffitMat));
+                        if (indent > 0) {
+                            objectsGroup.add(createRoofQuad(sFR, sBR, sRE, sRS, soffitMat));
+                            objectsGroup.add(createRoofQuad(sBL, sFL, sRS, sRE, soffitMat));
+                        }
+                    }
+                } else {
+                    let p_TL = ridgeStart; let p_TR = ridgeEnd;
 
-        function splitSheetHeight(H) {
-            H = Math.round(H * 1000) / 1000;
-            if (H <= 8.0 && !isForbiddenLength(H)) return [H];
-            let sheets = []; let rem = H; let safetyCount = 0;
-            while (rem > 0 && safetyCount < 10) {
-                safetyCount++;
-                if (rem <= 8.0 && !isForbiddenLength(rem)) { sheets.push(Math.round(rem * 1000) / 1000); break; }
-                let L1 = Math.min(rem, 7.5); let found = false;
-                for (let tryL = L1; tryL >= 0.56; tryL -= 0.01) {
-                    if (!isForbiddenLength(tryL)) {
-                        let nextRem = rem - tryL + 0.15;
-                        if (nextRem <= 8.0 && !isForbiddenLength(nextRem)) {
-                            sheets.push(Math.round(tryL * 1000) / 1000); rem = nextRem; found = true; break;
+                    if (indent < mainL / 2) {
+                        objectsGroup.add(createRoofQuad(p_FL, p_FR, p_TR, p_TL, roofMat));
+                        objectsGroup.add(createRoofQuad(p_BR, p_BL, p_TL, p_TR, roofMat));
+                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TR, roofMat));
+                        if (soffit > 0) {
+                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL], sTR = [...p_TR];
+                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03; sTR[1] -= 0.03;
+                            objectsGroup.add(createRoofQuad(sFL, sFR, sTR, sTL, soffitMat));
+                            objectsGroup.add(createRoofQuad(sBR, sBL, sTL, sTR, soffitMat));
+                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sFR, sBR, sTR, soffitMat));
+                        }
+                    } else {
+                        objectsGroup.add(createRoofTri(p_FL, p_FR, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_BR, p_BL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_BL, p_FL, p_TL, roofMat));
+                        objectsGroup.add(createRoofTri(p_FR, p_BR, p_TL, roofMat));
+                        if (soffit > 0) {
+                            let sFL = [...p_FL], sFR = [...p_FR], sBR = [...p_BR], sBL = [...p_BL], sTL = [...p_TL];
+                            sFL[1] -= 0.03; sFR[1] -= 0.03; sBR[1] -= 0.03; sBL[1] -= 0.03; sTL[1] -= 0.03;
+                            objectsGroup.add(createRoofTri(sFL, sFR, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sBR, sBL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sBL, sFL, sTL, soffitMat));
+                            objectsGroup.add(createRoofTri(sFR, sBR, sTL, soffitMat));
                         }
                     }
                 }
-                if (!found) {
-                    let L = Math.min(rem, 6.0); while (isForbiddenLength(L)) L -= 0.01;
-                    sheets.push(Math.round(L * 1000) / 1000); rem = rem - L + 0.15;
+
+                let ridge_label = Math.max(0, mainL - indent * 2);
+                let hipLen_label = Math.sqrt(Math.pow(indent, 2) + Math.pow(mainW / 2, 2) + Math.pow(H_roof, 2));
+
+                addLabel(objectsGroup, 'Карниз: ' + Lr.toFixed(2) + ' м', 0, houseHeight, Wr / 2 + 0.1);
+                addLabel(objectsGroup, 'Карниз: ' + Wr.toFixed(2) + ' м', -Lr / 2 - 0.1, houseHeight, 0);
+                if (ridge_label > 0 && vars.rType !== 'tent') addLabel(objectsGroup, 'Конёк: ' + ridge_label.toFixed(2) + ' м', 0, houseHeight + H_roof + 0.5, 0);
+                if (hipLen_label > 0) addLabel(objectsGroup, 'Хребет: ' + hipLen_label.toFixed(2) + ' м', -Lr / 4, houseHeight + H_roof / 2 + 0.5, Wr / 4);
+
+                if (Lr > 0) {
+                    let f1 = Math.ceil(funnelsCount / 2);
+                    let f2 = Math.floor(funnelsCount / 2);
+                    addGutterSystem(Lr, vars.L, houseHeight, Wr / 2, vars.W / 2 + 0.002, 1, f1, drainMat, false, false);
+                    addGutterSystem(Lr, vars.L, houseHeight, -Wr / 2, -vars.W / 2 - 0.002, -1, f2, drainMat, false, false);
+
+                    let gLeft = new THREE.Mesh(createGutter(Wr), drainMat); gLeft.position.set(-Lr / 2, houseHeight - 0.05, 0); gLeft.castShadow = true; objectsGroup.add(gLeft);
+                    let gRight = new THREE.Mesh(createGutter(Wr), drainMat); gRight.position.set(Lr / 2, houseHeight - 0.05, 0); gRight.castShadow = true; objectsGroup.add(gRight);
+
+                    const addCorner = (x, z) => {
+                        let corner = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.075, 0.142), drainMat);
+                        corner.position.set(x, houseHeight - 0.05 - 0.0375, z);
+                        corner.castShadow = true;
+                        objectsGroup.add(corner);
+                    };
+                    addCorner(-Lr / 2, Wr / 2); addCorner(Lr / 2, Wr / 2); addCorner(-Lr / 2, -Wr / 2); addCorner(Lr / 2, -Wr / 2);
                 }
             }
-            return sheets;
+
+            if (!camera.userData.hasBeenSet) { controls.target.set(0, houseHeight, 0); camera.position.set(15, houseHeight + 10, 15); camera.userData.hasBeenSet = true; }
         }
 
         function calculateFinal() {
@@ -1766,197 +1859,6 @@
 
             XLSX.utils.book_append_sheet(wb, ws, "Спецификация");
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
-        }
-
-        function createRoofMaterial() {
-            const matType = document.getElementById('materialType').value;
-            const brand = document.getElementById('roofBrand').value;
-            let matParams = { color: currentRoofColor, side: THREE.DoubleSide };
-
-            let tileW = (matType === 'soft') ? 1.0 : 0.1833;
-            let tileH = (matType === 'soft') ? 0.33 : 0.350;
-
-            if (matType === 'metal') {
-                matParams.roughness = 0.5; matParams.metalness = 0.3;
-                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
-                const imgData = ctx.createImageData(512, 512); const data = imgData.data;
-
-                for (let y = 0; y < 512; y++) {
-                    let py = y / 512; let dy = 0;
-                    if (brand === 'classic') { if (py < 0.85) { dy = 0.15; } else { dy = -Math.sin(((py - 0.85) / 0.15) * Math.PI) * 2.0; } }
-                    else { if (py < 0.82) { dy = 0.15; } else { dy = -Math.sin(((py - 0.82) / 0.18) * Math.PI) * 3.0; } }
-
-                    for (let x = 0; x < 512; x++) {
-                        let px = x / 512; let dx = 0;
-                        if (brand === 'classic') { dx = Math.sin(px * Math.PI * 2) * 0.8; } else { dx = (Math.sin(px * Math.PI * 2) + Math.sin(px * Math.PI * 4) * 0.25) * 1.1; }
-                        let len = Math.sqrt(dx * dx + dy * dy + 1.0);
-                        let r = (dx / len) * 127.5 + 127.5; let g = (-dy / len) * 127.5 + 127.5; let b = (1.0 / len) * 127.5 + 127.5;
-                        let idx = (y * 512 + x) * 4; data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
-                    }
-                }
-                ctx.putImageData(imgData, 0, 0);
-                const normTex = new THREE.CanvasTexture(canvas); normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
-                matParams.normalMap = normTex; matParams.normalScale = new THREE.Vector2(1.0, 1.0);
-            } else {
-                matParams.roughness = 0.95; matParams.metalness = 0.0;
-                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0'); ctx.fillRect(0, 0, 512, 512);
-
-                const imgData = ctx.getImageData(0, 0, 512, 512); const data = imgData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    let noise = (Math.random() - 0.5) * 35;
-                    data[i] = Math.min(255, Math.max(0, data[i] + noise)); data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
-                }
-                ctx.putImageData(imgData, 0, 0);
-
-                ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
-                if (brand.includes('hexa')) {
-                    let w = 128, h = 64;
-                    for (let y = 0; y <= 512; y += h) {
-                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
-                        for (let x = -w; x <= 512; x += w) {
-                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.25})`;
-                            ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset + w / 2, y + h / 2); ctx.lineTo(x + offset + w, y); ctx.lineTo(x + offset + w, y + h); ctx.lineTo(x + offset, y + h); ctx.fill(); ctx.stroke();
-                        }
-                    }
-                } else if (brand.includes('tetra')) {
-                    let w = 128, h = 64;
-                    for (let y = 0; y <= 512; y += h) {
-                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
-                        for (let x = -w; x <= 512; x += w) {
-                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.2})`; ctx.fillRect(x + offset, y, w, h); ctx.strokeRect(x + offset, y, w, h);
-                            let grad = ctx.createLinearGradient(0, y, 0, y + h); grad.addColorStop(0, 'rgba(0,0,0,0.4)'); grad.addColorStop(0.2, 'rgba(0,0,0,0)');
-                            ctx.fillStyle = grad; ctx.fillRect(x + offset, y, w, h);
-                        }
-                    }
-                } else if (brand === 'twx') {
-                    let h = 85;
-                    for (let y = 0; y <= 512; y += h) {
-                        let x = 0;
-                        while (x < 512) {
-                            let w = 80 + Math.random() * 80;
-                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.3})`; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-                            if (Math.random() > 0.4) {
-                                let tabW = w * (0.4 + Math.random() * 0.4); let tabX = x + (w - tabW) / 2;
-                                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(tabX, y + h / 2, tabW, h / 2);
-                                ctx.fillStyle = `rgba(255,255,255, ${Math.random() * 0.15})`; ctx.fillRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2); ctx.strokeRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2);
-                            }
-                            x += w;
-                        }
-                    }
-                } else if (brand === 'vision') {
-                    let h = 85;
-                    for (let y = 0; y <= 512; y += h) {
-                        let x = -((y / h) % 2) * 40;
-                        while (x < 512) {
-                            let w = 90 + Math.random() * 40;
-                            let grad = ctx.createLinearGradient(x, y, x + w, y + h); grad.addColorStop(0, `rgba(255,255,255,0.2)`); grad.addColorStop(1, `rgba(0,0,0,0.4)`);
-                            ctx.fillStyle = grad; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-                            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y + h - 5, w, 5); ctx.fillRect(x + w - 5, y, 5, h);
-                            x += w;
-                        }
-                    }
-                }
-                const mapTex = new THREE.CanvasTexture(canvas); mapTex.wrapS = THREE.RepeatWrapping; mapTex.wrapT = THREE.RepeatWrapping; matParams.map = mapTex;
-            }
-
-            let material = new THREE.MeshStandardMaterial(matParams);
-            material.userData = { tileW, tileH };
-            return material;
-        }
-
-        function createRoofQuad(p1, p2, p3, p4, material) {
-            const geo = new THREE.BufferGeometry();
-            const vertices = new Float32Array([...p1, ...p2, ...p3, ...p1, ...p3, ...p4]);
-            let wBottom = Math.hypot(p2[0] - p1[0], p2[2] - p1[2]); let wTop = Math.hypot(p3[0] - p4[0], p3[2] - p4[2]); let h = Math.hypot(p4[0] - p1[0], p4[1] - p1[1], p4[2] - p1[2]);
-            let tW = material.userData.tileW || 0.1833; let tH = material.userData.tileH || 0.35;
-            let uBottom = wBottom / tW; let uTop = wTop / tW; let v = h / tH; let offset = (uBottom - uTop) / 2;
-            const uvs = new Float32Array([0, 0, uBottom, 0, uBottom - offset, v, 0, 0, uBottom - offset, v, offset, v]);
-            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); geo.computeVertexNormals();
-            let mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-        }
-
-        function createRoofTri(p1, p2, p3, material) {
-            const geo = new THREE.BufferGeometry();
-            const vertices = new Float32Array([...p1, ...p2, ...p3]);
-            let wBottom = Math.hypot(p2[0] - p1[0], p2[2] - p1[2]); let h = Math.hypot(p3[0] - (p1[0] + p2[0]) / 2, p3[1] - (p1[1] + p2[1]) / 2, p3[2] - (p1[2] + p2[2]) / 2);
-            let tW = material.userData.tileW || 0.1833; let tH = material.userData.tileH || 0.35;
-            let u = wBottom / tW; let v = h / tH;
-            const uvs = new Float32Array([0, 0, u, 0, u / 2, v]);
-            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); geo.computeVertexNormals();
-            let mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-        }
-
-        function createSoffitTexture(type, colorHex) {
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
-            ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
-            let pSize = 256 / 3;
-            const drawPerf = (offsetX) => { ctx.fillStyle = 'rgba(0,0,0,0.8)'; for (let x = offsetX + 8; x < offsetX + pSize - 8; x += 12) { for (let y = 8; y < 256; y += 12) { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); } } };
-            for (let i = 1; i < 3; i++) { ctx.beginPath(); ctx.moveTo(i * pSize, 0); ctx.lineTo(i * pSize, 256); ctx.stroke(); }
-            if (type === 'center' || type === 'full') drawPerf(pSize); if (type === 'full') { drawPerf(0); drawPerf(pSize * 2); }
-            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; return tex;
-        }
-
-        function createGutter(length) {
-            let shape = new THREE.Shape();
-            shape.absarc(0, 0, 0.07, 0, Math.PI, true);
-            shape.lineTo(-0.06, 0);
-            shape.absarc(0, 0, 0.06, Math.PI, 0, false);
-            shape.lineTo(0.07, 0);
-            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 });
-            geo.translate(0, 0, -length / 2);
-            return geo;
-        }
-
-        function createEndCap() {
-            const capShape = new THREE.Shape();
-            capShape.absarc(0, 0, 0.072, 0, Math.PI, true);
-            capShape.lineTo(0.072, 0);
-            let geo = new THREE.ExtrudeGeometry(capShape, { depth: 0.01, bevelEnabled: false, curveSegments: 8 });
-            geo.translate(0, 0, -0.005);
-            return geo;
-        }
-
-        function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat, hasCapL = true, hasCapR = true) {
-            if (edgeLength <= 0) return;
-            drainMat.side = THREE.DoubleSide;
-
-            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
-            gutter.position.set(0, houseHeight - 0.05, zGutter);
-            gutter.rotation.y = Math.PI / 2;
-            gutter.castShadow = true;
-            objectsGroup.add(gutter);
-
-            if (hasCapL) {
-                let capL = new THREE.Mesh(createEndCap(), drainMat);
-                capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter);
-                capL.rotation.y = Math.PI / 2;
-                objectsGroup.add(capL);
-            }
-            if (hasCapR) {
-                let capR = new THREE.Mesh(createEndCap(), drainMat);
-                capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter);
-                capR.rotation.y = Math.PI / 2;
-                objectsGroup.add(capR);
-            }
-
-            if (nOutlets > 0) {
-                let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
-                for (let i = 0; i < nOutlets; i++) {
-                    let px = minX; if (nOutlets > 1) { px = minX + i * ((maxX - minX) / (nOutlets - 1)); } else { px = 0; }
-                    let funnelHeight = 0.15; let funnelTop = houseHeight - 0.11; let funnelCenterY = funnelTop - funnelHeight / 2;
-                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelCenterY, zGutter); funnel.castShadow = true; objectsGroup.add(funnel);
-                    let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz = zGutter - zWall; let dy = y1 - y2; let slantLen = Math.sqrt(dy * dy + dz * dz);
-                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2) / 2, (zGutter + zWall) / 2); slant.rotation.x = Math.atan2(dz, dy); slant.castShadow = true; objectsGroup.add(slant);
-                    let pipeLen = y2 - 0.2;
-                    if (pipeLen > 0) {
-                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen / 2, zWall); pipe.castShadow = true; objectsGroup.add(pipe);
-                        let spoutLen = 0.15; let tiltAngle = Math.PI / 4; let spoutAngle = -dirZ * tiltAngle;
-                        let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen / 2) * Math.cos(tiltAngle) + 0.02; let sz = zWall + dirZ * (spoutLen / 2) * Math.sin(tiltAngle);
-                        spout.position.set(px, sy, sz); spout.rotation.x = spoutAngle; spout.castShadow = true; objectsGroup.add(spout);
-                    }
-                }
-            }
         }
 
         async function sendChatMessage() {
