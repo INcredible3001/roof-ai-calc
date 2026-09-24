@@ -71,6 +71,7 @@
             background: #ecf0f1;
             overflow: hidden;
             display: block;
+            min-height: 400px;
         }
 
         #layout2D {
@@ -703,9 +704,6 @@
         let conversationHistory = [];
         let windowCalcData = null;
 
-        // ==========================================
-        // ЛОГИКА 2D ПЕРЕКЛЮЧАТЕЛЯ И КОНСТРУКТОРА
-        // ==========================================
         let customRows2D = [];
 
         function switchMode(mode) {
@@ -714,8 +712,13 @@
                 document.getElementById('layout2D').style.display = 'none';
                 document.getElementById('btnMode3D').classList.add('active-mode');
                 document.getElementById('btnMode2D').classList.remove('active-mode');
-                // Принудительно вызываем ресайз чтобы 3D канвас отрисовался после скрытия
-                if (typeof render3D === 'function') render3D();
+
+                // Принудительный триггер для 3D ресайза после включения блока
+                setTimeout(() => {
+                    const event = new Event('resize');
+                    window.dispatchEvent(event);
+                }, 100);
+
             } else {
                 document.getElementById('viewport').style.display = 'none';
                 document.getElementById('layout2D').style.display = 'flex';
@@ -879,7 +882,7 @@
             const shiftX = parseFloat(document.getElementById('shiftX2D').value) || 0;
             const shiftY = parseFloat(document.getElementById('shiftY2D').value) || 0;
 
-            const scale = 100; // 100 pixels per meter
+            const scale = 100;
             const margin = 100;
 
             let totalH_m = 0;
@@ -1031,7 +1034,7 @@
         };
 
         // ==========================================
-        // БАЗОВЫЕ ФУНКЦИИ И 3D
+        // БАЗОВЫЕ ФУНКЦИИ И 3D (НАДЕЖНЫЙ АВТО-РЕСАЙЗ ВНУТРИ АНИМАЦИИ)
         // ==========================================
 
         const colorDB = {
@@ -1794,11 +1797,10 @@
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
         }
 
-        function init3DAnimationLoop() {
-            requestAnimationFrame(init3DAnimationLoop);
-            if (controls) controls.update();
+        // Бронебойный цикл рендеринга и авто-ресайза
+        function animate() {
+            requestAnimationFrame(animate);
 
-            // ИСПРАВЛЕНИЕ: Авто-ресайз прямо в цикле рендера (решает проблему невидимого холста 3D)
             const vp = document.getElementById('viewport');
             if (renderer && vp && vp.style.display !== 'none') {
                 const w = vp.clientWidth;
@@ -1812,14 +1814,17 @@
                 }
             }
 
-            if (renderer && scene && camera && vp.style.display !== 'none') {
+            if (controls) controls.update();
+            if (renderer && scene && camera && vp && vp.style.display !== 'none') {
                 renderer.render(scene, camera);
                 if (useLabels && labelRenderer) labelRenderer.render(scene, camera);
             }
         }
 
-        // Запускаем цикл анимации один раз при старте
-        init3DAnimationLoop();
+        // Запуск безопасной анимации (начинаем крутить цикл сразу)
+        function init3DAnimationLoop() {
+            init3D();
+        }
 
         async function sendChatMessage() {
             const inputField = document.getElementById('chatInput');
