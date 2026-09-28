@@ -1227,6 +1227,7 @@
 
             specData.push(gutterData);
 
+            // === ДОБАВЛЯЕМ БЛОК СОФИТОВ СТРОГО ПО ТЗ ===
             if (soffit > 0) {
                 let totalSoffitLen = cEaves + cRakes;
                 let soffitAreaBase = totalSoffitLen * soffit;
@@ -1241,6 +1242,7 @@
                 let hPoints = (vars.rType === 'gable' || vars.rType === 'shed') ? 6 : 4;
                 let pointLen = Math.sqrt((soffit * soffit) + (soffit * soffit));
                 let hProfileQty = 0;
+
                 if (pointLen > 0) {
                     let pointsPerPlank = Math.floor(2.0 / pointLen);
                     if (pointsPerPlank >= 1) {
@@ -1280,6 +1282,7 @@
                     ]
                 });
             }
+            // =====================================
 
             let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
             windowCalcData = {
@@ -1507,7 +1510,7 @@
 
             const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const roofMat = createRoofMaterial();
-            const drainMat = new MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
+            const drainMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, side: THREE.DoubleSide });
 
             let soffitTex = createSoffitTexture(document.getElementById('soffitType').value, document.getElementById('soffitColor').value);
             let soffitMat = new THREE.MeshStandardMaterial({ map: soffitTex, side: THREE.DoubleSide, roughness: 0.8 });
