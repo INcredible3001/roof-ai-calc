@@ -1227,6 +1227,7 @@
 
             specData.push(gutterData);
 
+            // --- ДОБАВЛЕН БЛОК СОФИТОВ СТРОГО ПО ТЗ ---
             if (soffit > 0) {
                 let totalSoffitLen = cEaves + cRakes;
                 let soffitAreaBase = totalSoffitLen * soffit;
@@ -1240,9 +1241,7 @@
 
                 let hPoints = (vars.rType === 'gable' || vars.rType === 'shed') ? 6 : 4;
                 let pointLen = Math.sqrt((soffit * soffit) + (soffit * soffit));
-                let hProfileLen = hPoints * pointLen;
                 let hProfileQty = 0;
-
                 if (pointLen > 0) {
                     let pointsPerPlank = Math.floor(2.0 / pointLen);
                     if (pointsPerPlank >= 1) {
@@ -1253,7 +1252,7 @@
                 }
 
                 let correctorQty = Math.ceil(slopedArea / 100);
-                if (correctorQty === 0) correctorQty = 1;
+                if (correctorQty === 0 && slopedArea > 0) correctorQty = 1;
 
                 let planksSum = jProfileQty + jFaskaQty + finishPlankQty + hProfileQty;
                 let screwsTotal = (planksSum * 5) + (soffitPanelsQty * 10) + 200;
@@ -1266,22 +1265,23 @@
                 specData.push({
                     title: "Подшивка свесов",
                     items: [
-                        { name: panelName, raw: soffitAreaBase.toFixed(2) + " м²", qty: soffitPanelsQty, unit: "шт" },
-                        { name: "J - профиль", raw: totalSoffitLen.toFixed(2) + " м", qty: jProfileQty, unit: "шт" },
-                        { name: "Н - профиль", raw: hProfileLen.toFixed(2) + " м", qty: hProfileQty, unit: "шт" },
-                        { name: "J - фаска", raw: totalSoffitLen.toFixed(2) + " м", qty: jFaskaQty, unit: "шт" },
-                        { name: "Финишная (завершающий профиль) планка", raw: totalSoffitLen.toFixed(2) + " м", qty: finishPlankQty, unit: "шт" }
+                        { name: panelName, raw: "3 м", qty: soffitPanelsQty, unit: "шт" },
+                        { name: "J - профиль", raw: "2 м", qty: jProfileQty, unit: "шт" },
+                        { name: "Н - профиль", raw: "2 м", qty: hProfileQty, unit: "шт" },
+                        { name: "J - фаска", raw: "2 м", qty: jFaskaQty, unit: "шт" },
+                        { name: "Финишная (завершающий профиль) планка", raw: "2 м", qty: finishPlankQty, unit: "шт" }
                     ]
                 });
 
                 specData.push({
                     title: "Крепеж и краска (Подшивка)",
                     items: [
-                        { name: "Корректор для ремонта царапин", raw: slopedArea.toFixed(2) + " м²", qty: correctorQty, unit: "тюбик" },
+                        { name: "Корректор для ремонта царапин", raw: "-", qty: correctorQty, unit: "тюбик" },
                         { name: "Саморезы (Подшивка)", raw: "-", qty: screwsTotal, unit: "шт" }
                     ]
                 });
             }
+            // --- КОНЕЦ БЛОКА СОФИТОВ ---
 
             let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
             windowCalcData = {
