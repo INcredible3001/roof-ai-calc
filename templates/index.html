@@ -370,9 +370,8 @@
                 style="font-size: 12px; margin-bottom: 10px;">
             <button class="btn-blue" style="padding: 10px; font-size: 14px;" onclick="analyzeImage()">Распознать
                 файл</button>
-            <div class="loader" id="loader" style="font-size: 13px; display: none;">Изучаю чертеж... Это займет 5-10
-                секунд ⏳</div>
-            <div id="aiResult" style="font-size: 12px; padding: 10px; display: none;"></div>
+            <div class="loader" id="loader" style="font-size: 13px;">Изучаю чертеж... Это займет 5-10 секунд ⏳</div>
+            <div id="aiResult" style="font-size: 12px; padding: 10px;"></div>
         </div>
 
         <div class="box"
@@ -1034,7 +1033,7 @@
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", raw: slopedArea.toFixed(2) + " м²", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: vaporTape, unit: "рул" },
                             { name: "Бутил-каучуковая лента для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: butylWall, unit: "рул" },
-                            { name: "Противоконденсатный капельник S1 (2м)", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
+                            { name: "Капельник конденсата", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для капельника", raw: cEaves.toFixed(2) + " м", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc100, unit: "упак" },
                             { name: "Paroc Extra 50 мм 11,52 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc50, unit: "упак" }
@@ -1227,62 +1226,6 @@
 
             specData.push(gutterData);
 
-            // --- ДОБАВЛЕН БЛОК СОФИТОВ СТРОГО ПО ТЗ ---
-            if (soffit > 0) {
-                let totalSoffitLen = cEaves + cRakes;
-                let soffitAreaBase = totalSoffitLen * soffit;
-                let soffitAreaMargin = soffitAreaBase * 1.10;
-                let soffitPanelsQty = Math.ceil(soffitAreaMargin / 1.065);
-
-                let basicPlankQty = Math.ceil(totalSoffitLen / 1.9) + 1;
-                let jProfileQty = basicPlankQty;
-                let jFaskaQty = basicPlankQty;
-                let finishPlankQty = basicPlankQty;
-
-                let hPoints = (vars.rType === 'gable' || vars.rType === 'shed') ? 6 : 4;
-                let pointLen = Math.sqrt((soffit * soffit) + (soffit * soffit));
-                let hProfileQty = 0;
-                if (pointLen > 0) {
-                    let pointsPerPlank = Math.floor(2.0 / pointLen);
-                    if (pointsPerPlank >= 1) {
-                        hProfileQty = Math.ceil(hPoints / pointsPerPlank) + 1;
-                    } else {
-                        hProfileQty = (hPoints * Math.ceil(pointLen / 1.9)) + 1;
-                    }
-                }
-
-                let correctorQty = Math.ceil(slopedArea / 100);
-                if (correctorQty === 0 && slopedArea > 0) correctorQty = 1;
-
-                let planksSum = jProfileQty + jFaskaQty + finishPlankQty + hProfileQty;
-                let screwsTotal = (planksSum * 5) + (soffitPanelsQty * 10) + 200;
-
-                let soffitTypeName = document.getElementById('soffitType').options[document.getElementById('soffitType').selectedIndex].text;
-                let panelName = (soffitTypeName === "Сплошной")
-                    ? "Софит без перфорации 1,065 кв.м./шт"
-                    : "Софит с центральной перфорацией 1,065 кв.м./шт";
-
-                specData.push({
-                    title: "Подшивка свесов",
-                    items: [
-                        { name: panelName, raw: "3 м", qty: soffitPanelsQty, unit: "шт" },
-                        { name: "J - профиль", raw: "2 м", qty: jProfileQty, unit: "шт" },
-                        { name: "Н - профиль", raw: "2 м", qty: hProfileQty, unit: "шт" },
-                        { name: "J - фаска", raw: "2 м", qty: jFaskaQty, unit: "шт" },
-                        { name: "Финишная (завершающий профиль) планка", raw: "2 м", qty: finishPlankQty, unit: "шт" }
-                    ]
-                });
-
-                specData.push({
-                    title: "Крепеж и краска (Подшивка)",
-                    items: [
-                        { name: "Корректор для ремонта царапин", raw: "-", qty: correctorQty, unit: "тюбик" },
-                        { name: "Саморезы (Подшивка)", raw: "-", qty: screwsTotal, unit: "шт" }
-                    ]
-                });
-            }
-            // --- КОНЕЦ БЛОКА СОФИТОВ ---
-
             let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
             windowCalcData = {
                 clientName: document.getElementById('clientName').value || 'Не указан',
@@ -1295,7 +1238,7 @@
                 specData: specData
             };
 
-            let html = `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
+            html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
                         <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
                         <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для ${matTypeVal === 'metal' ? 'металлочерепицы' : 'гибкой черепицы'})</p>
                      </div>`;
@@ -1323,6 +1266,15 @@
 
                 if (hasItems) html += sectionHtml;
             });
+
+            html += `<div class="spec-section-head" style="margin-top: 20px;">Подшивка свесов (Софиты)</div>`;
+            if (soffit > 0) {
+                let soffitArea = cEaves * soffit + cRakes * soffit;
+                html += `<div class="spec-row"><span class="spec-label">Софиты (площадь)</span><span class="spec-raw">-</span><span class="spec-qty">~${soffitArea.toFixed(2)} м²</span></div>`;
+                html += `<div class="spec-row"><span class="spec-label">J-фаска / Лобовая</span><span class="spec-raw">-</span><span class="spec-qty">${(cEaves + cRakes).toFixed(2)} м</span></div>`;
+            } else {
+                html += `<div class="spec-row"><span class="spec-label">Софиты</span><span class="spec-raw">-</span><span class="spec-qty" style="color:#7f8c8d;">Свес не задан</span></div>`;
+            }
 
             document.getElementById('specContent').innerHTML = html;
 
@@ -1439,6 +1391,197 @@
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
         }
 
+        function createRoofMaterial() {
+            const matType = document.getElementById('materialType').value;
+            const brand = document.getElementById('roofBrand').value;
+            let matParams = { color: currentRoofColor, side: THREE.DoubleSide };
+
+            let tileW = (matType === 'soft') ? 1.0 : 0.1833;
+            let tileH = (matType === 'soft') ? 0.33 : 0.350;
+
+            if (matType === 'metal') {
+                matParams.roughness = 0.5; matParams.metalness = 0.3;
+                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
+                const imgData = ctx.createImageData(512, 512); const data = imgData.data;
+
+                for (let y = 0; y < 512; y++) {
+                    let py = y / 512; let dy = 0;
+                    if (brand === 'classic') { if (py < 0.85) { dy = 0.15; } else { dy = -Math.sin(((py - 0.85) / 0.15) * Math.PI) * 2.0; } }
+                    else { if (py < 0.82) { dy = 0.15; } else { dy = -Math.sin(((py - 0.82) / 0.18) * Math.PI) * 3.0; } }
+
+                    for (let x = 0; x < 512; x++) {
+                        let px = x / 512; let dx = 0;
+                        if (brand === 'classic') { dx = Math.sin(px * Math.PI * 2) * 0.8; } else { dx = (Math.sin(px * Math.PI * 2) + Math.sin(px * Math.PI * 4) * 0.25) * 1.1; }
+                        let len = Math.sqrt(dx * dx + dy * dy + 1.0);
+                        let r = (dx / len) * 127.5 + 127.5; let g = (-dy / len) * 127.5 + 127.5; let b = (1.0 / len) * 127.5 + 127.5;
+                        let idx = (y * 512 + x) * 4; data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+                const normTex = new THREE.CanvasTexture(canvas); normTex.wrapS = THREE.RepeatWrapping; normTex.wrapT = THREE.RepeatWrapping;
+                matParams.normalMap = normTex; matParams.normalScale = new THREE.Vector2(1.0, 1.0);
+            } else {
+                matParams.roughness = 0.95; matParams.metalness = 0.0;
+                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#' + currentRoofColor.toString(16).padStart(6, '0'); ctx.fillRect(0, 0, 512, 512);
+
+                const imgData = ctx.getImageData(0, 0, 512, 512); const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    let noise = (Math.random() - 0.5) * 35;
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise)); data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+                if (brand.includes('hexa')) {
+                    let w = 128, h = 64;
+                    for (let y = 0; y <= 512; y += h) {
+                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
+                        for (let x = -w; x <= 512; x += w) {
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.25})`;
+                            ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset + w / 2, y + h / 2); ctx.lineTo(x + offset + w, y); ctx.lineTo(x + offset + w, y + h); ctx.lineTo(x + offset, y + h); ctx.fill(); ctx.stroke();
+                        }
+                    }
+                } else if (brand.includes('tetra')) {
+                    let w = 128, h = 64;
+                    for (let y = 0; y <= 512; y += h) {
+                        let offset = ((y / h) % 2 === 0) ? 0 : w / 2;
+                        for (let x = -w; x <= 512; x += w) {
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.2})`; ctx.fillRect(x + offset, y, w, h); ctx.strokeRect(x + offset, y, w, h);
+                            let grad = ctx.createLinearGradient(0, y, 0, y + h); grad.addColorStop(0, 'rgba(0,0,0,0.4)'); grad.addColorStop(0.2, 'rgba(0,0,0,0)');
+                            ctx.fillStyle = grad; ctx.fillRect(x + offset, y, w, h);
+                        }
+                    }
+                } else if (brand === 'twx') {
+                    let h = 85;
+                    for (let y = 0; y <= 512; y += h) {
+                        let x = 0;
+                        while (x < 512) {
+                            let w = 80 + Math.random() * 80;
+                            ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.3})`; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+                            if (Math.random() > 0.4) {
+                                let tabW = w * (0.4 + Math.random() * 0.4); let tabX = x + (w - tabW) / 2;
+                                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(tabX, y + h / 2, tabW, h / 2);
+                                ctx.fillStyle = `rgba(255,255,255, ${Math.random() * 0.15})`; ctx.fillRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2); ctx.strokeRect(tabX, y + h / 2 + 2, tabW, h / 2 - 2);
+                            }
+                            x += w;
+                        }
+                    }
+                } else if (brand === 'vision') {
+                    let h = 85;
+                    for (let y = 0; y <= 512; y += h) {
+                        let x = -((y / h) % 2) * 40;
+                        while (x < 512) {
+                            let w = 90 + Math.random() * 40;
+                            let grad = ctx.createLinearGradient(x, y, x + w, y + h); grad.addColorStop(0, `rgba(255,255,255,0.2)`); grad.addColorStop(1, `rgba(0,0,0,0.4)`);
+                            ctx.fillStyle = grad; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+                            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y + h - 5, w, 5); ctx.fillRect(x + w - 5, y, 5, h);
+                            x += w;
+                        }
+                    }
+                }
+                const mapTex = new THREE.CanvasTexture(canvas); mapTex.wrapS = THREE.RepeatWrapping; mapTex.wrapT = THREE.RepeatWrapping; matParams.map = mapTex;
+            }
+
+            let material = new THREE.MeshStandardMaterial(matParams);
+            material.userData = { tileW, tileH };
+            return material;
+        }
+
+        function createRoofQuad(p1, p2, p3, p4, material) {
+            const geo = new THREE.BufferGeometry();
+            const vertices = new Float32Array([...p1, ...p2, ...p3, ...p1, ...p3, ...p4]);
+            let wBottom = Math.hypot(p2[0] - p1[0], p2[2] - p1[2]); let wTop = Math.hypot(p3[0] - p4[0], p3[2] - p4[2]); let h = Math.hypot(p4[0] - p1[0], p4[1] - p1[1], p4[2] - p1[2]);
+            let tW = material.userData.tileW || 0.1833; let tH = material.userData.tileH || 0.35;
+            let uBottom = wBottom / tW; let uTop = wTop / tW; let v = h / tH; let offset = (uBottom - uTop) / 2;
+            const uvs = new Float32Array([0, 0, uBottom, 0, uBottom - offset, v, 0, 0, uBottom - offset, v, offset, v]);
+            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); geo.computeVertexNormals();
+            let mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+        }
+
+        function createRoofTri(p1, p2, p3, material) {
+            const geo = new THREE.BufferGeometry();
+            const vertices = new Float32Array([...p1, ...p2, ...p3]);
+            let wBottom = Math.hypot(p2[0] - p1[0], p2[2] - p1[2]); let h = Math.hypot(p3[0] - (p1[0] + p2[0]) / 2, p3[1] - (p1[1] + p2[1]) / 2, p3[2] - (p1[2] + p2[2]) / 2);
+            let tW = material.userData.tileW || 0.1833; let tH = material.userData.tileH || 0.35;
+            let u = wBottom / tW; let v = h / tH;
+            const uvs = new Float32Array([0, 0, u, 0, u / 2, v]);
+            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); geo.computeVertexNormals();
+            let mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+        }
+
+        function createSoffitTexture(type, colorHex) {
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4;
+            let pSize = 256 / 3;
+            const drawPerf = (offsetX) => { ctx.fillStyle = 'rgba(0,0,0,0.8)'; for (let x = offsetX + 8; x < offsetX + pSize - 8; x += 12) { for (let y = 8; y < 256; y += 12) { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); } } };
+            for (let i = 1; i < 3; i++) { ctx.beginPath(); ctx.moveTo(i * pSize, 0); ctx.lineTo(i * pSize, 256); ctx.stroke(); }
+            if (type === 'center' || type === 'full') drawPerf(pSize); if (type === 'full') { drawPerf(0); drawPerf(pSize * 2); }
+            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; return tex;
+        }
+
+        function createGutter(length) {
+            let shape = new THREE.Shape();
+            shape.absarc(0, 0, 0.07, 0, Math.PI, true);
+            shape.lineTo(-0.06, 0);
+            shape.absarc(0, 0, 0.06, Math.PI, 0, false);
+            shape.lineTo(0.07, 0);
+            let geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 8 });
+            geo.translate(0, 0, -length / 2);
+            return geo;
+        }
+
+        function createEndCap() {
+            const capShape = new THREE.Shape();
+            capShape.absarc(0, 0, 0.072, 0, Math.PI, true);
+            capShape.lineTo(0.072, 0);
+            let geo = new THREE.ExtrudeGeometry(capShape, { depth: 0.01, bevelEnabled: false, curveSegments: 8 });
+            geo.translate(0, 0, -0.005);
+            return geo;
+        }
+
+        function addGutterSystem(edgeLength, wallLength, houseHeight, zGutter, zWallRaw, dirZ, nOutlets, drainMat, hasCapL = true, hasCapR = true) {
+            if (edgeLength <= 0) return;
+            drainMat.side = THREE.DoubleSide;
+
+            let gutter = new THREE.Mesh(createGutter(edgeLength), drainMat);
+            gutter.position.set(0, houseHeight - 0.05, zGutter);
+            gutter.rotation.y = Math.PI / 2;
+            gutter.castShadow = true;
+            objectsGroup.add(gutter);
+
+            if (hasCapL) {
+                let capL = new THREE.Mesh(createEndCap(), drainMat);
+                capL.position.set(-edgeLength / 2, houseHeight - 0.05, zGutter);
+                capL.rotation.y = Math.PI / 2;
+                objectsGroup.add(capL);
+            }
+            if (hasCapR) {
+                let capR = new THREE.Mesh(createEndCap(), drainMat);
+                capR.position.set(edgeLength / 2, houseHeight - 0.05, zGutter);
+                capR.rotation.y = Math.PI / 2;
+                objectsGroup.add(capR);
+            }
+
+            if (nOutlets > 0) {
+                let pipeRadius = 0.045; let zWall = zWallRaw + dirZ * pipeRadius; let minX = -(wallLength / 2) + 0.2; let maxX = (wallLength / 2) - 0.2;
+                for (let i = 0; i < nOutlets; i++) {
+                    let px = minX; if (nOutlets > 1) { px = minX + i * ((maxX - minX) / (nOutlets - 1)); } else { px = 0; }
+                    let funnelHeight = 0.15; let funnelTop = houseHeight - 0.11; let funnelCenterY = funnelTop - funnelHeight / 2;
+                    let funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, pipeRadius, funnelHeight, 16), drainMat); funnel.position.set(px, funnelCenterY, zGutter); funnel.castShadow = true; objectsGroup.add(funnel);
+                    let y1 = funnelTop - funnelHeight + 0.02; let y2 = houseHeight - 0.6; let dz = zGutter - zWall; let dy = y1 - y2; let slantLen = Math.sqrt(dy * dy + dz * dz);
+                    let slant = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, slantLen, 16), drainMat); slant.position.set(px, (y1 + y2) / 2, (zGutter + zWall) / 2); slant.rotation.x = Math.atan2(dz, dy); slant.castShadow = true; objectsGroup.add(slant);
+                    let pipeLen = y2 - 0.2;
+                    if (pipeLen > 0) {
+                        let pipe = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeLen, 16), drainMat); pipe.position.set(px, 0.2 + pipeLen / 2, zWall); pipe.castShadow = true; objectsGroup.add(pipe);
+                        let spoutLen = 0.15; let tiltAngle = Math.PI / 4; let spoutAngle = -dirZ * tiltAngle;
+                        let spout = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius, pipeRadius, spoutLen, 16), drainMat); let sy = 0.2 - (spoutLen / 2) * Math.cos(tiltAngle) + 0.02; let sz = zWall + dirZ * (spoutLen / 2) * Math.sin(tiltAngle);
+                        spout.position.set(px, sy, sz); spout.rotation.x = spoutAngle; spout.castShadow = true; objectsGroup.add(spout);
+                    }
+                }
+            }
+        }
+
         let scene, camera, renderer, labelRenderer, controls;
         let objectsGroup = new THREE.Group();
         let useLabels = false;
@@ -1446,56 +1589,28 @@
         function init3D() {
             const container = document.getElementById('viewport');
             if (!scene) {
-                scene = new THREE.Scene();
-                scene.background = new THREE.Color(0xf4f6f7);
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0xf4f6f7);
                 camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-                renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
                 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(renderer.domElement);
 
-                if (typeof THREE.CSS2DRenderer !== 'undefined') {
-                    useLabels = true;
-                    labelRenderer = new THREE.CSS2DRenderer();
-                    labelRenderer.setSize(container.clientWidth, container.clientHeight);
-                    labelRenderer.domElement.style.position = 'absolute';
-                    labelRenderer.domElement.style.top = '0px';
-                    labelRenderer.domElement.style.pointerEvents = 'none';
-                    container.appendChild(labelRenderer.domElement);
-                }
-                controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true;
+                if (typeof THREE.CSS2DRenderer !== 'undefined') { useLabels = true; labelRenderer = new THREE.CSS2DRenderer(); labelRenderer.setSize(container.clientWidth, container.clientHeight); labelRenderer.domElement.style.position = 'absolute'; labelRenderer.domElement.style.top = '0px'; labelRenderer.domElement.style.pointerEvents = 'none'; container.appendChild(labelRenderer.domElement); }
+                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 
                 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
-                hemiLight.position.set(0, 50, 0);
-                scene.add(hemiLight);
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5); hemiLight.position.set(0, 50, 0); scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-                dirLight.position.set(30, 80, 50);
-                dirLight.castShadow = true;
-                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
-                dirLight.shadow.bias = -0.0005;
-                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
-                scene.add(dirLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); dirLight.position.set(30, 80, 50); dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; dirLight.shadow.bias = -0.0005;
+                const d = 25; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d; scene.add(dirLight);
 
-                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9);
-                scene.add(gridHelper);
-                scene.add(objectsGroup);
-
-                animate();
+                const gridHelper = new THREE.GridHelper(100, 50, 0xbdc3c7, 0xdfe6e9); scene.add(gridHelper);
+                scene.add(objectsGroup); animate();
             }
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (controls) controls.update();
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-                if (useLabels && labelRenderer) labelRenderer.render(scene, camera);
-            }
-        }
-
+        function animate() { requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) { renderer.render(scene, camera); if (useLabels && labelRenderer) labelRenderer.render(scene, camera); } }
         function addLabel(parent, text, x, y, z) { if (!useLabels) return; const div = document.createElement('div'); div.className = 'label-3d'; div.textContent = text; const label = new THREE.CSS2DObject(div); label.position.set(x, y, z); parent.add(label); }
 
         function render3D() {
