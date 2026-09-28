@@ -23,112 +23,6 @@
             overflow: hidden;
         }
 
-        /* --- НОВЫЙ CSS ДЛЯ ПЛАВАЮЩЕГО ПЕРЕКЛЮЧАТЕЛЯ И 2D СЛОЯ --- */
-        .mode-toggle-overlay {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            right: 450px;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-        .mode-toggle-bg {
-            pointer-events: auto;
-            display: flex;
-            background: #2c3e50;
-            padding: 10px;
-            gap: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .mode-btn {
-            background: #34495e;
-            color: #bdc3c7;
-            border: 2px solid transparent;
-            padding: 8px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .mode-btn:hover {
-            color: #fff;
-            background: #3f576e;
-        }
-
-        .active-mode {
-            background: #3498db !important;
-            color: #fff !important;
-            border-color: #2980b9 !important;
-            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
-        }
-
-        #layout2D {
-            flex: 1;
-            display: none;
-            flex-direction: row;
-            background: #ecf0f1;
-            overflow: hidden;
-        }
-
-        .layout-sidebar {
-            width: 300px;
-            background: #fff;
-            border-right: 1px solid #bdc3c7;
-            padding: 20px;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-            z-index: 10;
-        }
-
-        .layout-canvas-container {
-            flex: 1;
-            overflow: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 30px;
-        }
-
-        .row-input-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            gap: 10px;
-        }
-
-        .row-input-group input {
-            width: 80px;
-            padding: 5px;
-            border: 1px solid #bdc3c7;
-            border-radius: 4px;
-        }
-
-        .row-input-group button {
-            width: 30px;
-            margin: 0;
-            padding: 5px;
-            background: #e74c3c;
-            font-size: 12px;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .row-input-group button:hover {
-            background: #c0392b;
-        }
-
-        /* -------------------------------------------------------- */
-
         #viewport {
             flex: 1;
             position: relative;
@@ -444,98 +338,15 @@
             margin: 0;
             padding: 10px 20px;
         }
-
-        #container3D {
-            width: 100%;
-            height: 400px;
-            background-color: #87CEEB;
-            border-radius: 4px;
-            margin-top: 15px;
-            display: none;
-            border: 2px solid #bdc3c7;
-            overflow: hidden;
-        }
     </style>
 </head>
 
 <body>
-    <!-- ПЛАВАЮЩИЕ КНОПКИ -->
-    <div class="mode-toggle-overlay">
-        <div class="mode-toggle-bg">
-            <button id="btnMode3D" class="mode-btn active-mode" onclick="switchMode('3D')">3D Моделирование
-                (Авто)</button>
-            <button id="btnMode2D" class="mode-btn" onclick="switchMode('2D')">2D Конструктор скатов
-                (Раскладка)</button>
-        </div>
-    </div>
 
-    <!-- БАЗОВЫЙ БЛОК 3D ИЗ ТВОЕГО КОДА (СТРОГО ОДИНАКОВЫЙ) -->
     <div id="viewport">
         <div class="instruction-3d">Используйте мышь для вращения. Колесико для масштаба.</div>
     </div>
 
-    <!-- НОВЫЙ БЛОК 2D РАСКЛАДКИ -->
-    <div id="layout2D">
-        <div class="layout-sidebar">
-            <h3 style="color: #2980b9; margin-top: 0;">Настройки объекта</h3>
-            <div class="form-group">
-                <label>Объект отрисовки:</label>
-                <select id="obj2D" onchange="toggle2DInputs(); render2D();">
-                    <option value="full" selected>Вся кровля (по 3D настройкам)</option>
-                    <option value="single">Одиночный скат (вручную)</option>
-                </select>
-            </div>
-
-            <div id="manualParams2D"
-                style="display: none; background: #f8f9fa; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; margin-bottom: 15px;">
-                <div class="form-group">
-                    <label>Форма ската:</label>
-                    <select id="shape2D" onchange="toggle2DInputs(); render2D();">
-                        <option value="rect" selected>Прямоугольник</option>
-                        <option value="trap">Трапеция (Вальма)</option>
-                        <option value="tri">Треугольник (Шатер)</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Ширина основания (м):</label><input type="number" id="wBottom2D"
-                        value="9.6" step="0.01" oninput="render2D()"></div>
-                <div class="form-group" id="wTopContainer2D" style="display: none;"><label>Ширина верха
-                        (м):</label><input type="number" id="wTop2D" value="4.0" step="0.01" oninput="render2D()"></div>
-                <div class="form-group"><label>Длина ската (высота, м):</label><input type="number" id="hSlope2D"
-                        value="6.85" step="0.01" oninput="render2D()"></div>
-            </div>
-
-            <div class="grid-2-col">
-                <div class="form-group">
-                    <label>Сдвиг гориз. (м):</label>
-                    <input type="number" id="shiftX2D" value="0" step="0.05" oninput="render2D()">
-                </div>
-                <div class="form-group">
-                    <label>Сдвиг верт. (м):</label>
-                    <input type="number" id="shiftY2D" value="0" step="0.05" oninput="render2D()">
-                </div>
-            </div>
-
-            <hr style="border-top: 1px solid #bdc3c7;">
-            <h3 style="color: #27ae60; margin-bottom: 10px;">Высоты рядов металла</h3>
-            <p style="font-size: 11px; color: #7f8c8d; margin-top: -5px;">(Можно менять вручную. Задают длину листов)
-            </p>
-            <div id="rowsContainer2D"></div>
-
-            <button class="btn-blue" style="margin-bottom: 5px; padding: 8px;" onclick="addRow2D()">+ Добавить
-                ряд</button>
-            <button class="btn-yellow" style="margin-bottom: 20px; padding: 8px;" onclick="resetRows2D()">Сбросить на
-                авто-расчет</button>
-
-            <button class="btn-green" onclick="download2DLayout()">СКАЧАТЬ ЧЕРТЕЖ</button>
-        </div>
-
-        <div class="layout-canvas-container">
-            <canvas id="canvas2D"
-                style="background: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 4px;"></canvas>
-        </div>
-    </div>
-
-    <!-- БОКОВАЯ ПАНЕЛЬ ИЗ ТВОЕГО РАБОЧЕГО КОДА -->
     <div id="sidebar">
         <h2>Настройки проекта</h2>
 
@@ -567,7 +378,7 @@
             <div class="form-group">
                 <label>Тип кровли:</label>
                 <select id="roofType"
-                    onchange="document.getElementById('vOutlets').dataset.manual='false'; toggleRoofFields(); render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                    onchange="document.getElementById('vOutlets').dataset.manual='false'; toggleRoofFields(); render3D();">
                     <option value="shed">Односкатная (Плоская)</option>
                     <option value="gable" selected>Двухскатная (Классика)</option>
                     <option value="hip">Вальмовая (Сложная)</option>
@@ -577,27 +388,20 @@
 
             <div id="gridGeometry" class="grid-2-col">
                 <div class="form-group"><label id="lblEaves">Длина дома (м):</label><input type="number" id="mEaves"
-                        step="0.01" value="10"
-                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
-                </div>
+                        step="0.01" value="10" oninput="render3D()"></div>
                 <div class="form-group"><label id="lblRakes">Ширина дома (м):</label><input type="number" id="mRakes"
-                        step="0.01" value="8"
-                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
-                </div>
+                        step="0.01" value="8" oninput="render3D()"></div>
                 <div class="form-group"><label id="lblPitch">Угол ската (град):</label><input type="number" id="mPitch"
-                        class="highlight-input" step="1" value="30"
-                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
-                </div>
+                        class="highlight-input" step="1" value="30" oninput="render3D()"></div>
                 <div class="form-group" id="groupPitchHip" style="display: none;"><label>Угол вальмы
                         (град):</label><input type="number" id="mPitchHip" class="highlight-input" step="1" value="30"
-                        oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
-                </div>
+                        oninput="render3D()"></div>
             </div>
 
             <div class="form-group" id="groupRidgeHip" style="display: none; margin-top: 10px;">
                 <label>Конёк (м):</label>
                 <input type="number" id="mRidgeHip" class="highlight-input" step="0.01" placeholder="По углу (Авто)"
-                    oninput="render3D(); if(document.getElementById('layout2D').style.display === 'flex') {resetRows2D();}">
+                    oninput="render3D()">
             </div>
 
             <div style="display: none;">
@@ -615,8 +419,7 @@
             <h3>3. Внешний вид</h3>
             <div class="form-group">
                 <label>Покрытие крыши:</label>
-                <select id="materialType"
-                    onchange="updateBrandMenu(); if(document.getElementById('layout2D').style.display === 'flex') {render2D();}">
+                <select id="materialType" onchange="updateBrandMenu()">
                     <option value="metal" selected>Металлочерепица</option>
                     <option value="soft">Гибкая черепица (Faracs)</option>
                 </select>
@@ -712,7 +515,6 @@
 
             <div id="specContent"></div>
             <button class="btn-blue" style="margin-top: 15px;" onclick="exportToExcel()">СКАЧАТЬ В EXCEL</button>
-            <div id="layoutBtnContainer"></div>
         </div>
 
         <div class="box chat-box" style="margin-top: 30px;">
@@ -756,14 +558,11 @@
 
         window.addEventListener('resize', () => {
             const vp = document.getElementById('viewport');
-            if (camera && renderer && labelRenderer && vp.style.display !== 'none') {
+            if (camera && renderer && labelRenderer) {
                 camera.aspect = vp.clientWidth / vp.clientHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(vp.clientWidth, vp.clientHeight);
                 labelRenderer.setSize(vp.clientWidth, vp.clientHeight);
-            }
-            if (document.getElementById('layout2D') && document.getElementById('layout2D').style.display === 'flex') {
-                render2D();
             }
         });
 
@@ -819,7 +618,11 @@
             }
         }
 
-        window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
+        window.onload = function () {
+            toggleRoofFields();
+            updateBrandMenu();
+            init3D();
+        };
 
         function extractNumber(text, keyword) {
             let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
@@ -879,15 +682,15 @@
                     toggleRoofFields();
 
                     document.getElementById('mPitch').value = extractNumber(aiText, 'Угол') || 30;
-                    document.getElementById('mEaves').value = extractNumber(aiText, 'Карниз') || 10;
-                    document.getElementById('mRakes').value = extractNumber(aiText, 'Торец') || 8;
+                    document.getElementById('mEaves').value = extractNumber(aiText, 'Длина') || extractNumber(aiText, 'Карниз') || 10;
+                    document.getElementById('mRakes').value = extractNumber(aiText, 'Ширина') || extractNumber(aiText, 'Торец') || 8;
                     document.getElementById('mRidges').value = extractNumber(aiText, 'Коньки') || extractNumber(aiText, 'Конёк') || 0;
                     document.getElementById('mHips').value = extractNumber(aiText, 'Хребты') || 0;
                     document.getElementById('mValleys').value = extractNumber(aiText, 'Ендовы') || 0;
                     document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкания') || 0;
 
-                    processAndDraw();
-                    if (document.getElementById('layout2D') && document.getElementById('layout2D').style.display === 'flex') resetRows2D();
+                    render3D();
+                    calculateFinal();
 
                     let mBox = document.getElementById('manualBox');
                     if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
@@ -908,11 +711,6 @@
             }
         }
 
-        function processAndDraw() {
-            render3D();
-            calculateFinal();
-        }
-
         function doMath() {
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
@@ -927,9 +725,7 @@
             let roundedVal = Math.round(val * 1000) / 1000;
             let dec = roundedVal - Math.floor(roundedVal);
             let res = Math.ceil(roundedVal);
-            if (dec >= 0.7) {
-                res += 1;
-            }
+            if (dec >= 0.7) res += 1;
             return res;
         }
 
@@ -977,75 +773,6 @@
             }
             return sheets;
         }
-
-        window.downloadLayout = function () {
-            let vars = doMath();
-            let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
-            let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
-            let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
-            let brand = document.getElementById('roofBrand').options[document.getElementById('roofBrand').selectedIndex].text;
-
-            let W_roof = Lr;
-            let H_roof = (vars.rType === 'shed') ? Math.round((Wr / vars.cos1) * 100) / 100 : Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
-
-            let numSlopes = (vars.rType === 'gable') ? 2 : 1;
-            let cols = Math.ceil((W_roof - 1.189) / 1.10) + 1;
-            if (W_roof <= 1.189) cols = 1;
-            let sheetsH = splitSheetHeight(H_roof);
-
-            let totalW = W_roof * numSlopes;
-            let scale = Math.min(1200 / totalW, 800 / H_roof);
-            let margin = 80;
-
-            let canvas = document.createElement('canvas');
-            canvas.width = (W_roof * scale) * numSlopes + margin * (numSlopes + 1) + 100;
-            canvas.height = H_roof * scale + margin * 3 + 60;
-            let ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = '#000000'; ctx.font = 'bold 20px sans-serif';
-            ctx.fillText(`Схема раскладки листов (Металлочерепица ${brand})`, margin, 40);
-            ctx.font = '16px sans-serif';
-            ctx.fillText(`Размер ската: ${W_roof.toFixed(2)} м (ширина) х ${H_roof.toFixed(2)} м (высота)`, margin, 65);
-
-            ctx.save(); ctx.translate(margin, canvas.height - margin - 80); ctx.scale(1, -1);
-
-            for (let slopeIdx = 0; slopeIdx < numSlopes; slopeIdx++) {
-                let offsetX = slopeIdx * (W_roof * scale + margin);
-
-                ctx.save(); ctx.scale(1, -1); ctx.fillStyle = '#000'; ctx.font = 'bold 16px sans-serif';
-                ctx.fillText(`Скат №${slopeIdx + 1}`, offsetX, -(H_roof * scale + 15)); ctx.restore();
-
-                ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 3; ctx.strokeRect(offsetX, 0, W_roof * scale, H_roof * scale);
-                ctx.lineWidth = 1; let currentY = 0;
-                for (let r = 0; r < sheetsH.length; r++) {
-                    let h = sheetsH[r]; let currentX = 0;
-                    for (let c = 0; c < cols; c++) {
-                        let w = 1.189; ctx.strokeStyle = '#34495e';
-                        ctx.strokeRect(offsetX + currentX * scale, currentY * scale, w * scale, h * scale);
-
-                        ctx.save(); ctx.scale(1, -1); ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#2980b9'; ctx.textAlign = 'center';
-                        let textX = offsetX + (currentX + 1.10 / 2) * scale; let textY = -(currentY + h / 2) * scale;
-                        ctx.fillText(h.toFixed(3), textX, textY); ctx.restore();
-
-                        currentX += 1.10;
-                    }
-                    currentY += (h - 0.15);
-                }
-            }
-            ctx.restore();
-
-            ctx.fillStyle = '#333'; ctx.textAlign = 'left'; ctx.font = '14px sans-serif';
-            let totalSheetsPerSlope = cols * sheetsH.length;
-            ctx.fillText(`Параметры листа: Полная ширина 1.189 м | Полезная 1.1 м | Нахлест 0.15 м`, margin, canvas.height - 70);
-            ctx.fillText(`На 1 скат: ${cols} шт. по ширине, рядов: ${sheetsH.length}. Всего на 1 скат: ${totalSheetsPerSlope} листов.`, margin, canvas.height - 45);
-            ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#27ae60';
-            ctx.fillText(`ИТОГО НА КРОВЛЮ (${numSlopes} скат.): ${totalSheetsPerSlope * numSlopes} листов.`, margin, canvas.height - 20);
-
-            let link = document.createElement('a'); link.download = 'Раскладка_Кровли.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
-        };
 
         function calculateFinal() {
             let vars = doMath();
@@ -1224,7 +951,7 @@
                             { name: "Пароизоляция 1,5*46,6 м.п. 70 кв.м.", raw: slopedArea.toFixed(2) + " м²", qty: vaporRolls, unit: "рул" },
                             { name: "Скотч для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: vaporTape, unit: "рул" },
                             { name: "Бутил-каучуковая лента для пароизоляции", raw: slopedArea.toFixed(2) + " м²", qty: butylWall, unit: "рул" },
-                            { name: "Капельник конденсата", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
+                            { name: "Противоконденсатный капельник S1 (2м)", raw: cEaves.toFixed(2) + " м", qty: condDropPlanks, unit: "шт" },
                             { name: "Бутил-каучуковая лента для капельника", raw: cEaves.toFixed(2) + " м", qty: butylDrop, unit: "рул" },
                             { name: "Paroc Extra 100 мм 5,76 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc100, unit: "упак" },
                             { name: "Paroc Extra 50 мм 11,52 кв.м./упак", raw: slopedArea.toFixed(2) + " м²", qty: paroc50, unit: "упак" }
@@ -1468,14 +1195,6 @@
             }
 
             document.getElementById('specContent').innerHTML = html;
-
-            let btnContainer = document.getElementById('layoutBtnContainer');
-            if (matTypeVal === 'metal' && (vars.rType === 'shed' || vars.rType === 'gable')) {
-                btnContainer.innerHTML = `<button class="btn-green" style="margin-top: 15px; width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="downloadLayout()">СКАЧАТЬ РАСКЛАДКУ СКАТОВ (JPG)</button>`;
-            } else {
-                btnContainer.innerHTML = '';
-            }
-
             let warnBox = document.getElementById('smartWarnings');
             warnBox.style.display = "none";
             document.getElementById('finalBox').style.display = 'block';
@@ -1582,332 +1301,30 @@
             XLSX.writeFile(wb, `Расчет_Кровли_№${orderNum}.xlsx`);
         }
 
-        // ==========================================
-        // ЛОГИКА 2D ПЕРЕКЛЮЧАТЕЛЯ И КОНСТРУКТОРА
-        // ==========================================
-        let customRows2D = [];
+        function init3DAnimationLoop() {
+            requestAnimationFrame(init3DAnimationLoop);
+            if (controls) controls.update();
 
-        function switchMode(mode) {
-            if (mode === '3D') {
-                document.getElementById('viewport').style.display = 'block';
-                document.getElementById('layout2D').style.display = 'none';
-                document.getElementById('btnMode3D').classList.add('active-mode');
-                document.getElementById('btnMode2D').classList.remove('active-mode');
-                // Принудительный ресайз чтобы восстановить 3D холст
-                setTimeout(() => window.dispatchEvent(new Event('resize')), 10);
-            } else {
-                document.getElementById('viewport').style.display = 'none';
-                document.getElementById('layout2D').style.display = 'flex';
-                document.getElementById('btnMode2D').classList.add('active-mode');
-                document.getElementById('btnMode3D').classList.remove('active-mode');
-                if (customRows2D.length === 0) resetRows2D();
-                else render2D();
-            }
-        }
-
-        function toggle2DInputs() {
-            const obj = document.getElementById('obj2D').value;
-            if (obj === 'full') {
-                document.getElementById('manualParams2D').style.display = 'none';
-            } else {
-                document.getElementById('manualParams2D').style.display = 'block';
-                const shape = document.getElementById('shape2D').value;
-                if (shape === 'trap') {
-                    document.getElementById('wTopContainer2D').style.display = 'block';
-                } else {
-                    document.getElementById('wTopContainer2D').style.display = 'none';
+            const vp = document.getElementById('viewport');
+            if (renderer && vp && vp.style.display !== 'none') {
+                const w = vp.clientWidth;
+                const h = vp.clientHeight;
+                const canvas = renderer.domElement;
+                if (w > 0 && h > 0 && (canvas.clientWidth !== w || canvas.clientHeight !== h)) {
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(w, h);
+                    if (useLabels && labelRenderer) labelRenderer.setSize(w, h);
                 }
             }
-        }
 
-        function getSlopesData() {
-            const obj = document.getElementById('obj2D').value;
-            let slopes = [];
-
-            if (obj === 'single') {
-                const shape = document.getElementById('shape2D').value;
-                const wb = parseFloat(document.getElementById('wBottom2D').value) || 0;
-                const wt = parseFloat(document.getElementById('wTop2D').value) || 0;
-                const h = parseFloat(document.getElementById('hSlope2D').value) || 0;
-                slopes.push({ type: shape, wb: wb, wt: wt, h: h, label: 'Одиночный скат' });
-            } else {
-                let vars = doMath();
-                let soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
-                let Lr = Math.round((vars.L + soffit * 2) * 100) / 100;
-                let Wr = Math.round((vars.W + soffit * 2) * 100) / 100;
-
-                if (vars.rType === 'shed') {
-                    let h1 = Math.round((Wr / vars.cos1) * 100) / 100;
-                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат (Основной)' });
-                } else if (vars.rType === 'gable') {
-                    let h1 = Math.round(((Wr / 2) / vars.cos1) * 100) / 100;
-                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат 1' });
-                    slopes.push({ type: 'rect', wb: Lr, wt: Lr, h: h1, label: 'Скат 2' });
-                } else if (vars.rType === 'hip' || vars.rType === 'tent') {
-                    let isRotated = Lr < Wr && vars.rType === 'hip';
-                    let mainL = isRotated ? Wr : Lr;
-                    let mainW = isRotated ? Lr : Wr;
-
-                    let h1 = (vars.rType === 'tent') ? (Math.min(Lr, Wr) / 2) * Math.tan(vars.P1 * Math.PI / 180) : (mainW / 2) * Math.tan(vars.P1 * Math.PI / 180);
-                    let indent = 0;
-                    if (vars.rType === 'tent') {
-                        indent = mainL / 2;
-                    } else {
-                        let customRidgeStr = document.getElementById('mRidgeHip') ? document.getElementById('mRidgeHip').value : "";
-                        let customRidge = (customRidgeStr !== "") ? parseFloat(customRidgeStr) : null;
-                        if (customRidge !== null && customRidge >= 0) {
-                            let r = Math.min(customRidge, mainL);
-                            indent = (mainL - r) / 2;
-                        } else {
-                            indent = h1 / Math.tan(vars.P2 * Math.PI / 180);
-                            if (indent >= mainL / 2) { indent = mainL / 2; h1 = (mainL / 2) * Math.tan(vars.P2 * Math.PI / 180); }
-                        }
-                    }
-                    let r_indent = Math.round(indent * 100) / 100;
-                    let cRidges = Math.max(0, mainL - r_indent * 2);
-                    let s_side = Math.round(Math.sqrt(Math.pow(mainW / 2, 2) + Math.pow(h1, 2)) * 100) / 100;
-                    let s_end = Math.round(Math.sqrt(Math.pow(r_indent, 2) + Math.pow(h1, 2)) * 100) / 100;
-
-                    if (vars.rType === 'tent') {
-                        slopes.push({ type: 'tri', wb: Lr, wt: 0, h: s_side, label: 'Скат 1' });
-                        slopes.push({ type: 'tri', wb: Lr, wt: 0, h: s_side, label: 'Скат 2' });
-                        slopes.push({ type: 'tri', wb: Wr, wt: 0, h: s_end, label: 'Скат 3' });
-                        slopes.push({ type: 'tri', wb: Wr, wt: 0, h: s_end, label: 'Скат 4' });
-                    } else {
-                        slopes.push({ type: 'trap', wb: mainL, wt: cRidges, h: s_side, label: 'Скат (Трапеция) 1' });
-                        slopes.push({ type: 'trap', wb: mainL, wt: cRidges, h: s_side, label: 'Скат (Трапеция) 2' });
-                        slopes.push({ type: 'tri', wb: mainW, wt: 0, h: s_end, label: 'Скат (Вальма) 1' });
-                        slopes.push({ type: 'tri', wb: mainW, wt: 0, h: s_end, label: 'Скат (Вальма) 2' });
-                    }
-                }
-            }
-            return slopes;
-        }
-
-        function resetRows2D() {
-            let slopes = getSlopesData();
-            if (slopes.length === 0) return;
-            let maxH = Math.max(...slopes.map(s => s.h));
-            customRows2D = splitSheetHeight(maxH);
-            buildRowsUI();
-            render2D();
-        }
-
-        function buildRowsUI() {
-            let container = document.getElementById('rowsContainer2D');
-            container.innerHTML = '';
-            for (let i = 0; i < customRows2D.length; i++) {
-                container.innerHTML += `
-                    <div class="row-input-group">
-                        <span style="width: 50px; font-size: 13px;">Ряд ${i + 1}:</span>
-                        <input type="number" value="${customRows2D[i].toFixed(2)}" step="0.05" min="0.5" onchange="updateRowVal(${i}, this.value)">
-                        <button onclick="deleteRow(${i})" title="Удалить ряд">X</button>
-                    </div>`;
+            if (renderer && scene && camera && vp.style.display !== 'none') {
+                renderer.render(scene, camera);
+                if (useLabels && labelRenderer) labelRenderer.render(scene, camera);
             }
         }
 
-        function updateRowVal(idx, val) {
-            customRows2D[idx] = parseFloat(val) || 0;
-            render2D();
-        }
-
-        function addRow2D() {
-            customRows2D.push(3.0);
-            buildRowsUI();
-            render2D();
-        }
-
-        function deleteRow(idx) {
-            customRows2D.splice(idx, 1);
-            buildRowsUI();
-            render2D();
-        }
-
-        function getMaxPolyY(x1, x2, type, wb, wt, h) {
-            function yAt(x) {
-                if (type === 'rect') return (x >= -wb / 2 && x <= wb / 2) ? h : -1;
-                if (type === 'tri') return (x >= -wb / 2 && x <= wb / 2) ? h - (2 * h / wb) * Math.abs(x) : -1;
-                if (type === 'trap') {
-                    if (x < -wb / 2 || x > wb / 2) return -1;
-                    if (Math.abs(x) <= wt / 2) return h;
-                    return h - (h / ((wb - wt) / 2)) * (Math.abs(x) - wt / 2);
-                }
-                return -1;
-            }
-            let pts = [x1, x2];
-            if (x1 < 0 && x2 > 0) pts.push(0);
-            if (type === 'trap') {
-                if (x1 < -wt / 2 && x2 > -wt / 2) pts.push(-wt / 2);
-                if (x1 < wt / 2 && x2 > wt / 2) pts.push(wt / 2);
-            }
-            let max_y = -1;
-            for (let px of pts) {
-                let py = yAt(px);
-                if (py > max_y) max_y = py;
-            }
-            return max_y;
-        }
-
-        function render2D() {
-            let slopes = getSlopesData();
-            if (slopes.length === 0) return;
-
-            const canvas = document.getElementById('canvas2D');
-            const ctx = canvas.getContext('2d');
-            const matType = document.getElementById('materialType').value;
-            const shiftX = parseFloat(document.getElementById('shiftX2D').value) || 0;
-            const shiftY = parseFloat(document.getElementById('shiftY2D').value) || 0;
-
-            const scale = 100;
-            const margin = 100;
-
-            let totalH_m = 0;
-            let maxW_m = 0;
-            slopes.forEach(s => {
-                totalH_m += s.h;
-                let w = (s.type === 'trap') ? Math.max(s.wb, s.wt) : s.wb;
-                if (w > maxW_m) maxW_m = w;
-            });
-
-            canvas.width = Math.max(800, maxW_m * scale + margin * 2);
-            canvas.height = Math.max(600, totalH_m * scale + margin * (slopes.length + 1));
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            let currentY_px = margin;
-
-            for (let i = 0; i < slopes.length; i++) {
-                let s = slopes[i];
-                let wMax = (s.type === 'trap') ? Math.max(s.wb, s.wt) : s.wb;
-                let h_px = s.h * scale;
-
-                ctx.save();
-                ctx.translate(canvas.width / 2, currentY_px + h_px);
-                ctx.scale(1, -1);
-
-                ctx.beginPath();
-                if (s.type === 'rect') {
-                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
-                    ctx.lineTo(s.wb / 2 * scale, s.h * scale); ctx.lineTo(-s.wb / 2 * scale, s.h * scale);
-                } else if (s.type === 'trap') {
-                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
-                    ctx.lineTo(s.wt / 2 * scale, s.h * scale); ctx.lineTo(-s.wt / 2 * scale, s.h * scale);
-                } else if (s.type === 'tri') {
-                    ctx.moveTo(-s.wb / 2 * scale, 0); ctx.lineTo(s.wb / 2 * scale, 0);
-                    ctx.lineTo(0, s.h * scale);
-                }
-                ctx.closePath();
-
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#e74c3c';
-                ctx.stroke();
-
-                if (matType === 'metal') {
-                    ctx.clip();
-
-                    let startSearchX = -wMax / 2 + shiftX;
-                    let colIndex = Math.floor((-s.wb / 2 - startSearchX) / 1.10);
-                    if (s.type === 'trap') {
-                        colIndex = Math.floor((-wMax / 2 - startSearchX) / 1.10);
-                    }
-                    let currentX = startSearchX + colIndex * 1.10;
-
-                    while (currentX < wMax / 2) {
-                        let rowStart = shiftY;
-
-                        let virtualRows = [];
-                        let firstH = customRows2D[0] || 3;
-                        if (rowStart > 0) {
-                            let tempY = rowStart;
-                            while (tempY > 0) {
-                                tempY -= (firstH - 0.15);
-                                virtualRows.unshift(firstH);
-                            }
-                            rowStart = tempY;
-                        }
-
-                        let combinedRows = virtualRows.concat(customRows2D);
-                        let tempSum = rowStart;
-                        for (let hr of combinedRows) tempSum += (hr - 0.15);
-
-                        let lastH = customRows2D[customRows2D.length - 1] || 3;
-                        while (tempSum < s.h) {
-                            combinedRows.push(lastH);
-                            tempSum += (lastH - 0.15);
-                        }
-
-                        for (let r = 0; r < combinedRows.length; r++) {
-                            let rowH = combinedRows[r];
-                            if (rowH <= 0) continue;
-                            let rowEnd = rowStart + rowH;
-
-                            let polyMaxY = getMaxPolyY(currentX, currentX + 1.189, s.type, s.wb, s.wt, s.h);
-
-                            if (polyMaxY > 0 && rowStart < polyMaxY && rowEnd > 0) {
-                                ctx.strokeStyle = '#34495e';
-                                ctx.lineWidth = 1;
-                                ctx.strokeRect(currentX * scale, rowStart * scale, 1.189 * scale, rowH * scale);
-
-                                let visibleStart = Math.max(0, rowStart);
-                                let visibleEnd = Math.min(polyMaxY, rowEnd);
-                                let visibleH = visibleEnd - visibleStart;
-
-                                if (visibleH > 0.4) {
-                                    ctx.save();
-                                    ctx.scale(1, -1);
-                                    ctx.fillStyle = '#2980b9';
-                                    ctx.font = 'bold 12px sans-serif';
-                                    ctx.textAlign = 'center';
-
-                                    let textY = -(rowStart + rowH / 2) * scale;
-                                    if (rowStart + rowH / 2 > polyMaxY) {
-                                        textY = -(polyMaxY - 0.2) * scale;
-                                    } else if (rowStart + rowH / 2 < 0) {
-                                        textY = -0.2 * scale;
-                                    }
-
-                                    ctx.fillText(rowH.toFixed(2), (currentX + 1.10 / 2) * scale, textY);
-                                    ctx.restore();
-                                }
-                            }
-                            rowStart += (rowH - 0.15);
-                        }
-                        currentX += 1.10;
-                    }
-                } else {
-                    ctx.fillStyle = 'rgba(149, 165, 166, 0.4)';
-                    ctx.fill();
-                }
-                ctx.restore();
-
-                ctx.fillStyle = '#2c3e50';
-                ctx.font = 'bold 16px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${s.label}. Основание: ${s.wb.toFixed(2)} м`, canvas.width / 2, currentY_px + h_px + 25);
-
-                ctx.save();
-                ctx.translate(canvas.width / 2 - (wMax / 2 * scale) - 30, currentY_px + h_px / 2);
-                ctx.rotate(-Math.PI / 2);
-                ctx.fillText(`Скат: ${s.h.toFixed(2)} м`, 0, 0);
-                ctx.restore();
-
-                if (s.type === 'trap') {
-                    ctx.fillText(`Верх: ${s.wt.toFixed(2)} м`, canvas.width / 2, currentY_px - 10);
-                }
-
-                currentY_px += h_px + margin;
-            }
-        }
-
-        window.download2DLayout = function () {
-            let canvas = document.getElementById('canvas2D');
-            let link = document.createElement('a');
-            link.download = 'Раскладка_Конструктор.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 1.0);
-            link.click();
-        };
+        init3DAnimationLoop();
 
         async function sendChatMessage() {
             const inputField = document.getElementById('chatInput');
