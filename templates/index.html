@@ -349,6 +349,11 @@
             border: 2px solid #bdc3c7;
             overflow: hidden;
         }
+
+        .need-input {
+            border: 2px solid #e74c3c !important;
+            background-color: #fdecea !important;
+        }
     </style>
 </head>
 
@@ -407,6 +412,12 @@
                 <div class="form-group" id="groupPitchHip" style="display: none;"><label>Угол вальмы
                         (град):</label><input type="number" id="mPitchHip" class="highlight-input" step="1" value="30"
                         oninput="render3D()"></div>
+            </div>
+
+            <div class="form-group" id="groupSlopeLen" style="margin-top: 10px;">
+                <label>Длина ската (м): фактическая, если указана на чертеже:</label>
+                <input type="number" id="mSlopeLen" class="highlight-input" step="0.01" placeholder="необязательно"
+                    oninput="render3D()">
             </div>
 
             <div class="form-group" id="groupRidgeHip" style="display: none; margin-top: 10px;">
@@ -615,6 +626,8 @@
 
         function toggleRoofFields() {
             const rType = document.getElementById('roofType').value;
+            const gs = document.getElementById('groupSlopeLen');
+            if (gs) gs.style.display = (rType === 'gable' || rType === 'shed') ? 'block' : 'none';
             const groupPitchHip = document.getElementById('groupPitchHip');
             const groupRidgeHip = document.getElementById('groupRidgeHip');
             if (rType === 'hip') {
@@ -632,11 +645,63 @@
 
         window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
 
-        function extractNumber(text, keyword) {
-            let regex = new RegExp(keyword + "[^:]*:\\s*([\\d\\.,]+)", "i");
-            let match = text.match(regex);
-            if (match) return parseFloat(match[1].replace(',', '.'));
-            return 0;
+        // ===== РАСПОЗНАВАНИЕ ЧЕРТЕЖА (новая версия) =====
+        function esc(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // Если задана фактическая длина ската, ширина дома считается из неё.
+        // Угол при этом сокращается, и площадь кровли от угла не зависит.
+        function syncWidthFromSlope() {
+            const slopeEl = document.getElementById('mSlopeLen');
+            const widthEl = document.getElementById('mRakes');
+            if (!slopeEl) return;
+            const S = parseFloat(slopeEl.value);
+            const rType = document.getElementById('roofType').value;
+            const active = S > 0 && (rType === 'gable' || rType === 'shed');
+            widthEl.readOnly = active;
+            if (!active) return;
+            const P = parseFloat(document.getElementById('mPitch').value) || 30;
+            const soffit = parseFloat(document.getElementById('vSoffitWidth').value) || 0;
+            const k = (rType === 'gable') ? 2 : 1;
+            const W = k * S * Math.cos(P * Math.PI / 180) - 2 * soffit;
+            widthEl.value = Math.max(W, 0).toFixed(2);
+        }
+
+        // Заполняет форму по ответу сервера. Ничего не подставляет "по умолчанию":
+        // чего нет на чертеже, то остаётся пустым и подсвечивается красным.
+        function applyRecognized(d) {
+            const isNull = v => v === null || v === undefined;
+            const val = v => (isNull(v) ? '' : v);
+
+            if (d.roof_type) document.getElementById('roofType').value = d.roof_type;
+            document.getElementById('vOutlets').dataset.manual = 'false';
+            toggleRoofFields();
+
+            document.getElementById('mEaves').value = val(d.length_m);
+            document.getElementById('mSlopeLen').value = val(d.slope_length_m);
+            if (isNull(d.slope_length_m)) document.getElementById('mRakes').value = val(d.width_m);
+            if (!isNull(d.angle_deg)) document.getElementById('mPitch').value = d.angle_deg;
+            document.getElementById('mValleys').value = d.valleys_m || 0;
+            document.getElementById('mAbutments').value = d.abutments_m || 0;
+
+            const noSizes = isNull(d.slope_length_m) && isNull(d.width_m);
+            const flags = {
+                roofType: isNull(d.roof_type),
+                mEaves: isNull(d.length_m),
+                mSlopeLen: noSizes,
+                mRakes: noSizes,
+                mPitch: isNull(d.angle_deg)
+            };
+            for (const id in flags) document.getElementById(id).classList.toggle('need-input', flags[id]);
+
+            const labels = { roofType: 'тип кровли', mEaves: 'длина дома', mSlopeLen: 'длина ската или ширина дома', mPitch: 'угол ската' };
+            const missing = Object.keys(labels).filter(id => flags[id]).map(id => labels[id]);
+
+            // Если есть длина ската, угол для расчёта материалов не обязателен
+            const angleNeeded = isNull(d.slope_length_m);
+            const ready = !flags.mEaves && !noSizes && !(angleNeeded && flags.mPitch);
+            return { ready, missing };
         }
 
         async function analyzeImage() {
@@ -663,11 +728,7 @@
             resultDiv.style.display = "none";
 
             try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error("Сбой на сервере при чтении файла.");
 
                 const data = await response.json();
@@ -675,48 +736,48 @@
                 resultDiv.style.display = "block";
 
                 if (data.error) {
-                    resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${data.error}</span>`;
-                } else {
-                    const aiText = data.result;
-                    resultDiv.innerHTML = "<strong>Распознано:</strong><br><br>" + aiText.replace(/\n/g, "<br>");
+                    resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${esc(data.error)}</span>`;
+                    return;
+                }
 
-                    let lowerText = aiText.toLowerCase();
-                    if (lowerText.includes('односкатная')) document.getElementById('roofType').value = 'shed';
-                    else if (lowerText.includes('вальмовая')) document.getElementById('roofType').value = 'hip';
-                    else if (lowerText.includes('шатровая')) document.getElementById('roofType').value = 'tent';
-                    else document.getElementById('roofType').value = 'gable';
+                const d = data.data;
+                const { ready, missing } = applyRecognized(d);
 
-                    document.getElementById('vOutlets').dataset.manual = 'false';
-                    toggleRoofFields();
+                const typeNames = { gable: 'двухскатная', hip: 'вальмовая', shed: 'односкатная', tent: 'шатровая' };
+                const fmt = v => (v === null || v === undefined) ? '<span style="color:#c0392b;">не найдено</span>' : esc(v);
+                let html = '<strong>Распознано (проверьте цифры):</strong><br>' +
+                    `Тип: ${d.roof_type ? typeNames[d.roof_type] : fmt(null)}<br>` +
+                    `Длина дома: ${fmt(d.length_m)} м<br>` +
+                    `Длина ската: ${fmt(d.slope_length_m)} м<br>` +
+                    `Ширина дома: ${fmt(d.width_m)} м<br>` +
+                    `Угол: ${fmt(d.angle_deg)}°`;
+                if (d.notes) html += `<br><br><i>Заметки ИИ: ${esc(d.notes)}</i>`;
+                if (missing.length) html += `<br><br><b style="color:#c0392b;">Заполните вручную (поля подсвечены красным): ${missing.join(', ')}</b>`;
+                resultDiv.innerHTML = html;
 
-                    document.getElementById('mPitch').value = extractNumber(aiText, 'Угол') || 30;
-                    document.getElementById('mEaves').value = extractNumber(aiText, 'Карниз') || 10;
-                    document.getElementById('mRakes').value = extractNumber(aiText, 'Торец') || 8;
-                    document.getElementById('mRidges').value = extractNumber(aiText, 'Коньки') || extractNumber(aiText, 'Конёк') || 0;
-                    document.getElementById('mHips').value = extractNumber(aiText, 'Хребты') || 0;
-                    document.getElementById('mValleys').value = extractNumber(aiText, 'Ендовы') || 0;
-                    document.getElementById('mAbutments').value = extractNumber(aiText, 'Примыкания') || 0;
+                if (ready) processAndDraw(); else render3D();
 
-                    processAndDraw();
+                const mBox = document.getElementById('manualBox');
+                if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
 
-                    let mBox = document.getElementById('manualBox');
-                    if (mBox) mBox.scrollIntoView({ behavior: 'smooth' });
+                conversationHistory = [];
+                conversationHistory.push({ role: "user", text: "Я загрузил чертеж. Запомни распознанные данные: \n" + JSON.stringify(d) });
+                conversationHistory.push({ role: "model", text: "Принято! Я готов." });
 
-                    conversationHistory = [];
-                    conversationHistory.push({ role: "user", text: "Я загрузил чертеж. Запомни эти размеры: \n" + aiText });
-                    conversationHistory.push({ role: "model", text: "Принято! Я готов." });
-
-                    if (historyBox) {
-                        historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Чертеж обработан, 3D-модель построена!</div><br>`;
-                        historyBox.scrollTop = historyBox.scrollHeight;
-                    }
+                if (historyBox) {
+                    historyBox.innerHTML += `<div class="msg-ai" style="color: #8e44ad; font-style: italic;">Ассистент: Чертеж обработан${ready ? ', 3D-модель построена!' : '. Часть данных не найдена, заполните выделенные поля.'}</div><br>`;
+                    historyBox.scrollTop = historyBox.scrollHeight;
                 }
             } catch (error) {
                 loader.style.display = "none";
                 resultDiv.style.display = "block";
-                resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${error.message}</span>`;
+                resultDiv.innerHTML = `<span style='color: red;'><b>Ошибка:</b> ${esc(error.message)}</span>`;
             }
         }
+
+        // Красная подсветка снимается, как только пользователь начал править поле
+        document.addEventListener('input', e => e.target.classList && e.target.classList.remove('need-input'));
+        // ===== КОНЕЦ БЛОКА РАСПОЗНАВАНИЯ =====
 
         function processAndDraw() {
             render3D();
@@ -724,6 +785,7 @@
         }
 
         function doMath() {
+            syncWidthFromSlope();
             const rType = document.getElementById('roofType').value;
             let L = parseFloat(document.getElementById('mEaves').value) || 0; let W = parseFloat(document.getElementById('mRakes').value) || 0;
             let P1 = parseFloat(document.getElementById('mPitch').value) || 0; let P2 = parseFloat(document.getElementById('mPitchHip').value) || 0;
