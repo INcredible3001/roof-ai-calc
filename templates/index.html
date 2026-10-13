@@ -383,9 +383,15 @@
         <div class="box"
             style="border-left: 4px solid #f1c40f; padding-left: 15px; background-color: #fff9e6; padding: 10px; border-radius: 4px;">
             <h3 style="margin-bottom: 10px; color: #d35400;">1. Информация о клиенте</h3>
-            <div class="form-group" style="margin-bottom: 5px;">
-                <label>Контрагент (Имя / Объект):</label>
-                <input type="text" id="clientName" placeholder="ИП Иванов И.И. / Участок №42">
+            <div class="grid-2-col" style="margin-bottom: 5px;">
+                <div class="form-group">
+                    <label>Контрагент (Имя):</label>
+                    <input type="text" id="clientName" placeholder="ИП Иванов И.И.">
+                </div>
+                <div class="form-group">
+                    <label>ИНН (для 1С):</label>
+                    <input type="text" id="clientINN" placeholder="Например: 7701234567">
+                </div>
             </div>
         </div>
 
@@ -645,13 +651,11 @@
 
         window.onload = function () { toggleRoofFields(); updateBrandMenu(); init3D(); };
 
-        // ===== РАСПОЗНАВАНИЕ ЧЕРТЕЖА (новая версия) =====
+        // ===== РАСПОЗНАВАНИЕ ЧЕРТЕЖА =====
         function esc(s) {
             return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        // Если задана фактическая длина ската, ширина дома считается из неё.
-        // Угол при этом сокращается, и площадь кровли от угла не зависит.
         function syncWidthFromSlope() {
             const slopeEl = document.getElementById('mSlopeLen');
             const widthEl = document.getElementById('mRakes');
@@ -668,8 +672,6 @@
             widthEl.value = Math.max(W, 0).toFixed(2);
         }
 
-        // Заполняет форму по ответу сервера. Ничего не подставляет "по умолчанию":
-        // чего нет на чертеже, то остаётся пустым и подсвечивается красным.
         function applyRecognized(d) {
             const isNull = v => v === null || v === undefined;
             const val = v => (isNull(v) ? '' : v);
@@ -698,7 +700,6 @@
             const labels = { roofType: 'тип кровли', mEaves: 'длина дома', mSlopeLen: 'длина ската или ширина дома', mPitch: 'угол ската' };
             const missing = Object.keys(labels).filter(id => flags[id]).map(id => labels[id]);
 
-            // Если есть длина ската, угол для расчёта материалов не обязателен
             const angleNeeded = isNull(d.slope_length_m);
             const ready = !flags.mEaves && !noSizes && !(angleNeeded && flags.mPitch);
             return { ready, missing };
@@ -775,7 +776,6 @@
             }
         }
 
-        // Красная подсветка снимается, как только пользователь начал править поле
         document.addEventListener('input', e => e.target.classList && e.target.classList.remove('need-input'));
         // ===== КОНЕЦ БЛОКА РАСПОЗНАВАНИЯ =====
 
@@ -1347,6 +1347,7 @@
             let roofTypeName = document.getElementById('roofType').options[document.getElementById('roofType').selectedIndex].text;
             windowCalcData = {
                 clientName: document.getElementById('clientName').value || 'Не указан',
+                clientINN: document.getElementById('clientINN') ? document.getElementById('clientINN').value : '',
                 roofType: roofTypeName,
                 L: vars.L, W: vars.W, P1: vars.P1,
                 matTypeStr: matType + " (" + brand + ")",
@@ -1432,7 +1433,7 @@
             merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
             ws_data.push([{ v: "Контрагент:", s: styleBold }, { v: d.clientName }, null, { v: "Дата и время:", s: styleBold }, { v: dateStr }]);
-            ws_data.push([{ v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }, null, null, null]);
+            ws_data.push([{ v: "ИНН:", s: styleBold }, { v: d.clientINN || "-" }, null, { v: "Номер расчета:", s: styleBold }, { v: "№ " + orderNum }]);
             ws_data.push([]);
 
             let rIdx = ws_data.length;
