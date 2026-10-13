@@ -1356,7 +1356,7 @@
                 specData: specData
             };
 
-            let html = `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
+            html += `<div style="margin-top: 25px; border-top: 2px dashed #bdc3c7; padding-top: 15px;">
                         <h3 style="color: #2c3e50; text-align: center; margin-bottom: 5px;">Развернутая спецификация элементов</h3>
                         <p style="font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 0;">(Сформировано по чек-листу для ${matTypeVal === 'metal' ? 'металлочерепицы' : 'гибкой черепицы'})</p>
                      </div>`;
@@ -2002,15 +2002,13 @@
             const L = document.getElementById('mEaves').value;
             const W = document.getElementById('mRakes').value;
             const P1 = document.getElementById('mPitch').value;
-            const soffit = document.getElementById('vSoffitWidth').value; // НОВОЕ: берем свес
+            const soffit = document.getElementById('vSoffitWidth').value;
 
-            // НОВОЕ: берем готовую точную площадь, если она уже рассчитана калькулятором
             let calcAreaInfo = "";
             if (windowCalcData && windowCalcData.slopedArea) {
                 calcAreaInfo = `\nТочная чистая площадь скатов (расчет системы): ${windowCalcData.slopedArea.toFixed(2)} м²`;
             }
 
-            // НОВОЕ: обновленный контекст с жесткой инструкцией для ИИ
             let currentContext = `--- ТЕКУЩИЕ ПАРАМЕТРЫ ПРОЕКТА ---
 Тип кровли: ${roofName}
 Базовые габариты дома (без свесов): ${L} м х ${W} м
